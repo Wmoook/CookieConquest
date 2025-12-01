@@ -1429,6 +1429,32 @@ class TutorialGame {
             ctx.fillText('DEBT', MARGIN_LEFT + 5, zeroY + 15);
         }
         
+        // Draw liquidation zones for positions ON the player (others betting on you)
+        if (player && player.name === 'You' && this.player.positionsOnMe && this.player.positionsOnMe.length > 0) {
+            this.player.positionsOnMe.forEach((pos, idx) => {
+                if (!pos.liquidationPrice) return;
+                
+                const liqY = H - ((pos.liquidationPrice - min) / range) * H;
+                
+                // Liquidation line for this position
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_LEFT, liqY);
+                ctx.lineTo(W, liqY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Label with owner name
+                ctx.fillStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                ctx.font = 'bold 8px Arial';
+                ctx.textAlign = 'left';
+                const offset = idx * 12; // Stagger labels if multiple
+                ctx.fillText(`${pos.ownerName} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+            });
+        }
+        
         // Draw liquidation zones if player has position on this target
         if (player && player.name !== 'You') {
             const position = this.player.positions.find(p => p.targetName === player.name);
