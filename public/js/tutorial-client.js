@@ -360,8 +360,29 @@ class TutorialGame {
             return false;
         }
         
-        if (target.cookies < 100) {
-            this.showNotification(`${target.name} needs at least 100🍪 to trade on!`, 'error');
+        if (target.cookies < 500) {
+            this.showNotification(`${target.name} needs at least 500🍪 to trade on!`, 'error');
+            return false;
+        }
+        
+        // Calculate target's net worth for position limits
+        const targetNetWorth = target.cookies + this.calculateGeneratorValue(target);
+        
+        // Max stake per position = 25% of target's net worth
+        const maxStakePerPosition = Math.floor(targetNetWorth * 0.25);
+        if (stake * leverage > maxStakePerPosition) {
+            this.showNotification(`Position too large! Max ${maxStakePerPosition}🍪 exposure on ${target.name}`, 'error');
+            return false;
+        }
+        
+        // Max total exposure on target = 50% of their net worth
+        const existingExposure = this.player.positions
+            .filter(p => p.targetName === targetName)
+            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
+        const newTotalExposure = existingExposure + (stake * leverage);
+        const maxTotalExposure = Math.floor(targetNetWorth * 0.5);
+        if (newTotalExposure > maxTotalExposure) {
+            this.showNotification(`Too much exposure on ${target.name}! Max ${maxTotalExposure}🍪 total`, 'error');
             return false;
         }
         

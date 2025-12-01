@@ -439,10 +439,39 @@ io.on('connection', (socket) => {
         const available = player.cookies - player.positions.reduce((sum, p) => sum + p.stake, 0);
         if (stake > available) {
             console.log('openPosition: stake > available', { stake, available });
+            socket.emit('game:error', { message: `Not enough available cookies! Have ${Math.floor(available)}` });
             return;
         }
-        if (target.cookies < 100) {
-            console.log('openPosition: target cookies < 100', { targetCookies: target.cookies });
+        if (target.cookies < 500) {
+            console.log('openPosition: target cookies < 500', { targetCookies: target.cookies });
+            socket.emit('game:error', { message: `${target.name} needs at least 500🍪 to trade on!` });
+            return;
+        }
+        
+        // Calculate target's net worth for position limits
+        const targetGenValue = Object.entries(target.generators).reduce((sum, [type, count]) => {
+            const prices = { grandma: 100, bakery: 500, factory: 2000, mine: 10000, bank: 50000, temple: 250000 };
+            return sum + (count * prices[type] * 0.9);
+        }, 0);
+        const targetNetWorth = target.cookies + targetGenValue;
+        
+        // Max stake per position = 25% of target's net worth
+        const maxStakePerPosition = Math.floor(targetNetWorth * 0.25);
+        if (stake * leverage > maxStakePerPosition) {
+            console.log('openPosition: position too large', { stakeXleverage: stake * leverage, maxStakePerPosition });
+            socket.emit('game:error', { message: `Position too large! Max ${maxStakePerPosition}🍪 exposure on ${target.name}` });
+            return;
+        }
+        
+        // Max total exposure on target = 50% of their net worth
+        const existingExposure = player.positions
+            .filter(p => p.targetName === target.name)
+            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
+        const newTotalExposure = existingExposure + (stake * leverage);
+        const maxTotalExposure = Math.floor(targetNetWorth * 0.5);
+        if (newTotalExposure > maxTotalExposure) {
+            console.log('openPosition: too much exposure', { newTotalExposure, maxTotalExposure });
+            socket.emit('game:error', { message: `Too much exposure on ${target.name}! Max ${maxTotalExposure}🍪 total` });
             return;
         }
         

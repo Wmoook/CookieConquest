@@ -127,6 +127,10 @@ class MultiplayerGame {
             this.showNotification(`👁️ ${by} opened a position on YOU!`, 'warning');
         });
         
+        this.socket.on('game:error', ({ message }) => {
+            this.showNotification(message, 'error');
+        });
+        
         this.socket.on('game:notification', ({ type, message }) => {
             // Market impact notifications
             this.showNotification(message, type === 'market' ? 'info' : 'info');
@@ -540,7 +544,7 @@ class MultiplayerGame {
         const target = this.gameState.players.find(p => p.name === targetName);
         if (!me || !target) return 0;
         
-        const MIN_ENTRY_PRICE = 100;
+        const MIN_ENTRY_PRICE = 500;
         if (target.cookies < MIN_ENTRY_PRICE) return 0;
         
         // Available = my cookies - locked in positions
@@ -588,7 +592,7 @@ class MultiplayerGame {
             return;
         }
         
-        const MIN_ENTRY_PRICE = 100;
+        const MIN_ENTRY_PRICE = 500;
         if (target.cookies < MIN_ENTRY_PRICE) {
             this.showNotification(`${target.name} needs at least ${MIN_ENTRY_PRICE}🍪 to trade on!`, 'error');
             return;
