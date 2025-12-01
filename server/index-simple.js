@@ -355,6 +355,26 @@ io.on('connection', (socket) => {
         io.to(code).emit('game:state', lobby.gameState);
     });
     
+    // Cursor position relay - broadcast to other players
+    socket.on('game:cursor', ({ x, y }) => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Broadcast cursor to other players in the room
+        socket.to(code).emit('game:cursor', {
+            playerName: player.name,
+            color: player.color,
+            x,
+            y
+        });
+    });
+    
     // Buy generator
     socket.on('game:buy', (generatorType) => {
         const code = playerLobby.get(socket.id);

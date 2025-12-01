@@ -27,6 +27,10 @@ class MultiplayerGame {
         // Leverage per target
         this.targetLeverage = {}; // playerId -> leverage
         
+        // Multiplayer cursor tracking
+        this.remoteCursors = {}; // playerName -> { x, y, color, element, lastUpdate }
+        this.lastCursorBroadcast = 0;
+        
         this.init();
     }
     
@@ -171,6 +175,11 @@ class MultiplayerGame {
             }
         });
         
+        // Remote cursor updates
+        this.socket.on('game:cursor', ({ playerName, color, x, y }) => {
+            this.updateRemoteCursor(playerName, color, x, y);
+        });
+        
         this.socket.on('game:winner', (winner) => {
             this.isGameActive = false;
             const isMe = winner.id === this.playerId;
@@ -207,6 +216,15 @@ class MultiplayerGame {
         } else {
             console.error('Cookie button not found!');
         }
+        
+        // Track mouse movement for cursor sharing (throttled to ~20fps)
+        document.addEventListener('mousemove', (e) => {
+            const now = Date.now();
+            if (now - this.lastCursorUpdate > 50) {
+                this.lastCursorUpdate = now;
+                this.socket.emit('game:cursor', { x: e.clientX, y: e.clientY });
+            }
+        });
         
         // Tab clicks
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1791,6 +1809,43 @@ class MultiplayerGame {
             toast.style.animation = 'toastSlideOut 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }, 4000);
+    }
+    
+    updateRemoteCursor(playerName, color, x, y) {
+        // Don't show our own cursor
+        if (playerName === this.playerName) return;
+        
+        let cursor = this.otherCursors[playerName];
+        
+        if (!cursor) {
+            // Create new cursor element
+            cursor = document.createElement('div');
+            cursor.className = 'remote-cursor';
+            cursor.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="${color}" stroke="#fff" stroke-width="1">
+                    <path d="M4 4 L4 20 L9 15 L14 22 L16 21 L11 14 L18 14 Z"/>
+                </svg>
+                <span class="cursor-label" style="background: ${color}">${playerName}</span>
+            `;
+            cursor.style.cssText = `
+                position: fixed;
+                pointer-events: none;
+                z-index: 99999;
+                transition: left 0.05s linear, top 0.05s linear;
+            `;
+            document.body.appendChild(cursor);
+            this.otherCursors[playerName] = cursor;
+        }
+        
+        cursor.style.left = x + 'px';
+        cursor.style.top = y + 'px';
+        
+        // Remove cursor if player is inactive for 3 seconds
+        if (cursor.timeout) clearTimeout(cursor.timeout);
+        cursor.timeout = setTimeout(() => {
+            cursor.remove();
+            delete this.otherCursors[playerName];
+        }, 3000);
     }
 }
 
