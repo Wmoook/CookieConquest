@@ -20,8 +20,8 @@ class TutorialGame {
         
         // Bot players
         this.bots = [
-            { name: 'CookieBot', cookies: 100, cps: 2, generators: { grandma: 2, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 }, positions: [], positionsOnMe: [], isBot: true },
-            { name: 'TraderBot', cookies: 100, cps: 1, generators: { grandma: 1, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 }, positions: [], positionsOnMe: [], isBot: true }
+            { name: 'CookieBot', cookies: 600, cps: 2, generators: { grandma: 2, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 }, positions: [], positionsOnMe: [], isBot: true },
+            { name: 'TraderBot', cookies: 600, cps: 1, generators: { grandma: 1, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 }, positions: [], positionsOnMe: [], isBot: true }
         ];
         
         // Player data
