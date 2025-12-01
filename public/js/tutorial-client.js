@@ -1369,6 +1369,26 @@ class TutorialGame {
         // Calculate bounds - allow negative values for debt display
         let min = Math.min(...data);
         let max = Math.max(...data);
+        
+        // Expand bounds to include liquidation prices on player's chart
+        if (player && player.name === 'You' && this.player.positionsOnMe && this.player.positionsOnMe.length > 0) {
+            this.player.positionsOnMe.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    min = Math.min(min, pos.liquidationPrice);
+                    max = Math.max(max, pos.liquidationPrice);
+                }
+            });
+        }
+        
+        // Expand bounds to include liquidation prices on target charts
+        if (player && player.name !== 'You') {
+            const position = this.player.positions.find(p => p.targetName === player.name);
+            if (position && position.liquidationPrice) {
+                min = Math.min(min, position.liquidationPrice);
+                max = Math.max(max, position.liquidationPrice);
+            }
+        }
+        
         const padding = (max - min) * 0.15 || 10;
         min = min - padding; // Allow negative values
         max += padding;
