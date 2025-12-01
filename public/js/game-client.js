@@ -279,7 +279,7 @@ class MultiplayerGame {
                     </div>
                     <div class="stock-stats">
                         <span class="stat-total" id="score-${chartId}">${player.cookies || 0} 🍪</span>
-                        ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : ''}
+                        ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 ${player.cookies || 0}</span>`}
                         <span class="stat-velocity up" id="vel-${chartId}">+0/s</span>
                     </div>
                 </div>
@@ -1186,6 +1186,14 @@ class MultiplayerGame {
             const chartId = this.isMe(p) ? 'you' : p.name;
             const rankEl = document.getElementById(`rank-${chartId}`);
             if (rankEl) rankEl.textContent = ranks[idx];
+            
+            // Update net worth display for other players
+            if (!this.isMe(p)) {
+                const networthEl = document.getElementById(`networth-${chartId}`);
+                if (networthEl) {
+                    networthEl.textContent = `💎 ${Math.floor(p.cookies).toLocaleString()}`;
+                }
+            }
         });
     }
     

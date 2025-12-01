@@ -530,6 +530,7 @@ class TutorialGame {
                         </div>
                         <div class="stock-stats">
                             <span class="stat-total" id="total-${chartId}">${player.cookies}🍪</span>
+                            ${!isMe ? `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 ${player.cookies}</span>` : ''}
                             <span class="stat-velocity up" id="vel-${chartId}">+${player.cps}/s</span>
                         </div>
                     </div>
@@ -916,6 +917,14 @@ class TutorialGame {
             if (velEl) {
                 velEl.textContent = '+' + player.cps + '/s';
                 velEl.className = 'stat-velocity up';
+            }
+            
+            // Update net worth display for other players
+            if (player.name !== 'You') {
+                const networthEl = document.getElementById(`networth-${chartId}`);
+                if (networthEl) {
+                    networthEl.textContent = `💎 ${Math.floor(player.cookies).toLocaleString()}`;
+                }
             }
         });
         
