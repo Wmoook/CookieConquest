@@ -815,6 +815,41 @@ class TutorialGame {
             networthEl.textContent = Math.floor(netWorth).toLocaleString();
         }
         
+        // Calculate Real Balance (what you'd have if all positions on you closed now)
+        const positionsOnMe = this.player.positionsOnMe || [];
+        let opponentsPotentialProfit = 0;
+        for (const pos of positionsOnMe) {
+            const currentPrice = this.player.cookies;
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const theirPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            if (theirPnl > 0) {
+                opponentsPotentialProfit += theirPnl;
+            }
+        }
+        
+        const realBalance = this.player.cookies - opponentsPotentialProfit;
+        const realBalanceContainer = document.getElementById('real-balance-container');
+        const realBalanceValue = document.getElementById('real-balance-value');
+        
+        if (realBalanceContainer && realBalanceValue) {
+            if (opponentsPotentialProfit > 0) {
+                realBalanceContainer.style.display = 'block';
+                realBalanceValue.textContent = Math.floor(realBalance).toLocaleString();
+                
+                // Color code: red if would go negative, orange if low, white if still good
+                if (realBalance < 0) {
+                    realBalanceValue.style.color = '#e74c3c';
+                } else if (realBalance < this.player.cookies * 0.5) {
+                    realBalanceValue.style.color = '#f39c12';
+                } else {
+                    realBalanceValue.style.color = '#e74c3c';
+                }
+            } else {
+                realBalanceContainer.style.display = 'none';
+            }
+        }
+        
         // Update available (base cookies minus what's locked in positions)
         const availableEl = document.getElementById('available-value');
         if (availableEl) {

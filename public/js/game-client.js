@@ -299,7 +299,7 @@ class MultiplayerGame {
                     <div class="card-actions">
                         <div class="trade-controls">
                             <div class="leverage-select">
-                                ${[2,5,10].map(lev => 
+                                ${[2,3,4,5,6,7,8,9,10].map(lev => 
                                     `<button class="lev-btn ${lev === 2 ? 'active' : ''}" data-lev="${lev}" data-target="${player.name}">${lev}x</button>`
                                 ).join('')}
                             </div>
@@ -504,9 +504,15 @@ class MultiplayerGame {
         const fullData = history.fullCookies;
         const fullLen = fullData.length;
         
-        // In ALL mode, dynamically adjust zoom to show everything
+        // In ALL mode, show everything from start to end
         if (vp.isAll) {
-            vp.zoom = 60 / Math.max(60, fullLen);
+            return {
+                data: fullData,
+                isLive: true,
+                startIdx: 0,
+                endIdx: fullLen,
+                fullLen
+            };
         }
         
         const visiblePoints = Math.floor(60 / vp.zoom);
@@ -801,6 +807,35 @@ class MultiplayerGame {
             ctx.fillText('DEBT', MARGIN_LEFT + 5, zeroY + 15);
         }
         
+        // Draw OTHER players' liquidation prices on YOUR chart
+        if (player && this.isMe(player) && this.gameState) {
+            // Find all positions where opponents have positions ON YOU
+            const positionsOnYou = player.positionsOnMe || [];
+            
+            positionsOnYou.forEach((pos, idx) => {
+                if (pos.liquidationPrice) {
+                    const liqY = H - ((pos.liquidationPrice - min) / range) * H;
+                    
+                    // Draw liquidation line for this opponent
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(MARGIN_LEFT, liqY);
+                    ctx.lineTo(W, liqY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Label with opponent name
+                    ctx.fillStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'left';
+                    const offset = idx * 12; // Stagger labels if multiple
+                    ctx.fillText(`${pos.ownerName} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+                }
+            });
+        }
+        
         // Draw liquidation zones if player has position on this target
         const me = this.getMe();
         if (me && player && !this.isMe(player)) {
@@ -1053,6 +1088,41 @@ class MultiplayerGame {
             networthEl.textContent = Math.floor(netWorth).toLocaleString();
         }
         
+        // Calculate Real Balance (what you'd have if all positions on you closed now)
+        const positionsOnMe = me.positionsOnMe || [];
+        let opponentsPotentialProfit = 0;
+        for (const pos of positionsOnMe) {
+            const currentPrice = me.cookies;
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const theirPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            if (theirPnl > 0) {
+                opponentsPotentialProfit += theirPnl;
+            }
+        }
+        
+        const realBalance = me.cookies - opponentsPotentialProfit;
+        const realBalanceContainer = document.getElementById('real-balance-container');
+        const realBalanceValue = document.getElementById('real-balance-value');
+        
+        if (realBalanceContainer && realBalanceValue) {
+            if (opponentsPotentialProfit > 0) {
+                realBalanceContainer.style.display = 'block';
+                realBalanceValue.textContent = Math.floor(realBalance).toLocaleString();
+                
+                // Color code: red if would go negative, orange if low, white if still good
+                if (realBalance < 0) {
+                    realBalanceValue.style.color = '#e74c3c';
+                } else if (realBalance < me.cookies * 0.5) {
+                    realBalanceValue.style.color = '#f39c12';
+                } else {
+                    realBalanceValue.style.color = '#e74c3c';
+                }
+            } else {
+                realBalanceContainer.style.display = 'none';
+            }
+        }
+        
         // Calculate locked margin (stake + unrealized PNL)
         const lockedStake = me.positions.reduce((sum, p) => sum + p.stake, 0);
         const lockedWithPnl = lockedStake + unrealizedPnl;
@@ -1125,41 +1195,6 @@ class MultiplayerGame {
         const me = this.getMe();
         console.log('updatePositionsPanel - me:', me?.name, 'positions count:', me?.positions?.length);
         if (!me) return;
-        
-        // Update card position indicators (inline on player cards)
-        this.gameState.players.forEach(player => {
-            if (this.isMe(player)) return;
-            
-            const posEl = document.getElementById(`pos-${player.name}`);
-            if (!posEl) return;
-            
-            const position = me.positions.find(p => p.targetName === player.name);
-            
-            if (position) {
-                const currentPrice = player.cookies;
-                const priceChange = currentPrice - position.entryPrice;
-                const pnlMultiplier = position.type === 'long' ? 1 : -1;
-                const pnl = Math.floor((priceChange / (position.entryPrice || 1)) * position.stake * position.leverage * pnlMultiplier);
-                
-                const pnlClass = pnl >= 0 ? 'profit' : 'loss';
-                const pnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
-                
-                posEl.className = `active-position ${position.type}`;
-                posEl.style.display = 'block';
-                posEl.innerHTML = `
-                    <div class="pos-header">
-                        <span class="pos-type ${position.type}">${position.type.toUpperCase()} ${position.leverage}x</span>
-                        <span class="pos-pnl ${pnlClass}">${pnlText}🍪</span>
-                    </div>
-                    <div class="pos-details">
-                        <span>Stake: ${position.stake}</span>
-                        <span>Entry: ${Math.floor(position.entryPrice)}</span>
-                    </div>
-                `;
-            } else {
-                posEl.style.display = 'none';
-            }
-        });
         
         // Update positions on me (under my chart)
         this.updatePositionsOnMeDisplay(me);

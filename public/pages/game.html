@@ -142,8 +142,9 @@
         /* Trade controls */
         .card-actions { padding: 8px 10px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; }
         .trade-controls { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; }
-        .leverage-select { display: flex; gap: 2px; }
-        .lev-btn { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .leverage-select { display: flex; gap: 2px; flex-wrap: wrap; }
+        .lev-btn { padding: 4px 5px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.6em; font-weight: bold; cursor: pointer; transition: all 0.1s; }
+        .lev-btn:hover { background: #252540; border-color: #555; }
         .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
         .stake-row { display: flex; gap: 3px; align-items: center; flex: 1; }
         .stake-input { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.7em; width: 50px; text-align: center; flex: 1; min-width: 40px; }
@@ -352,16 +353,13 @@
                         <span class="stat-label">Your Cookies</span>
                         <span class="stat-value" id="cookie-count">0</span>
                     </div>
+                    <div class="stat-real-balance" style="text-align: center; padding: 8px; background: rgba(231,76,60,0.1); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.75em;">⚠️ Real Balance (if positions close)</span>
+                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 1.1em; display: block; font-weight: 700;">0</span>
+                    </div>
                     <div class="stat-networth" style="text-align: center; padding: 8px; background: rgba(155,89,182,0.15); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(155,89,182,0.3);">
                         <span class="stat-label" style="color: #9b59b6; font-size: 0.8em;">💎 Net Worth</span>
                         <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1.2em; display: block;">0</span>
-                    </div>
-                    <div class="stat-goal">
-                        <span class="goal-label">🏆 GOAL: 1,000,000 🍪</span>
-                        <div class="goal-progress-bar">
-                            <div class="goal-progress-fill" id="goal-progress" style="width: 0%"></div>
-                        </div>
-                        <span class="goal-percent" id="goal-percent-left">0%</span>
                     </div>
                     <div class="stat-locked-main" id="locked-display">
                         <span class="stat-label" style="color: #f1c40f;">🔒 Locked</span>
