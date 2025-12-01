@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cookie Conquest - Multiplayer</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+    
+    <style>
+        /* BASE STYLES */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh; color: #fff; overflow-x: hidden; }
+        .game-container { display: flex; flex-direction: column; height: 100vh; }
+        .game-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .game-main { display: grid; grid-template-columns: 280px 1fr 280px; gap: 15px; padding: 15px; flex: 1; overflow: hidden; }
+        .game-panel { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; overflow-y: auto; }
+        .panel-left, .panel-right { max-width: 280px; }
+        .match-code { font-weight: 700; color: #f39c12; }
+        .header-center { display: flex; align-items: center; gap: 15px; }
+        .goal-bar { width: 200px; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; }
+        .goal-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12); transition: width 0.3s; }
+        .goal-text { font-size: 0.8em; color: #888; }
+        .pot-amount { font-weight: 700; }
+        
+        /* COOKIE AREA */
+        .cookie-area { text-align: center; padding: 20px; position: relative; overflow: visible; }
+        .big-cookie { width: 120px; height: 120px; border: none; background: none; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
+        .big-cookie:hover { transform: scale(1.05); }
+        .big-cookie:active { transform: scale(0.95); }
+        .cookie-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(246, 212, 155, 0.5)); }
+        .click-indicator { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; opacity: 0; }
+        
+        /* STATS */
+        .cookie-stats { padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 15px; }
+        .stat-main { text-align: center; margin-bottom: 15px; }
+        .stat-main .stat-label { font-size: 0.8em; color: #888; }
+        .stat-main .stat-value { font-size: 2em; font-weight: 800; color: #F6D49B; display: block; }
+        .stat-goal { text-align: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; }
+        .goal-label { font-size: 0.75em; color: #f39c12; display: block; margin-bottom: 5px; }
+        .goal-progress-bar { height: 8px; background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+        .goal-progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12); transition: width 0.3s; }
+        .goal-percent { font-size: 0.7em; color: #888; }
+        .stat-secondary { display: flex; gap: 10px; }
+        .stat-item { flex: 1; text-align: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+        .stat-item .stat-label { font-size: 0.65em; color: #888; display: block; }
+        .stat-item .stat-value { font-size: 0.9em; font-weight: 700; color: #2ecc71; }
+        .stat-locked-main { text-align: center; padding: 10px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(241,196,15,0.3); }
+        
+        /* GENERATORS */
+        .generators-list { display: flex; flex-direction: column; gap: 10px; }
+        .generator-btn { display: flex; align-items: center; gap: 12px; padding: 12px; background: linear-gradient(135deg, #2a2a4a, #1a1a2e); border: 1px solid #3a3a5a; border-radius: 10px; cursor: pointer; transition: all 0.2s; color: #fff; text-align: left; }
+        .generator-btn:hover:not(.locked):not(:disabled) { border-color: #F6D49B; transform: translateX(5px); }
+        .generator-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .generator-btn.locked { opacity: 0.4; cursor: not-allowed; filter: grayscale(50%); }
+        .generator-btn.locked .cost-value { color: #e74c3c; }
+        .gen-icon-svg { flex-shrink: 0; }
+        .gen-info { flex: 1; }
+        .gen-name { font-weight: 700; display: block; }
+        .gen-desc { font-size: 0.75em; color: #888; }
+        .gen-cost { text-align: right; }
+        .gen-level { font-size: 0.7em; color: #888; display: block; }
+        .cost-value { font-weight: 700; color: #F6D49B; }
+        
+        /* TAB SYSTEM */
+        .tab-nav { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab-btn { flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 8px; color: #888; cursor: pointer; font-size: 0.8em; }
+        .tab-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* LIVE POSITIONS */
+        .live-positions { margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .positions-title { font-size: 0.8em; color: #f39c12; margin-bottom: 8px; }
+        .no-positions { font-size: 0.75em; color: #555; text-align: center; padding: 10px; }
+        .position-item { display: flex; align-items: center; gap: 5px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 4px; font-size: 0.7em; }
+        .position-item .trader { color: #F6D49B; font-weight: 600; }
+        .position-item .arrow { color: #666; }
+        .position-item .target { color: #9b59b6; font-weight: 600; }
+        
+        /* NOTIFICATION FEED */
+        .notification-feed { margin-top: 15px; }
+        .notif-feed-title { font-size: 0.8em; color: #888; margin-bottom: 8px; }
+        .notif-feed-list { max-height: 150px; overflow-y: auto; }
+        .notif-item { padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 5px; font-size: 0.75em; border-left: 3px solid #3498db; transition: opacity 0.3s; }
+        .notif-item.success { border-left-color: #2ecc71; background: rgba(46,204,113,0.1); }
+        .notif-item.error { border-left-color: #e74c3c; background: rgba(231,76,60,0.1); }
+        .notif-item.warning { border-left-color: #f39c12; background: rgba(243,156,18,0.1); }
+        .notif-item.info { border-left-color: #3498db; background: rgba(52,152,219,0.1); }
+        
+        /* LIVE POSITIONS */
+        .live-positions { margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .live-positions .positions-title { font-size: 0.8em; color: #888; margin-bottom: 8px; display: block; }
+        .live-positions .positions-list { max-height: 120px; overflow-y: auto; }
+        .live-positions .no-positions { color: #555; font-size: 0.75em; text-align: center; padding: 10px; }
+        .live-positions .position-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 4px; font-size: 0.75em; }
+        .live-positions .position-item .trader { color: #aaa; }
+        .live-positions .position-item .arrow { color: #666; }
+        .live-positions .position-item .target { color: #aaa; }
+        .live-positions .position-item.player-position .trader { color: #2ecc71; font-weight: bold; }
+        .live-positions .position-item.opponent-on-me .target { color: #e74c3c; font-weight: bold; }
+        
+        /* CHART SYSTEM - DEX Screener Style */
+        .player-stocks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px; }
+        .player-stock-card { background: linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%); border: 1px solid #2a2a4a; border-radius: 12px; padding: 0; overflow: hidden; min-height: 220px; }
+        .player-stock-card.you { border-color: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.15); }
+        .player-stock-card.tradeable:hover { border-color: #f39c12; box-shadow: 0 0 20px rgba(243, 156, 18, 0.2); }
+        
+        .stock-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(0,0,0,0.3); border-bottom: 1px solid #1a1a2e; }
+        .stock-header-left { display: flex; align-items: center; gap: 8px; }
+        .player-rank { background: linear-gradient(135deg, #f39c12, #e67e22); color: #000; font-size: 0.65em; font-weight: 800; padding: 3px 8px; border-radius: 4px; }
+        .player-name { font-weight: 700; font-size: 0.95em; }
+        .stock-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .stat-total { font-size: 1.1em; font-weight: 800; color: #f39c12; }
+        .stat-velocity { font-size: 0.75em; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+        .stat-velocity.up { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+        .stat-velocity.down { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .stat-velocity.flat { background: rgba(150, 150, 150, 0.2); color: #888; }
+        .stat-locked { font-size: 0.7em; padding: 2px 5px; border-radius: 3px; font-weight: 600; background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
+        
+        /* Chart */
+        .chart-container { position: relative; width: 100%; height: 180px; background: #050508; cursor: crosshair; overflow: hidden; }
+        .chart-canvas { display: block; width: 100% !important; height: 100% !important; }
+        .chart-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5,5,8,0.8) 0%, transparent 15%, transparent 85%, rgba(5,5,8,0.8) 100%); }
+        .chart-price { position: absolute; bottom: 8px; right: 10px; font-size: 1.3em; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 5; pointer-events: none; }
+        .chart-change { position: absolute; bottom: 8px; left: 10px; font-size: 0.8em; font-weight: 700; padding: 3px 8px; border-radius: 4px; z-index: 5; pointer-events: none; }
+        .chart-change.up { background: #2ecc71; color: #000; }
+        .chart-change.down { background: #e74c3c; color: #fff; }
+        .chart-change.flat { background: #555; color: #fff; }
+        
+        /* Trade controls */
+        .card-actions { padding: 8px 10px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; }
+        .trade-controls { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; }
+        .leverage-select { display: flex; gap: 2px; }
+        .lev-btn { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
+        .stake-row { display: flex; gap: 3px; align-items: center; flex: 1; }
+        .stake-input { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.7em; width: 50px; text-align: center; flex: 1; min-width: 40px; }
+        .max-stake-btn { padding: 4px 6px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border: none; border-radius: 3px; color: white; font-size: 0.6em; font-weight: bold; cursor: pointer; }
+        .max-stake-btn:hover { filter: brightness(1.2); }
+        .quick-trade-btns { display: flex; gap: 4px; }
+        .quick-trade-btn { flex: 1; padding: 8px 4px; border: none; border-radius: 5px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .quick-trade-btn.long { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+        .quick-trade-btn.short { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+        .quick-trade-btn:hover { filter: brightness(1.15); transform: scale(1.02); }
+        .quick-trade-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .quick-trade-btn .btn-label { font-size: 0.9em; }
+        .quick-trade-btn .btn-leverage { font-size: 0.7em; opacity: 0.8; }
+        
+        /* Active position on card */
+        .active-position { margin-top: 6px; padding: 6px 8px; background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2)); border-radius: 5px; border-left: 3px solid #f39c12; display: none; }
+        .active-position.show { display: block; }
+        .active-position.long { border-left-color: #2ecc71; }
+        .active-position.short { border-left-color: #e74c3c; }
+        .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .pos-type { font-size: 0.7em; font-weight: bold; padding: 2px 6px; border-radius: 3px; }
+        .pos-type.long { background: #2ecc71; color: #000; }
+        .pos-type.short { background: #e74c3c; color: #fff; }
+        .pos-pnl { font-size: 0.8em; font-weight: bold; }
+        .pos-pnl.profit { color: #2ecc71; }
+        .pos-pnl.loss { color: #e74c3c; }
+        .pos-details { display: flex; justify-content: space-between; font-size: 0.65em; color: #888; margin-bottom: 4px; }
+        .pos-close-btn { width: 100%; padding: 4px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .pos-close-btn:hover { filter: brightness(1.2); }
+        
+        /* Scoreboard */
+        .scoreboard-title { display: flex; align-items: center; gap: 10px; color: #f39c12; font-size: 1em; margin: 0 0 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+        .total-pnl { margin-left: auto; font-size: 0.85em; padding: 4px 8px; background: #1a1a2e; border-radius: 4px; }
+        .leave-btn { width: 100%; margin-top: 10px; padding: 10px; background: linear-gradient(135deg, #c0392b, #e74c3c); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 0.85em; cursor: pointer; }
+        
+        /* Loading overlay */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; z-index: 2000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .loading-overlay.hidden { display: none; }
+        .loading-spinner { font-size: 4rem; animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 20px; font-size: 1.2rem; color: #888; }
+        
+        /* Victory overlay */
+        .victory-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        .victory-overlay.show { display: flex; }
+        .victory-content { text-align: center; }
+        .victory-emoji { font-size: 6rem; margin-bottom: 20px; }
+        .victory-title { font-size: 3rem; font-weight: 800; color: #F6D49B; margin-bottom: 10px; }
+        .victory-subtitle { font-size: 1.5rem; color: #888; margin-bottom: 30px; }
+        .victory-btn { padding: 15px 40px; background: linear-gradient(135deg, #F6D49B, #E8A954); border: none; border-radius: 10px; color: #1a1a2e; font-size: 1.2rem; font-weight: 700; cursor: pointer; }
+        .victory-modal { background: linear-gradient(135deg, #1a1a2e, #0a0a14); padding: 40px; border-radius: 20px; border: 2px solid #f39c12; text-align: center; }
+        .victory-icon { font-size: 5rem; margin-bottom: 20px; }
+        .victory-winner { font-size: 1.2rem; color: #888; margin-bottom: 20px; }
+        .victory-cookies { font-size: 2rem; color: #F6D49B; margin-bottom: 20px; }
+        
+        /* Click feedback */
+        .click-feedback { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 100; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+        
+        /* Positions list in sidebar */
+        .position-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 5px; }
+        .pos-icon { font-size: 1.2em; }
+        .pos-icon.long { color: #2ecc71; }
+        .pos-icon.short { color: #e74c3c; }
+        .pos-info { flex: 1; }
+        .pos-name { font-weight: 600; font-size: 0.85em; }
+        .pos-meta { font-size: 0.65em; color: #888; }
+        .pos-liq { font-size: 0.65em; }
+        .pos-liq.safe { color: #2ecc71; }
+        .pos-liq.warning { color: #f39c12; }
+        .pos-liq.danger { color: #e74c3c; }
+        .pos-values { text-align: right; }
+        .pos-current-pnl { font-weight: 700; font-size: 0.85em; }
+        .pos-current-pnl.profit { color: #2ecc71; }
+        .pos-current-pnl.loss { color: #e74c3c; }
+        .pos-stake { font-size: 0.65em; color: #f1c40f; }
+        .pos-actions { margin-left: 5px; position: relative; z-index: 200; }
+        .pos-action-btn { padding: 4px 8px; border: none; border-radius: 4px; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .pos-action-btn.close { background: #e74c3c; color: #fff; }
+        .pos-action-btn:hover { filter: brightness(1.2); }
+        .close-position-btn { padding: 6px 12px; background: #e74c3c; border: none; border-radius: 4px; color: #fff; font-size: 0.75em; font-weight: bold; cursor: pointer; transition: all 0.2s; position: relative; z-index: 300; pointer-events: auto !important; }
+        .close-position-btn:hover { background: #c0392b; transform: scale(1.05); }
+        .positions-pnl { font-weight: 700; }
+        .positions-pnl.profit { color: #2ecc71; }
+        .positions-pnl.loss { color: #e74c3c; }
+        .positions-pnl.neutral { color: #888; }
+        
+        /* Positions panel in sidebar */
+        .positions-panel-content { padding: 0; }
+        .positions-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; }
+        .positions-title { font-size: 0.9em; font-weight: bold; color: #f39c12; }
+        .positions-list { max-height: 400px; overflow-y: auto; }
+        .position-row { display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #f39c12; }
+        .position-row.long { border-left-color: #2ecc71; }\n        .position-row.short { border-left-color: #e74c3c; }
+        
+        /* Positions panel in CENTER (like tutorial) */
+        .positions-panel { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 10px; padding: 10px; margin-top: 10px; }
+        .positions-panel .positions-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #2a2a4a; }
+        .positions-panel .positions-title { font-size: 0.9em; font-weight: bold; color: #f39c12; }
+        .positions-panel .positions-list { max-height: 150px; overflow-y: auto; }
+        
+        /* Chart controls */
+        .chart-controls { position: absolute; top: 5px; right: 5px; display: flex; gap: 3px; z-index: 10; opacity: 0.7; transition: opacity 0.2s; }
+        .chart-container:hover .chart-controls { opacity: 1; }
+        .zoom-btn { padding: 4px 8px; background: rgba(0,0,0,0.7); border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.65em; cursor: pointer; }
+        .zoom-btn:hover { background: #333; color: #fff; }
+        .zoom-btn.zoom-live { background: #e74c3c; color: #fff; }
+        .zoom-btn.zoom-live:hover { background: #c0392b; }
+        .zoom-btn.zoom-all { background: #3498db; color: #fff; }
+        .zoom-btn.zoom-all:hover { background: #2980b9; }
+        
+        /* Stock header row */
+        .stock-header-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: rgba(0,0,0,0.2); font-size: 0.75em; }
+        .stat-label { color: #666; }
+        .stat-value { color: #f39c12; font-weight: 600; }
+        
+        /* My card info */
+        .my-card-info { display: flex; justify-content: space-between; padding: 10px 12px; background: rgba(0,0,0,0.3); }
+        .locked-margin span { color: #f1c40f; font-weight: 600; }
+        
+        /* Stake input group */
+        .stake-input-group { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+        .stake-input-group label { font-size: 0.7em; color: #888; }
+        .trade-buttons { display: flex; gap: 6px; }
+        
+        @media (max-width: 1000px) {
+            .game-main { grid-template-columns: 1fr; }
+            .panel-left, .panel-right { max-width: 100%; display: none; }
+            .player-stocks-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">🍪</div>
+        <div class="loading-text" id="loading-text">Connecting to game...</div>
+    </div>
+    
+    <div class="victory-overlay" id="victory">
+        <div class="victory-content">
+            <div class="victory-emoji" id="victory-emoji">🏆</div>
+            <div class="victory-title" id="victory-title">Victory!</div>
+            <div class="victory-subtitle" id="victory-subtitle">Player won!</div>
+            <button class="victory-btn" onclick="window.location.href='/'">Back to Lobby</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="game-container">
+        <header class="game-header">
+            <div class="header-left">
+                <span class="match-code" id="lobby-code">LOBBY: ----</span>
+            </div>
+            <div class="header-center">
+                <span class="goal-text">🏆 Goal: 1,000,000</span>
+                <div class="goal-bar">
+                    <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
+                </div>
+                <span class="goal-text" id="goal-percent">0%</span>
+            </div>
+            <div class="header-right">
+                <span class="pot-amount" style="color: #2ecc71;">MULTIPLAYER</span>
+            </div>
+        </header>
+
+        <main class="game-main">
+            <!-- Left Panel -->
+            <section class="game-panel panel-left">
+                <div class="cookie-area">
+                    <button class="big-cookie" id="big-cookie">
+                        <svg class="cookie-svg" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="46" fill="#D2691E"/>
+                            <circle cx="50" cy="50" r="43" fill="#CD853F"/>
+                            <circle cx="50" cy="50" r="40" fill="#DEB887"/>
+                            <circle cx="30" cy="35" r="6" fill="#5D3A1A"/>
+                            <circle cx="55" cy="28" r="5" fill="#5D3A1A"/>
+                            <circle cx="72" cy="45" r="6" fill="#5D3A1A"/>
+                            <circle cx="62" cy="68" r="5" fill="#5D3A1A"/>
+                            <circle cx="38" cy="62" r="6" fill="#5D3A1A"/>
+                            <circle cx="25" cy="52" r="4" fill="#5D3A1A"/>
+                            <circle cx="48" cy="50" r="4" fill="#5D3A1A"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="cookie-stats">
+                    <div class="stat-main">
+                        <span class="stat-label">Your Cookies</span>
+                        <span class="stat-value" id="cookie-count">0</span>
+                    </div>
+                    <div class="stat-goal">
+                        <span class="goal-label">🏆 GOAL: 1,000,000 🍪</span>
+                        <div class="goal-progress-bar">
+                            <div class="goal-progress-fill" id="goal-progress" style="width: 0%"></div>
+                        </div>
+                        <span class="goal-percent" id="goal-percent-left">0%</span>
+                    </div>
+                    <div class="stat-locked-main" id="locked-display">
+                        <span class="stat-label" style="color: #f1c40f;">🔒 Locked</span>
+                        <span class="stat-value" id="locked-value" style="color: #f1c40f;">0</span>
+                    </div>
+                    <div class="stat-secondary">
+                        <div class="stat-item">
+                            <span class="stat-label">Per Second</span>
+                            <span class="stat-value" id="cps-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Available</span>
+                            <span class="stat-value" id="available-value">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Live Positions -->
+                <div class="live-positions">
+                    <h4 class="positions-title">📊 Live Positions</h4>
+                    <div class="positions-list" id="live-positions-list">
+                        <div class="no-positions">No open positions</div>
+                    </div>
+                </div>
+                
+                <div class="notification-feed">
+                    <h4 class="notif-feed-title">📢 Activity Feed</h4>
+                    <div class="notif-feed-list" id="notif-feed"></div>
+                </div>
+            </section>
+
+            <!-- Center Panel -->
+            <section class="game-panel panel-center">
+                <div class="scoreboard-with-charts" id="scoreboard">
+                    <h3 class="scoreboard-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
+                            <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+                        </svg>
+                        Cookie Stock Market
+                        <span class="total-pnl" id="total-pnl">PNL: 0</span>
+                    </h3>
+                    
+                    <div class="player-stocks-grid" id="players-grid">
+                        <!-- Player cards rendered dynamically -->
+                    </div>
+                    
+                    <!-- POSITIONS PANEL - Same as tutorial -->
+                    <div class="positions-panel" id="positions-panel-main" style="position: relative; z-index: 100;">
+                        <div class="positions-header">
+                            <span class="positions-title">📊 Open Positions</span>
+                            <span class="positions-pnl neutral" id="main-positions-pnl">PNL: 0🍪</span>
+                        </div>
+                        <div class="positions-list" id="main-positions-list">
+                            <div class="no-positions">No open positions</div>
+                        </div>
+                    </div>
+                    
+                    <button class="leave-btn" id="give-up-btn">🏳️ GIVE UP</button>
+                </div>
+            </section>
+
+            <!-- Right Panel -->
+            <section class="game-panel panel-right">
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="generators">Generators</button>
+                    <button class="tab-btn" data-tab="help">Help</button>
+                </div>
+
+                <div class="tab-panel active" id="generators-panel">
+                    <div class="generators-list">
+                        <button class="generator-btn" id="generator-grandma" data-generator="grandma">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <circle cx="12" cy="8" r="5" fill="#DEB887"/>
+                                <path d="M4 20c0-4 4-6 8-6s8 2 8 6v2H4v-2z" fill="#8B4513"/>
+                                <circle cx="10" cy="7" r="1" fill="#333"/>
+                                <circle cx="14" cy="7" r="1" fill="#333"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Grandma</span>
+                                <span class="gen-desc">+1 cookie/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">15</span>
+                            </div>
+                        </button>
+                        <button class="generator-btn" id="generator-bakery" data-generator="bakery">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <rect x="4" y="10" width="16" height="10" rx="2" fill="#8B4513"/>
+                                <rect x="6" y="6" width="12" height="6" fill="#CD853F"/>
+                                <rect x="8" y="12" width="3" height="4" fill="#FFE4B5"/>
+                                <rect x="13" y="12" width="3" height="4" fill="#FFE4B5"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Bakery</span>
+                                <span class="gen-desc">+5 cookies/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">100</span>
+                            </div>
+                        </button>
+                        <button class="generator-btn" id="generator-factory" data-generator="factory">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <rect x="2" y="12" width="20" height="10" fill="#666"/>
+                                <rect x="4" y="8" width="4" height="8" fill="#888"/>
+                                <rect x="10" y="6" width="4" height="10" fill="#888"/>
+                                <rect x="16" y="4" width="4" height="12" fill="#888"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Factory</span>
+                                <span class="gen-desc">+20 cookies/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">500</span>
+                            </div>
+                        </button>
+                        <button class="generator-btn" id="generator-mine" data-generator="mine">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <path d="M12 2L2 12h3v10h14V12h3L12 2z" fill="#5D4037"/>
+                                <rect x="9" y="14" width="6" height="6" fill="#3E2723"/>
+                                <circle cx="12" cy="8" r="2" fill="#FFD54F"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Mine</span>
+                                <span class="gen-desc">+100 cookies/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">2000</span>
+                            </div>
+                        </button>
+                        <button class="generator-btn" id="generator-bank" data-generator="bank">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <path d="M12 2L2 8v2h20V8L12 2z" fill="#78909C"/>
+                                <rect x="4" y="10" width="16" height="10" fill="#607D8B"/>
+                                <rect x="6" y="12" width="3" height="6" fill="#455A64"/>
+                                <rect x="10.5" y="12" width="3" height="6" fill="#455A64"/>
+                                <rect x="15" y="12" width="3" height="6" fill="#455A64"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Bank</span>
+                                <span class="gen-desc">+500 cookies/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">10000</span>
+                            </div>
+                        </button>
+                        <button class="generator-btn" id="generator-temple" data-generator="temple">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <path d="M12 2L4 8v2h16V8L12 2z" fill="#FDD835"/>
+                                <rect x="5" y="10" width="14" height="10" fill="#F9A825"/>
+                                <rect x="10" y="12" width="4" height="8" fill="#5D4037"/>
+                                <circle cx="12" cy="6" r="2" fill="#FF6F00"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Temple</span>
+                                <span class="gen-desc">+2500 cookies/sec</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level">Lv.0</span>
+                                <span class="cost-value">50000</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="help-panel">
+                    <div style="padding: 15px; color: #aaa; font-size: 0.85em;">
+                        <h4 style="color: #f39c12; margin: 0 0 15px 0;">📈 How Trading Works</h4>
+                        <div style="margin-bottom: 15px; padding: 10px; background: rgba(39, 174, 96, 0.2); border-radius: 8px;">
+                            <strong style="color: #27ae60;">LONG</strong>
+                            <p style="margin: 5px 0 0 0;">Bet cookies will GO UP. Profit when chart rises!</p>
+                        </div>
+                        <div style="margin-bottom: 15px; padding: 10px; background: rgba(192, 57, 43, 0.2); border-radius: 8px;">
+                            <strong style="color: #c0392b;">SHORT</strong>
+                            <p style="margin: 5px 0 0 0;">Bet cookies will GO DOWN. Profit when chart falls!</p>
+                        </div>
+                        <div style="padding: 10px; background: rgba(243, 156, 18, 0.2); border-radius: 8px;">
+                            <strong style="color: #f39c12;">LEVERAGE</strong>
+                            <p style="margin: 5px 0 0 0;">Higher leverage = bigger gains AND losses!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/game-client.js"></script>
+</body>
+</html>

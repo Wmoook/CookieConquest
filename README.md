@@ -1,91 +1,77 @@
-# Cookie Conquest
+# 🍪 Cookie Conquest
 
-A competitive incremental bluffing strategy game.
+A real-time multiplayer cookie clicker game with trading mechanics. Click cookies, buy generators, and trade against your friends' cookie counts!
 
-## Features
+## 🎮 How to Play
 
-- Real-time multiplayer (2-10 players)
-- Skill-based cookie clicking with perfect timing and crit zones
-- Bluffing system (inflate/deflate public cookie counts)
-- Cookie calls (challenge opponents' displayed stats)
-- Sabotage and defense systems
-- Multiple game phases (Early, Mid, Conflict, Bake-Off)
-- Buy-in system with prize pools
+1. **Create or Join a Lobby** - Enter your name and create a lobby (get a 4-letter code) or join with a friend's code
+2. **Click Cookies** - Build your cookie empire by clicking and buying generators
+3. **Trade Positions** - Open LONG or SHORT positions on other players' cookie counts
+4. **Win** - First player to reach 1,000,000 cookies wins!
 
-## Quick Start
+## 💹 Trading Mechanics
+
+- **LONG**: Bet that a player's cookies will go UP
+- **SHORT**: Bet that a player's cookies will go DOWN
+- **Leverage**: 1x to 10x - Higher leverage = higher risk/reward
+- **Liquidation**: If price moves against you enough, you lose your stake
+- **Max Payout**: Auto-close when your profit exceeds what the target can pay
+
+## 🚀 Quick Start
 
 ```bash
+# Install dependencies
 npm install
+
+# Start the server
 npm start
+
+# Open http://localhost:3000
 ```
 
-Then open http://localhost:3000 in your browser.
-
-## Deployment
-
-This game is ready to deploy on Railway:
+## 📦 Deploy to Railway
 
 1. Push to GitHub
-2. Connect to Railway
-3. Deploy!
+2. Connect repo to Railway
+3. Deploy! (Railway auto-detects the Procfile)
 
-Environment variables:
-- `PORT` - Automatically set by Railway
+The game uses no database - everything is in-memory, perfect for quick multiplayer sessions.
 
-## Game Rules
+## 🛠️ Tech Stack
 
-### Core Systems
+- **Backend**: Node.js, Express, Socket.io
+- **Frontend**: Vanilla JS, HTML5 Canvas (charts)
+- **Hosting**: Railway (or any Node.js host)
 
-1. **Cookie Generation**
-   - Normal click = +1 cookie
-   - Perfect-timed click = +5 cookies
-   - Crit-click zone offers 2x or 4x multipliers
+## 📁 Project Structure
 
-2. **Generators**
-   - Oven: +1/sec
-   - Kitchen: +5/sec
-   - Factory: +15/sec
-   - AI Baker: +50/sec (auto-counters sabotages)
+```
+├── server/
+│   └── index-simple.js    # Main server
+├── public/
+│   ├── index.html         # Lobby page
+│   ├── js/
+│   │   ├── game-client.js # Multiplayer game client
+│   │   └── tutorial.js    # Single-player tutorial
+│   └── pages/
+│       ├── game.html      # Multiplayer game
+│       └── tutorial.html  # Tutorial mode
+├── package.json
+├── Procfile               # Railway/Heroku
+└── railway.json           # Railway config
+```
 
-3. **Bluffing (BS Meter)**
-   - Inflate/deflate your public cookie count
-   - Stat mask to freeze displayed value
-   - False crisis to fake being sabotaged
+## 🎯 Features
 
-4. **Cookie Calls**
-   - Challenge opponents' displayed stats
-   - Correct call: steal 10% of their cookies
-   - Wrong call: lose 10% of your cookies
+- ✅ Real-time multiplayer (2-4 players)
+- ✅ Lobby system with shareable codes
+- ✅ Long/Short trading positions
+- ✅ 1-10x leverage
+- ✅ Liquidation mechanics
+- ✅ Live position tracking
+- ✅ Smooth price charts
+- ✅ No account required
 
-5. **Sabotage**
-   - Cookie Worm: 15% passive drain
-   - Oven Overload: Shuts off generators
-   - Fog of War: Hides opponent stats
-   - Sugar Bomb: Halves public count
-   - Stale Batch: Debuffs clicking accuracy
+---
 
-6. **Defense**
-   - Antivirus, Cooling System, Firewall, etc.
-   - Sabotage Trap reflects damage
-   - AI Baker auto-blocks attacks
-
-### Match Flow
-
-- **Phase 1 (0:00-1:00)**: Build economy, establish clicking skill
-- **Phase 2 (1:00-4:00)**: Leverage generators, start mind games
-- **Phase 3 (4:00-6:00)**: Sabotage, call bluffs, steal resources
-- **Phase 4 (Final 30s)**: Bake-Off! 2x multiplier, reduced sabotage costs
-
-### Victory
-
-Highest True Cookie Count at match end wins the entire prize pool!
-
-## Tech Stack
-
-- **Backend**: Node.js, Express, WebSocket
-- **Frontend**: Vanilla JS, HTML5 Canvas
-- **Styling**: Custom CSS with animations
-
-## License
-
-MIT
+Made with 🍪 by the Cookie Conquest Team

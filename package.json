@@ -1,23 +1,28 @@
 {
   "name": "cookie-conquest",
-  "version": "1.0.0",
-  "description": "Competitive Incremental Bluffing Strategy Game",
-  "main": "server/index.js",
+  "version": "2.0.0",
+  "description": "Multiplayer cookie clicker with trading - First to 1M wins!",
+  "main": "server/index-simple.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node server/index.js"
+    "start": "node server/index-simple.js",
+    "dev": "node server/index-simple.js"
   },
   "keywords": [
     "game",
     "multiplayer",
-    "competitive",
-    "incremental"
+    "websocket",
+    "cookie",
+    "clicker",
+    "trading"
   ],
   "author": "Cookie Conquest Team",
   "license": "MIT",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "ws": "^8.14.2",
-    "uuid": "^9.0.1"
+    "socket.io": "^4.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

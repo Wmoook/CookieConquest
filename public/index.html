@@ -3,305 +3,532 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cookie Conquest</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/animations.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Cookie Conquest - Multiplayer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #F6D49B, #E8A954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            margin-bottom: 10px;
+        }
+        
+        .logo .cookie-icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+        
+        .logo p {
+            color: #888;
+            font-size: 1rem;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #F6D49B;
+            box-shadow: 0 0 20px rgba(246, 212, 155, 0.2);
+        }
+        
+        .input-group input::placeholder {
+            color: #666;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #F6D49B, #E8A954);
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(246, 212, 155, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+        }
+        
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .divider span {
+            padding: 0 15px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        /* Lobby Screen */
+        .screen {
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        .lobby-code {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .lobby-code label {
+            display: block;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .lobby-code .code {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 8px;
+            color: #F6D49B;
+        }
+        
+        .players-list {
+            margin-bottom: 20px;
+        }
+        
+        .players-list h3 {
+            margin-bottom: 15px;
+            color: #aaa;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .player-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .player-item .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .player-item .player-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .player-item .player-name {
+            font-weight: 600;
+        }
+        
+        .player-item .host-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            background: #F6D49B;
+            color: #1a1a2e;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .player-item .ready-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            background: #2ecc71;
+            color: #fff;
+            border-radius: 4px;
+        }
+        
+        .player-item .waiting-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            background: #666;
+            color: #fff;
+            border-radius: 4px;
+        }
+        
+        .btn-ready {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: #fff;
+        }
+        
+        .btn-ready.ready {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: #fff;
+        }
+        
+        .btn-start:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .error-msg {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
+        }
+        
+        .error-msg.show {
+            display: block;
+        }
+        
+        .lobby-info {
+            text-align: center;
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+        
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #F6D49B;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        .copy-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Particle Background -->
-        <canvas id="particles"></canvas>
+    <div class="container">
+        <div class="logo">
+            <div class="cookie-icon">🍪</div>
+            <h1>Cookie Conquest</h1>
+            <p>Click. Trade. Conquer.</p>
+        </div>
         
         <!-- Main Menu Screen -->
-        <div id="main-menu" class="screen active">
-            <div class="menu-container">
-                <div class="logo-container">
-                    <h1 class="game-title">COOKIE</h1>
-                    <h1 class="game-title title-glow">CONQUEST</h1>
-                    <div class="title-underline"></div>
+        <div class="screen active" id="menu-screen">
+            <div class="card">
+                <div class="input-group">
+                    <label>Your Name</label>
+                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
                 </div>
                 
-                <div class="menu-content">
-                    <div class="player-info-panel">
-                        <div class="balance-display">
-                            <span class="balance-label">BALANCE</span>
-                            <span class="balance-amount">$<span id="player-balance">0.00</span></span>
-                            <button id="add-balance-btn" class="btn btn-gold">+ ADD $</button>
-                        </div>
-                    </div>
-                    
-                    <div class="name-input-section">
-                        <input type="text" id="player-name" placeholder="Enter your name" maxlength="16">
-                        <button id="set-name-btn" class="btn btn-primary">SET NAME</button>
-                    </div>
-                    
-                    <div class="menu-buttons">
-                        <button id="quick-play-btn" class="btn btn-large btn-primary" disabled>QUICK PLAY</button>
-                        <button id="create-match-btn" class="btn btn-large btn-secondary" disabled>CREATE MATCH</button>
-                        <button id="browse-lobbies-btn" class="btn btn-large btn-tertiary" disabled>BROWSE LOBBIES</button>
-                    </div>
+                <button class="btn btn-primary" id="btn-create">Create Lobby</button>
+                
+                <div class="divider"><span>or</span></div>
+                
+                <div class="input-group">
+                    <label>Lobby Code</label>
+                    <input type="text" id="lobby-code-input" placeholder="Enter 4-letter code" maxlength="4" style="text-transform: uppercase; letter-spacing: 4px; text-align: center;">
                 </div>
+                
+                <button class="btn btn-secondary" id="btn-join">Join Lobby</button>
+                
+                <div class="error-msg" id="menu-error"></div>
+                
+                <div class="divider"><span>new here?</span></div>
+                
+                <a href="/pages/tutorial.html" class="btn btn-secondary" style="display: block; text-align: center; text-decoration: none;">🎮 Play Tutorial</a>
             </div>
         </div>
         
-        <!-- Add Balance Modal -->
-        <div id="balance-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>ADD BALANCE</h2>
-                    <button class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <p class="modal-info">Select amount to add (V1 Demo Mode)</p>
-                    <div class="balance-options">
-                        <button class="balance-option" data-amount="10">$10</button>
-                        <button class="balance-option" data-amount="25">$25</button>
-                        <button class="balance-option" data-amount="50">$50</button>
-                        <button class="balance-option" data-amount="100">$100</button>
-                    </div>
-                    <div class="custom-amount">
-                        <input type="number" id="custom-amount" placeholder="Custom amount" min="1" max="1000">
-                        <button id="add-custom-btn" class="btn btn-primary">ADD</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Create Match Modal -->
-        <div id="create-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>CREATE MATCH</h2>
-                    <button class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Match Name</label>
-                        <input type="text" id="match-name" placeholder="My Awesome Match">
-                    </div>
-                    <div class="form-group">
-                        <label>Buy-In Amount</label>
-                        <div class="buyin-options">
-                            <button class="buyin-option active" data-buyin="1">$1</button>
-                            <button class="buyin-option" data-buyin="5">$5</button>
-                            <button class="buyin-option" data-buyin="10">$10</button>
-                            <button class="buyin-option" data-buyin="25">$25</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Max Players</label>
-                        <div class="player-count-options">
-                            <button class="player-option" data-players="2">2</button>
-                            <button class="player-option" data-players="4">4</button>
-                            <button class="player-option active" data-players="6">6</button>
-                            <button class="player-option" data-players="10">10</button>
-                        </div>
-                    </div>
-                    <button id="confirm-create-btn" class="btn btn-large btn-primary">CREATE MATCH</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Lobby Browser Screen -->
-        <div id="lobby-browser" class="screen">
-            <div class="browser-container">
-                <div class="browser-header">
-                    <h2>AVAILABLE MATCHES</h2>
-                    <button id="refresh-lobbies-btn" class="btn btn-icon">REFRESH</button>
-                    <button id="back-to-menu-btn" class="btn btn-secondary">BACK</button>
-                </div>
-                <div class="lobby-list" id="lobby-list">
-                    <div class="no-lobbies">No matches available. Create one!</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Match Lobby Screen -->
-        <div id="match-lobby" class="screen">
-            <div class="lobby-container">
-                <div class="lobby-header">
-                    <h2 id="lobby-match-name">Match Lobby</h2>
-                    <div class="prize-pool-display">
-                        <span class="pool-label">PRIZE POOL</span>
-                        <span class="pool-amount">$<span id="lobby-prize-pool">0</span></span>
-                    </div>
-                </div>
-                <div class="players-grid" id="lobby-players">
-                    <!-- Players will be added here -->
-                </div>
-                <div class="lobby-actions">
-                    <button id="start-match-btn" class="btn btn-large btn-primary" style="display: none;">START MATCH</button>
-                    <button id="leave-lobby-btn" class="btn btn-large btn-secondary">LEAVE LOBBY</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Game Screen -->
-        <div id="game-screen" class="screen">
-            <div class="game-container">
-                <!-- Top HUD -->
-                <div class="game-hud-top">
-                    <div class="phase-indicator">
-                        <span class="phase-label">PHASE</span>
-                        <span class="phase-name" id="phase-name">EARLY GAME</span>
-                    </div>
-                    <div class="timer-display">
-                        <span class="timer-label">TIME</span>
-                        <span class="timer-value" id="game-timer">6:00</span>
-                    </div>
-                    <div class="prize-display">
-                        <span class="prize-label">PRIZE</span>
-                        <span class="prize-value">$<span id="game-prize-pool">0</span></span>
+        <!-- Lobby Screen -->
+        <div class="screen" id="lobby-screen">
+            <div class="card">
+                <div class="lobby-code">
+                    <label>Lobby Code</label>
+                    <div>
+                        <span class="code" id="display-lobby-code">XXXX</span>
+                        <button class="copy-btn" id="btn-copy">📋 Copy</button>
                     </div>
                 </div>
                 
-                <!-- Main Game Area -->
-                <div class="game-main">
-                    <!-- Left Panel - Player Stats -->
-                    <div class="panel panel-left">
-                        <div class="panel-header">YOUR STATS</div>
-                        <div class="cookie-display">
-                            <div class="cookie-count">
-                                <span class="cookie-value" id="player-cookies">0</span>
-                                <span class="cookie-label">COOKIES</span>
-                            </div>
-                            <div class="public-count">
-                                <span class="public-label">PUBLIC:</span>
-                                <span class="public-value" id="player-public-cookies">0</span>
-                            </div>
-                        </div>
-                        
-                        <div class="generators-section">
-                            <div class="section-header">GENERATORS</div>
-                            <div class="generators-list" id="generators-list">
-                                <!-- Generators added by JS -->
-                            </div>
-                        </div>
-                        
-                        <div class="defenses-section">
-                            <div class="section-header">DEFENSES</div>
-                            <div class="defenses-list" id="defenses-list">
-                                <!-- Defenses added by JS -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Center - Cookie Clicker -->
-                    <div class="game-center">
-                        <div class="perfect-click-indicator" id="perfect-indicator">
-                            <div class="pulse-ring"></div>
-                            <span>PERFECT!</span>
-                        </div>
-                        
-                        <div class="cookie-container">
-                            <div class="cookie-glow"></div>
-                            <div class="main-cookie" id="main-cookie">
-                                <div class="cookie-inner"></div>
-                                <div class="cookie-chip chip-1"></div>
-                                <div class="cookie-chip chip-2"></div>
-                                <div class="cookie-chip chip-3"></div>
-                                <div class="cookie-chip chip-4"></div>
-                                <div class="cookie-chip chip-5"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="crit-bar-container">
-                            <div class="crit-bar">
-                                <div class="crit-zone perfect"></div>
-                                <div class="crit-zone near"></div>
-                                <div class="crit-indicator" id="crit-indicator"></div>
-                            </div>
-                            <div class="crit-labels">
-                                <span>2x</span>
-                                <span>4x</span>
-                                <span>2x</span>
-                            </div>
-                        </div>
-                        
-                        <div class="streak-display" id="streak-display">
-                            <span class="streak-value">0</span>
-                            <span class="streak-label">STREAK</span>
-                        </div>
-                        
-                        <div class="click-feedback" id="click-feedback"></div>
-                    </div>
-                    
-                    <!-- Right Panel - Opponents & Actions -->
-                    <div class="panel panel-right">
-                        <div class="panel-header">OPPONENTS</div>
-                        <div class="opponents-list" id="opponents-list">
-                            <!-- Opponents added by JS -->
-                        </div>
-                        
-                        <div class="actions-section">
-                            <div class="action-tabs">
-                                <button class="tab-btn active" data-tab="bluff">BLUFF</button>
-                                <button class="tab-btn" data-tab="sabotage">SABOTAGE</button>
-                            </div>
-                            
-                            <div class="tab-content" id="bluff-tab">
-                                <div class="bluff-list" id="bluff-list">
-                                    <!-- Bluffs added by JS -->
-                                </div>
-                            </div>
-                            
-                            <div class="tab-content hidden" id="sabotage-tab">
-                                <div class="target-select">
-                                    <label>Target:</label>
-                                    <select id="sabotage-target">
-                                        <!-- Targets added by JS -->
-                                    </select>
-                                </div>
-                                <div class="sabotage-list" id="sabotage-list">
-                                    <!-- Sabotages added by JS -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="players-list">
+                    <h3>Players (<span id="player-count">0</span>/4)</h3>
+                    <div id="players-container"></div>
                 </div>
                 
-                <!-- Bottom HUD -->
-                <div class="game-hud-bottom">
-                    <div class="active-effects" id="active-effects">
-                        <!-- Active effects shown here -->
-                    </div>
-                    <div class="notification-area" id="notifications">
-                        <!-- Notifications shown here -->
-                    </div>
+                <div class="error-msg" id="lobby-error"></div>
+                
+                <button class="btn btn-ready" id="btn-ready">Ready Up</button>
+                <button class="btn btn-start" id="btn-start" style="display: none;">Start Game</button>
+                <button class="btn btn-secondary" id="btn-leave">Leave Lobby</button>
+                
+                <div class="lobby-info">
+                    Share the code with friends to join!
                 </div>
-            </div>
-            
-            <!-- Golden Cookie (appears during bakeoff) -->
-            <div class="golden-cookie hidden" id="golden-cookie">
-                <div class="golden-cookie-inner"></div>
-            </div>
-        </div>
-        
-        <!-- Results Screen -->
-        <div id="results-screen" class="screen">
-            <div class="results-container">
-                <div class="results-header">
-                    <h1 id="results-title">MATCH COMPLETE</h1>
-                </div>
-                <div class="winner-display" id="winner-display">
-                    <div class="crown-icon"></div>
-                    <div class="winner-name" id="winner-name">Winner</div>
-                    <div class="winner-cookies" id="winner-cookies">0 cookies</div>
-                    <div class="prize-won">WON $<span id="prize-won">0</span></div>
-                </div>
-                <div class="standings-list" id="standings-list">
-                    <!-- Standings added by JS -->
-                </div>
-                <button id="back-to-menu-results-btn" class="btn btn-large btn-primary">BACK TO MENU</button>
             </div>
         </div>
     </div>
     
-    <script src="js/particles.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/main.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        let currentLobby = null;
+        let isReady = false;
+        let isHost = false;
+        let myId = null;
+        
+        // Elements
+        const menuScreen = document.getElementById('menu-screen');
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const playerNameInput = document.getElementById('player-name');
+        const lobbyCodeInput = document.getElementById('lobby-code-input');
+        const btnCreate = document.getElementById('btn-create');
+        const btnJoin = document.getElementById('btn-join');
+        const btnReady = document.getElementById('btn-ready');
+        const btnStart = document.getElementById('btn-start');
+        const btnLeave = document.getElementById('btn-leave');
+        const btnCopy = document.getElementById('btn-copy');
+        const menuError = document.getElementById('menu-error');
+        const lobbyError = document.getElementById('lobby-error');
+        const displayLobbyCode = document.getElementById('display-lobby-code');
+        const playerCount = document.getElementById('player-count');
+        const playersContainer = document.getElementById('players-container');
+        
+        // Get socket ID
+        socket.on('connect', () => {
+            myId = socket.id;
+        });
+        
+        // Create lobby
+        btnCreate.addEventListener('click', () => {
+            const name = playerNameInput.value.trim() || 'Player';
+            localStorage.setItem('cookieConquest_name', name);
+            socket.emit('lobby:create', name);
+        });
+        
+        // Join lobby
+        btnJoin.addEventListener('click', () => {
+            const name = playerNameInput.value.trim() || 'Player';
+            localStorage.setItem('cookieConquest_name', name);
+            const code = lobbyCodeInput.value.trim().toUpperCase();
+            
+            if (code.length !== 4) {
+                showError(menuError, 'Enter a 4-letter lobby code');
+                return;
+            }
+            
+            socket.emit('lobby:join', { code, playerName: name });
+        });
+        
+        // Ready toggle
+        btnReady.addEventListener('click', () => {
+            isReady = !isReady;
+            socket.emit('lobby:ready', isReady);
+            
+            btnReady.textContent = isReady ? 'Cancel Ready' : 'Ready Up';
+            btnReady.classList.toggle('ready', isReady);
+        });
+        
+        // Start game (host)
+        btnStart.addEventListener('click', () => {
+            socket.emit('game:start');
+        });
+        
+        // Leave lobby
+        btnLeave.addEventListener('click', () => {
+            socket.emit('lobby:leave');
+            showScreen('menu');
+            currentLobby = null;
+            isReady = false;
+            isHost = false;
+        });
+        
+        // Copy code
+        btnCopy.addEventListener('click', () => {
+            navigator.clipboard.writeText(displayLobbyCode.textContent);
+            btnCopy.textContent = '✓ Copied!';
+            setTimeout(() => btnCopy.textContent = '📋 Copy', 2000);
+        });
+        
+        // Socket events
+        socket.on('lobby:created', (lobby) => {
+            currentLobby = lobby;
+            isHost = true;
+            showScreen('lobby');
+            updateLobbyUI(lobby);
+        });
+        
+        socket.on('lobby:joined', (lobby) => {
+            currentLobby = lobby;
+            isHost = lobby.host === myId;
+            showScreen('lobby');
+            updateLobbyUI(lobby);
+        });
+        
+        socket.on('lobby:update', (lobby) => {
+            currentLobby = lobby;
+            isHost = lobby.host === myId;
+            updateLobbyUI(lobby);
+        });
+        
+        socket.on('lobby:error', (msg) => {
+            showError(menuScreen.classList.contains('active') ? menuError : lobbyError, msg);
+        });
+        
+        socket.on('game:started', (gameState) => {
+            // Store session data for game page
+            const playerName = playerNameInput.value.trim() || localStorage.getItem('cookieConquest_name') || 'Player';
+            sessionStorage.setItem('lobbyCode', currentLobby.code);
+            sessionStorage.setItem('playerName', playerName);
+            
+            // Redirect to game page
+            window.location.href = '/game?lobby=' + currentLobby.code;
+        });
+        
+        // Helper functions
+        function showScreen(screen) {
+            menuScreen.classList.remove('active');
+            lobbyScreen.classList.remove('active');
+            
+            if (screen === 'menu') menuScreen.classList.add('active');
+            if (screen === 'lobby') lobbyScreen.classList.add('active');
+        }
+        
+        function showError(element, msg) {
+            element.textContent = msg;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 3000);
+        }
+        
+        function updateLobbyUI(lobby) {
+            displayLobbyCode.textContent = lobby.code;
+            playerCount.textContent = lobby.players.length;
+            
+            // Show/hide start button for host
+            btnStart.style.display = isHost ? 'block' : 'none';
+            
+            // Update players list
+            playersContainer.innerHTML = lobby.players.map(p => `
+                <div class="player-item">
+                    <div class="player-info">
+                        <div class="player-color" style="background: ${p.color}"></div>
+                        <span class="player-name">${p.name}</span>
+                        ${p.id === lobby.host ? '<span class="host-badge">HOST</span>' : ''}
+                    </div>
+                    ${p.id === lobby.host ? '' : (p.ready ? '<span class="ready-badge">READY</span>' : '<span class="waiting-badge">Waiting</span>')}
+                </div>
+            `).join('');
+            
+            // Enable/disable start button
+            const allReady = lobby.players.every(p => p.id === lobby.host || p.ready);
+            btnStart.disabled = !allReady || lobby.players.length < 2;
+        }
+        
+        // Load name from localStorage
+        const savedName = localStorage.getItem('cookieConquest_name');
+        if (savedName) playerNameInput.value = savedName;
+        
+        playerNameInput.addEventListener('change', () => {
+            localStorage.setItem('cookieConquest_name', playerNameInput.value);
+        });
+        
+        // Handle lobby code from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code');
+        if (codeFromUrl) {
+            lobbyCodeInput.value = codeFromUrl.toUpperCase();
+        }
+    </script>
 </body>
 </html>
