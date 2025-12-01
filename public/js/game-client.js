@@ -552,21 +552,14 @@ class MultiplayerGame {
         const lockedMargin = me.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = me.cookies - lockedMargin;
         
-        // Calculate target's net worth
-        const targetGenValue = Object.entries(target.generators).reduce((sum, [type, count]) => {
-            const prices = { grandma: 100, bakery: 500, factory: 2000, mine: 10000, bank: 50000, temple: 250000 };
-            return sum + (count * prices[type] * 0.9);
-        }, 0);
-        const targetNetWorth = target.cookies + targetGenValue;
-        
-        // Max stake = 50% of target's net worth (regardless of leverage)
-        const maxFromNetWorth = Math.floor(targetNetWorth * 0.5);
+        // Max stake = 50% of target's COOKIES (not net worth)
+        const maxFromCookies = Math.floor(target.cookies * 0.5);
         
         // Subtract existing stakes on this target
         const existingStakes = me.positions
             .filter(p => p.targetName === targetName)
             .reduce((sum, p) => sum + p.stake, 0);
-        const remainingAllowed = maxFromNetWorth - existingStakes;
+        const remainingAllowed = maxFromCookies - existingStakes;
         
         // Take minimum of available cookies and remaining allowed
         return Math.max(0, Math.min(available, remainingAllowed));

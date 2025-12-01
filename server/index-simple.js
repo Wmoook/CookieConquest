@@ -448,22 +448,25 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Calculate target's net worth for position limits
-        const targetGenValue = Object.entries(target.generators).reduce((sum, [type, count]) => {
-            const prices = { grandma: 100, bakery: 500, factory: 2000, mine: 10000, bank: 50000, temple: 250000 };
-            return sum + (count * prices[type] * 0.9);
-        }, 0);
-        const targetNetWorth = target.cookies + targetGenValue;
-        
-        // Max total stake on target = 50% of their net worth (regardless of leverage)
+        // Max total stake on target = 50% of their COOKIES (not net worth)
         const existingStakes = player.positions
             .filter(p => p.targetName === target.name)
             .reduce((sum, p) => sum + p.stake, 0);
         const newTotalStake = existingStakes + stake;
-        const maxTotalStake = Math.floor(targetNetWorth * 0.5);
+        const maxTotalStake = Math.floor(target.cookies * 0.5);
+        
+        console.log('openPosition: stake check', { 
+            targetName: target.name,
+            targetCookies: target.cookies,
+            existingStakes, 
+            newTotalStake, 
+            maxTotalStake, 
+            willReject: newTotalStake > maxTotalStake 
+        });
+        
         if (newTotalStake > maxTotalStake) {
-            console.log('openPosition: stake too large', { newTotalStake, maxTotalStake });
-            socket.emit('game:error', { message: `Max stake on ${target.name} is ${maxTotalStake}🍪 (50% of net worth)` });
+            console.log('openPosition: REJECTING - stake too large', { newTotalStake, maxTotalStake });
+            socket.emit('game:error', { message: `Max stake on ${target.name} is ${maxTotalStake}🍪 (50% of cookies)` });
             return;
         }
         
