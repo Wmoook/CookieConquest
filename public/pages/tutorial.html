@@ -64,6 +64,12 @@
         .gen-level { font-size: 0.7em; color: #888; display: block; }
         .cost-value { font-weight: 700; color: #F6D49B; }
         
+        /* Click Upgrade Section */
+        .click-upgrade-section { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #3a3a5a; }
+        .click-upgrade-btn { background: linear-gradient(135deg, #4a2a2a, #2e1a1a) !important; border-color: #6a3a3a !important; }
+        .click-upgrade-btn:hover:not(.locked) { border-color: #e74c3c !important; }
+        .click-upgrade-warning { font-size: 0.7em; color: #e74c3c; text-align: center; margin-top: 8px; opacity: 0.8; }
+        
         /* TAB SYSTEM */
         .tab-nav { display: flex; gap: 5px; margin-bottom: 10px; }
         .tab-btn { flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 8px; color: #888; cursor: pointer; font-size: 0.8em; }
@@ -164,6 +170,23 @@
         .pos-details { display: flex; justify-content: space-between; font-size: 0.65em; color: #888; margin-bottom: 4px; }
         .pos-close-btn { width: 100%; padding: 4px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.65em; font-weight: bold; cursor: pointer; }
         .pos-close-btn:hover { filter: brightness(1.2); }
+        
+        /* Positions on me section */
+        .positions-on-me-section { margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; }
+        .positions-on-me-header { font-size: 0.75em; font-weight: bold; color: #f39c12; margin-bottom: 6px; }
+        .positions-on-me-list { max-height: 100px; overflow-y: auto; }
+        .no-positions-on-me { font-size: 0.7em; color: #666; text-align: center; padding: 8px; }
+        .position-on-me-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin-bottom: 3px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.7em; border-left: 2px solid #888; }
+        .position-on-me-item.long { border-left-color: #2ecc71; }
+        .position-on-me-item.short { border-left-color: #e74c3c; }
+        .pom-trader { font-weight: bold; color: #e74c3c; }
+        .pom-type { font-size: 0.85em; padding: 1px 4px; border-radius: 2px; }
+        .pom-type.long { background: rgba(46,204,113,0.3); color: #2ecc71; }
+        .pom-type.short { background: rgba(231,76,60,0.3); color: #e74c3c; }
+        .pom-stake { color: #f39c12; }
+        .pom-pnl { font-weight: bold; }
+        .pom-pnl.positive { color: #2ecc71; }
+        .pom-pnl.negative { color: #e74c3c; }
         
         /* Scoreboard */
         .scoreboard-title { display: flex; align-items: center; gap: 10px; color: #f39c12; font-size: 1em; margin: 0 0 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 8px; }
@@ -477,6 +500,10 @@
                         <span class="stat-label">Your Cookies</span>
                         <span class="stat-value" id="cookie-count">0</span>
                     </div>
+                    <div class="stat-networth" style="text-align: center; padding: 8px; background: rgba(155,89,182,0.15); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(155,89,182,0.3);">
+                        <span class="stat-label" style="color: #9b59b6; font-size: 0.8em;">💎 Net Worth</span>
+                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1.2em; display: block;">0</span>
+                    </div>
                     <div class="stat-goal">
                         <span class="goal-label">🏆 GOAL: 1,000,000 🍪</span>
                         <div class="goal-progress-bar">
@@ -649,6 +676,25 @@
                                 <span class="cost-value">50000</span>
                             </div>
                         </button>
+                    </div>
+                    
+                    <!-- Click Power Upgrade -->
+                    <div class="click-upgrade-section">
+                        <button class="generator-btn click-upgrade-btn" id="upgrade-click">
+                            <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" fill="#e74c3c"/>
+                                <path d="M12 6v12M6 12h12" stroke="#fff" stroke-width="2"/>
+                            </svg>
+                            <div class="gen-info">
+                                <span class="gen-name">Click Power</span>
+                                <span class="gen-desc click-power-desc">+1 per click → +2</span>
+                            </div>
+                            <div class="gen-cost">
+                                <span class="gen-level click-power-level">Lv.1</span>
+                                <span class="cost-value click-power-cost">50</span>
+                            </div>
+                        </button>
+                        <div class="click-upgrade-warning">⚠️ Spent cookies are lost forever!</div>
                     </div>
                 </div>
 

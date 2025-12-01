@@ -177,6 +177,7 @@ function initGameState(lobby) {
             color: p.color,
             cookies: 0,
             cps: 0,
+            clickPower: 1, // Base click power
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 },
             positions: [], // Positions this player has on others
             positionsOnMe: [] // Positions others have on this player
@@ -186,6 +187,57 @@ function initGameState(lobby) {
         winGoal: 1000000
     };
     return gameState;
+}
+
+// Calculate generator value (90% of what you paid - collateral value)
+function calculateGeneratorValue(player) {
+    if (!player || !player.generators) return 0;
+    
+    const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000 };
+    let totalValue = 0;
+    
+    for (const [genType, count] of Object.entries(player.generators)) {
+        for (let i = 0; i < count; i++) {
+            totalValue += Math.floor(basePrices[genType] * Math.pow(1.15, i) * 0.9);
+        }
+    }
+    
+    return totalValue;
+}
+
+// Force a player to pay an amount - can go into debt up to generator value, then sells all
+function forcePayment(player, amount) {
+    if (amount <= 0) return;
+    
+    // Calculate how much generator value (debt limit) they have
+    const generatorValue = calculateGeneratorValue(player);
+    
+    // Current net worth = cookies + generator value
+    const currentNetWorth = player.cookies + generatorValue;
+    
+    // After paying, what would net worth be?
+    const newNetWorth = currentNetWorth - amount;
+    
+    if (newNetWorth >= 0) {
+        // Can pay without going bankrupt - just deduct from cookies (can go negative)
+        player.cookies -= amount;
+        return;
+    }
+    
+    // Would go below 0 net worth - FULL BANKRUPTCY!
+    // Sell ALL generators and set cookies to 0
+    const generatorOrder = ['grandma', 'bakery', 'factory', 'mine', 'bank', 'temple'];
+    
+    for (const genType of generatorOrder) {
+        player.generators[genType] = 0;
+    }
+    
+    // Update CPS to 0 (no generators)
+    player.cps = 0;
+    
+    // Set cookies to 0 (full bankruptcy)
+    player.cookies = 0;
+    player.isBankrupt = true;
 }
 
 // ==================== SOCKET HANDLERS ====================
@@ -290,9 +342,10 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Support multiplier from client (validated to reasonable range)
+        // Support multiplier from client (validated to reasonable range), multiplied by click power
         const multiplier = Math.min(20, Math.max(1, data?.multiplier || 1));
-        player.cookies += Math.floor(multiplier);
+        const clickPower = player.clickPower || 1;
+        player.cookies += Math.floor(multiplier * clickPower);
         io.to(code).emit('game:state', lobby.gameState);
     });
     
@@ -333,6 +386,29 @@ io.on('connection', (socket) => {
         }
     });
     
+    // Upgrade click power - cookies are spent permanently (not part of net worth)
+    socket.on('game:upgradeClick', () => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Price doubles each level: 50, 100, 200, 400, etc.
+        const basePrice = 50;
+        const currentLevel = player.clickPower - 1; // Level 0 = clickPower 1
+        const price = Math.floor(basePrice * Math.pow(2, currentLevel));
+        
+        if (player.cookies >= price) {
+            player.cookies -= price;
+            player.clickPower++;
+            io.to(code).emit('game:state', lobby.gameState);
+        }
+    });
+    
     // Open position - now uses targetName for stability
     socket.on('game:openPosition', ({ targetName, type, stake, leverage }) => {
         console.log('game:openPosition received:', { targetName, type, stake, leverage });
@@ -369,10 +445,6 @@ io.on('connection', (socket) => {
             console.log('openPosition: target cookies < 100', { targetCookies: target.cookies });
             return;
         }
-        if (stake > target.cookies * 0.5) {
-            console.log('openPosition: stake > 50% of target', { stake, targetCookies: target.cookies });
-            return;
-        }
         
         const entryPrice = target.cookies;
         const liquidationPercent = 1 / leverage;
@@ -386,6 +458,32 @@ io.on('connection', (socket) => {
             }
         } else {
             liquidationPrice = entryPrice * (1 + liquidationPercent);
+        }
+        
+        // Check if there's an existing position with same type and leverage to add to
+        const existingPos = player.positions.find(p => 
+            p.targetName === targetName && p.type === type && p.leverage === leverage
+        );
+        
+        if (existingPos) {
+            // Add to existing position - calculate new weighted average entry price
+            const totalStake = existingPos.stake + stake;
+            const weightedEntry = (existingPos.entryPrice * existingPos.stake + entryPrice * stake) / totalStake;
+            existingPos.entryPrice = weightedEntry;
+            existingPos.stake = totalStake;
+            
+            // Recalculate liquidation price based on new entry
+            if (type === 'long') {
+                existingPos.liquidationPrice = weightedEntry * (1 - (1 / leverage));
+            } else {
+                existingPos.liquidationPrice = weightedEntry * (1 + (1 / leverage));
+            }
+            
+            console.log('openPosition: added to existing position', { totalStake, weightedEntry });
+            
+            io.to(code).emit('game:state', lobby.gameState);
+            io.to(target.id).emit('game:positionOpened', { by: player.name });
+            return;
         }
         
         console.log('openPosition: creating position', { type, stake, leverage, entryPrice, liquidationPrice });
@@ -407,28 +505,6 @@ io.on('connection', (socket) => {
         player.positions.push(position);
         target.positionsOnMe.push(position);
         lobby.gameState.positions.push(position);
-        
-        // MARKET IMPACT: Opening positions affect target's cookies
-        // Long = buying pressure = pushes price UP
-        // Short = selling pressure = pushes price DOWN
-        const impactPercent = (stake * leverage) / (target.cookies * 10); // ~1% per 10% of target's cookies
-        const impactAmount = Math.floor(target.cookies * Math.min(impactPercent, 0.1)); // Cap at 10% max impact
-        
-        if (type === 'long' && impactAmount > 0) {
-            target.cookies += impactAmount;
-            console.log('MARKET IMPACT: LONG opened, target +', impactAmount, 'cookies');
-            io.to(code).emit('game:notification', { 
-                type: 'market', 
-                message: `📈 ${player.name} LONG on ${target.name} pushed price UP +${impactAmount}🍪!` 
-            });
-        } else if (type === 'short' && impactAmount > 0) {
-            target.cookies = Math.max(10, target.cookies - impactAmount); // Don't go below 10
-            console.log('MARKET IMPACT: SHORT opened, target -', impactAmount, 'cookies');
-            io.to(code).emit('game:notification', { 
-                type: 'market', 
-                message: `📉 ${player.name} SHORT on ${target.name} pushed price DOWN -${impactAmount}🍪!` 
-            });
-        }
         
         io.to(code).emit('game:state', lobby.gameState);
         // Notify target using their current socket ID
@@ -492,36 +568,32 @@ io.on('connection', (socket) => {
             pnl
         });
         
-        // Return stake first
+        // NOTE: Stake is NOT deducted when opening (uses locked margin), so don't add it back here
         const oldPlayerCookies = player.cookies;
         const oldTargetCookies = target.cookies;
         
-        player.cookies += position.stake;
-        
         if (pnl > 0) {
-            // Player is in profit - take from target (capped at what target has)
-            const actualPnl = Math.min(pnl, target.cookies);
-            player.cookies += actualPnl;
-            target.cookies -= actualPnl;
+            // Player is in profit - force target to pay (sell generators, go into debt)
+            forcePayment(target, pnl);
+            player.cookies += pnl;
             console.log('closePosition: PROFIT', { 
-                requestedPnl: pnl, 
-                actualPnl, 
-                playerGot: position.stake + actualPnl, 
-                targetLost: actualPnl 
+                pnl, 
+                playerGot: pnl, 
+                targetPaid: pnl 
             });
         } else if (pnl < 0) {
-            // Player is in loss - give to target (capped at stake)
+            // Player is in loss - use forcePayment to allow debt before bankruptcy
             const loss = Math.min(Math.abs(pnl), position.stake);
-            player.cookies -= loss;
+            forcePayment(player, loss);
             target.cookies += loss;
             console.log('closePosition: LOSS', { 
                 pnlLoss: pnl, 
                 actualLoss: loss, 
-                playerNet: position.stake - loss, 
+                playerLost: loss, 
                 targetGot: loss 
             });
         } else {
-            console.log('closePosition: BREAKEVEN', { playerGot: position.stake });
+            console.log('closePosition: BREAKEVEN');
         }
         
         console.log('closePosition: Final cookies', {
@@ -532,20 +604,6 @@ io.on('connection', (socket) => {
             targetOld: oldTargetCookies,
             targetNew: target.cookies
         });
-        
-        // MARKET IMPACT: Closing positions have reverse effect
-        // Closing Long = selling = pushes price DOWN
-        // Closing Short = buying back = pushes price UP
-        const impactPercent = (position.stake * position.leverage) / (target.cookies * 10);
-        const impactAmount = Math.floor(target.cookies * Math.min(impactPercent, 0.05)); // Cap at 5% for closes
-        
-        if (position.type === 'long' && impactAmount > 0) {
-            target.cookies = Math.max(10, target.cookies - impactAmount);
-            console.log('MARKET IMPACT: LONG closed, target -', impactAmount, 'cookies');
-        } else if (position.type === 'short' && impactAmount > 0) {
-            target.cookies += impactAmount;
-            console.log('MARKET IMPACT: SHORT closed, target +', impactAmount, 'cookies');
-        }
         
         // Remove position
         lobby.gameState.positions.splice(posIndex, 1);
@@ -599,9 +657,10 @@ setInterval(() => {
         for (const { pos, owner, target, currentPrice, pnl, index } of positionsToCheck) {
             if ((pos.type === 'long' && currentPrice <= pos.liquidationPrice) ||
                 (pos.type === 'short' && currentPrice >= pos.liquidationPrice)) {
-                // Owner loses stake to target
+                // Owner loses stake - use forcePayment to allow debt before bankruptcy
+                forcePayment(owner, pos.stake);
                 target.cookies += pos.stake;
-                console.log(`Position liquidated: ${owner.name} on ${target.name}, stake ${pos.stake} goes to target`);
+                console.log(`Position liquidated: ${owner.name} loses stake ${pos.stake} to ${target.name}`);
                 
                 // Remove position
                 const posIdx = gs.positions.findIndex(p => p.id === pos.id);
@@ -609,12 +668,15 @@ setInterval(() => {
                 owner.positions = owner.positions.filter(p => p.id !== pos.id);
                 target.positionsOnMe = target.positionsOnMe.filter(p => p.id !== pos.id);
                 
+                // Notify owner they got liquidated (lost)
                 io.to(owner.id).emit('game:liquidated', { position: pos });
+                // Notify target they won (liquidated someone)
+                io.to(target.id).emit('game:youLiquidatedSomeone', { position: pos, from: owner.name, amount: pos.stake });
             }
         }
         
         // Recalculate positions after liquidations
-        // Now handle profitable positions - pay out proportionally if target can't cover all
+        // Now handle profitable positions - force payment from targets
         const profitableByTarget = {};
         
         for (const { pos, owner, target, pnl } of positionsToCheck) {
@@ -628,26 +690,27 @@ setInterval(() => {
             profitableByTarget[target.name].push({ pos, owner, target, pnl });
         }
         
-        // For each target, check if they can pay all profitable positions
+        // For each target, check if they need to pay - use forcePayment
         for (const [targetName, positions] of Object.entries(profitableByTarget)) {
             const target = gs.players.find(p => p.name === targetName);
             if (!target) continue;
             
             const totalOwed = positions.reduce((sum, p) => sum + p.pnl, 0);
             
-            if (totalOwed >= target.cookies && target.cookies > 0) {
-                // Target can't pay everyone - distribute proportionally
-                const availableCookies = target.cookies;
-                
+            // Calculate target's debt limit (generator value)
+            const generatorValue = calculateGeneratorValue(target);
+            const netWorthAfterPaying = target.cookies + generatorValue - totalOwed;
+            
+            // Only force close if paying would exceed debt limit (net worth goes negative)
+            if (netWorthAfterPaying < 0) {
+                // Force close all positions - target can't recover
                 for (const { pos, owner, pnl } of positions) {
-                    // Calculate this position's share
-                    const share = pnl / totalOwed;
-                    const payout = Math.floor(availableCookies * share);
+                    // Force the target to pay (will trigger bankruptcy)
+                    forcePayment(target, pnl);
+                    // NOTE: Stake was never deducted (locked margin), don't add it back
+                    owner.cookies += pnl;
                     
-                    // Return stake + proportional payout
-                    owner.cookies += pos.stake + payout;
-                    
-                    console.log(`Max payout (proportional): ${owner.name} gets stake ${pos.stake} + payout ${payout} from ${target.name}`);
+                    console.log(`Auto-close: ${owner.name} gets pnl ${pnl} from ${target.name}`);
                     
                     // Remove position
                     const posIdx = gs.positions.findIndex(p => p.id === pos.id);
@@ -655,11 +718,8 @@ setInterval(() => {
                     owner.positions = owner.positions.filter(p => p.id !== pos.id);
                     target.positionsOnMe = target.positionsOnMe.filter(p => p.id !== pos.id);
                     
-                    io.to(owner.id).emit('game:maxPayout', { position: pos, amount: payout });
+                    io.to(owner.id).emit('game:maxPayout', { position: pos, amount: pnl });
                 }
-                
-                // Target loses all cookies
-                target.cookies = 0;
             }
         }
         

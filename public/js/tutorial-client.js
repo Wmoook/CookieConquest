@@ -29,6 +29,7 @@ class TutorialGame {
             name: 'You',
             cookies: 0,
             cps: 0,
+            clickPower: 1,
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 },
             positions: [],
             positionsOnMe: []
@@ -65,10 +66,16 @@ class TutorialGame {
             cookie.addEventListener('click', (e) => this.handleCookieClick(e));
         }
         
-        // Generator clicks
-        document.querySelectorAll('.generator-btn').forEach(btn => {
+        // Generator clicks (exclude click upgrade button)
+        document.querySelectorAll('.generator-btn:not(.click-upgrade-btn)').forEach(btn => {
             btn.addEventListener('click', () => this.buyGenerator(btn.dataset.generator));
         });
+        
+        // Click power upgrade button
+        const upgradeClickBtn = document.getElementById('upgrade-click');
+        if (upgradeClickBtn) {
+            upgradeClickBtn.addEventListener('click', () => this.upgradeClickPower());
+        }
         
         // Tab clicks
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -106,7 +113,8 @@ class TutorialGame {
             this.clickMultiplier = 1;
         }
         
-        const cookiesEarned = Math.floor(this.clickMultiplier);
+        const clickPower = this.player.clickPower || 1;
+        const cookiesEarned = Math.floor(this.clickMultiplier * clickPower);
         this.player.cookies += cookiesEarned;
         this.cookies = this.player.cookies;
         
@@ -187,6 +195,29 @@ class TutorialGame {
         this.updateGeneratorButtons();
     }
     
+    upgradeClickPower() {
+        const clickPower = this.player.clickPower || 1;
+        const currentLevel = clickPower - 1;
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
+        
+        const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
+        const available = this.player.cookies - lockedMargin;
+        
+        if (available >= cost) {
+            this.player.cookies -= cost;
+            this.player.clickPower++;
+            this.cookies = this.player.cookies;
+            
+            // Notify tutorial
+            if (window.tutorialManager) {
+                window.tutorialManager.onClickUpgrade(this.player.clickPower);
+            }
+        }
+        
+        this.updateGeneratorButtons();
+    }
+    
     updateGeneratorButtons() {
         const generatorData = {
             grandma: { baseCost: 15, cps: 1 },
@@ -220,6 +251,35 @@ class TutorialGame {
                 btn.classList.add('locked');
             }
         });
+        
+        // Update click power upgrade button
+        this.updateClickUpgradeButton(available);
+    }
+    
+    updateClickUpgradeButton(available) {
+        const btn = document.getElementById('upgrade-click');
+        if (!btn) return;
+        
+        const clickPower = this.player.clickPower || 1;
+        const currentLevel = clickPower - 1;
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
+        const nextPower = clickPower + 1;
+        
+        const costSpan = btn.querySelector('.click-power-cost');
+        if (costSpan) costSpan.textContent = cost;
+        
+        const levelSpan = btn.querySelector('.click-power-level');
+        if (levelSpan) levelSpan.textContent = `Lv.${clickPower}`;
+        
+        const descSpan = btn.querySelector('.click-power-desc');
+        if (descSpan) descSpan.textContent = `+${clickPower} per click → +${nextPower}`;
+        
+        if (available >= cost) {
+            btn.classList.remove('locked');
+        } else {
+            btn.classList.add('locked');
+        }
     }
     
     handleTabClick(tab) {
@@ -230,6 +290,64 @@ class TutorialGame {
         document.getElementById(`${tab}-panel`)?.classList.add('active');
     }
     
+    // Calculate generator value (90% of what you paid - collateral value)
+    calculateGeneratorValue(player) {
+        if (!player || !player.generators) return 0;
+        
+        const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000 };
+        let totalValue = 0;
+        
+        for (const [genType, count] of Object.entries(player.generators)) {
+            for (let i = 0; i < count; i++) {
+                // Each generator is worth 90% of purchase price
+                totalValue += Math.floor(basePrices[genType] * Math.pow(1.15, i) * 0.9);
+            }
+        }
+        
+        return totalValue;
+    }
+    
+    // Force player to pay amount - can go into debt up to generator value, then sells all
+    forcePayment(player, amount) {
+        if (amount <= 0) return { paid: 0, generatorsSold: 0, debt: 0 };
+        
+        // Calculate how much generator value (debt limit) they have
+        const generatorValue = this.calculateGeneratorValue(player);
+        
+        // Current net worth = cookies + generator value
+        const currentNetWorth = player.cookies + generatorValue;
+        
+        // After paying, what would net worth be?
+        const newNetWorth = currentNetWorth - amount;
+        
+        if (newNetWorth >= 0) {
+            // Can pay without going bankrupt - just deduct from cookies (can go negative)
+            player.cookies -= amount;
+            return { paid: amount, generatorsSold: 0, debt: player.cookies < 0 ? -player.cookies : 0 };
+        }
+        
+        // Would go below 0 net worth - FULL BANKRUPTCY!
+        // Sell ALL generators and set cookies to 0
+        const generatorOrder = ['grandma', 'bakery', 'factory', 'mine', 'bank', 'temple'];
+        let generatorsSold = 0;
+        
+        for (const genType of generatorOrder) {
+            generatorsSold += player.generators[genType] || 0;
+            player.generators[genType] = 0;
+        }
+        
+        // Update CPS to 0 (no generators)
+        player.cps = 0;
+        
+        // Set cookies to 0 (full bankruptcy)
+        player.cookies = 0;
+        player.isBankrupt = true;
+        
+        this.showNotification(`💀 FULL BANKRUPTCY! All generators liquidated!`, 'error');
+        
+        return { paid: currentNetWorth, generatorsSold, debt: 0, bankrupt: true };
+    }
+
     openPosition(targetName, type, stake, leverage) {
         const target = this.allPlayers.find(p => p.name === targetName);
         if (!target || target.name === 'You') return false;
@@ -237,9 +355,15 @@ class TutorialGame {
         const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = this.player.cookies - lockedMargin;
         
-        if (stake > available) return false;
-        if (target.cookies < 100) return false;
-        if (stake > target.cookies * 0.5) return false;
+        if (stake > available) {
+            this.showNotification(`Not enough available cookies! Have ${Math.floor(available)}`, 'error');
+            return false;
+        }
+        
+        if (target.cookies < 100) {
+            this.showNotification(`${target.name} needs at least 100🍪 to trade on!`, 'error');
+            return false;
+        }
         
         const entryPrice = target.cookies;
         const liquidationPercent = 1 / leverage;
@@ -250,6 +374,34 @@ class TutorialGame {
             if (liquidationPrice < 10) return false;
         } else {
             liquidationPrice = entryPrice * (1 + liquidationPercent);
+        }
+        
+        // Check if there's an existing position with same type and leverage to add to
+        const existingPos = this.player.positions.find(p => 
+            p.targetName === targetName && p.type === type && p.leverage === leverage
+        );
+        
+        if (existingPos) {
+            // Add to existing position - calculate new weighted average entry price
+            const totalStake = existingPos.stake + stake;
+            const weightedEntry = (existingPos.entryPrice * existingPos.stake + entryPrice * stake) / totalStake;
+            existingPos.entryPrice = weightedEntry;
+            existingPos.stake = totalStake;
+            
+            // Recalculate liquidation price based on new entry
+            if (type === 'long') {
+                existingPos.liquidationPrice = weightedEntry * (1 - (1 / leverage));
+            } else {
+                existingPos.liquidationPrice = weightedEntry * (1 + (1 / leverage));
+            }
+            
+            this.showNotification(`Added ${stake}🍪 to ${type.toUpperCase()} position on ${targetName}!`, 'success');
+            
+            if (window.tutorialManager) {
+                window.tutorialManager.onPositionOpen(type, targetName);
+            }
+            
+            return true;
         }
         
         const position = {
@@ -267,18 +419,6 @@ class TutorialGame {
         this.player.positions.push(position);
         target.positionsOnMe.push(position);
         
-        // Market impact
-        const impactPercent = (stake * leverage) / (target.cookies * 10);
-        const impactAmount = Math.floor(target.cookies * Math.min(impactPercent, 0.1));
-        
-        if (type === 'long' && impactAmount > 0) {
-            target.cookies += impactAmount;
-            this.showNotification(`📈 Your LONG pushed ${target.name} UP +${impactAmount}🍪!`, 'success');
-        } else if (type === 'short' && impactAmount > 0) {
-            target.cookies = Math.max(10, target.cookies - impactAmount);
-            this.showNotification(`📉 Your SHORT pushed ${target.name} DOWN -${impactAmount}🍪!`, 'warning');
-        }
-        
         // Notify tutorial
         if (window.tutorialManager) {
             window.tutorialManager.onPositionOpen(type, targetName);
@@ -295,20 +435,19 @@ class TutorialGame {
         const target = this.allPlayers.find(p => p.name === position.targetName);
         if (!target) return false;
         
-        // Calculate PNL
+        // Calculate PNL using total value (cookies + generators)
         const currentPrice = target.cookies;
         const priceChange = currentPrice - position.entryPrice;
         const pnlMultiplier = position.type === 'long' ? 1 : -1;
         const pnl = Math.floor((priceChange / (position.entryPrice || 1)) * position.stake * position.leverage * pnlMultiplier);
         
-        // Return stake first
-        this.player.cookies += position.stake;
-        
+        // Don't add stake back - it was never deducted from player.cookies
+        // Just apply the PNL
         if (pnl > 0) {
-            const actualPnl = Math.min(pnl, target.cookies);
-            this.player.cookies += actualPnl;
-            target.cookies -= actualPnl;
-            this.showNotification(`🎉 Closed for +${actualPnl}🍪 profit!`, 'success');
+            // Force the target to pay - sell their generators if needed, go into debt
+            this.forcePayment(target, pnl);
+            this.player.cookies += pnl;
+            this.showNotification(`🎉 Closed for +${pnl}🍪 profit!`, 'success');
         } else if (pnl < 0) {
             const loss = Math.min(Math.abs(pnl), position.stake);
             this.player.cookies -= loss;
@@ -333,23 +472,43 @@ class TutorialGame {
     }
     
     showNotification(message, type) {
-        const container = document.getElementById('live-positions-list');
-        if (!container) return;
-        
-        // Flash the message
-        const el = document.createElement('div');
-        el.className = 'position-item';
-        el.style.background = type === 'success' ? 'rgba(46, 204, 113, 0.3)' : 
-                              type === 'error' ? 'rgba(231, 76, 60, 0.3)' :
-                              type === 'warning' ? 'rgba(243, 156, 18, 0.3)' : 'rgba(100, 100, 100, 0.3)';
-        el.style.padding = '8px';
-        el.style.borderRadius = '6px';
-        el.style.marginBottom = '5px';
-        el.style.fontSize = '0.8em';
-        el.textContent = message;
-        
-        container.insertBefore(el, container.firstChild);
-        setTimeout(() => el.remove(), 3000);
+        // Add to activity feed
+        const feed = document.getElementById('notif-feed');
+        if (feed) {
+            const notif = document.createElement('div');
+            notif.className = 'notif-item ' + type;
+            notif.style.cssText = `
+                padding: 8px 10px;
+                margin-bottom: 5px;
+                border-radius: 6px;
+                font-size: 0.85em;
+                animation: slideIn 0.3s ease;
+                background: ${type === 'success' ? 'rgba(46, 204, 113, 0.2)' : 
+                             type === 'error' ? 'rgba(231, 76, 60, 0.2)' :
+                             type === 'warning' ? 'rgba(243, 156, 18, 0.2)' : 'rgba(100, 100, 100, 0.2)'};
+                border-left: 3px solid ${type === 'success' ? '#2ecc71' : 
+                                        type === 'error' ? '#e74c3c' :
+                                        type === 'warning' ? '#f39c12' : '#888'};
+            `;
+            notif.textContent = message;
+            
+            // Add to top of feed
+            feed.insertBefore(notif, feed.firstChild);
+            
+            // Keep only last 15 notifications
+            while (feed.children.length > 15) {
+                feed.removeChild(feed.lastChild);
+            }
+            
+            // Auto-remove after 20 seconds
+            setTimeout(() => {
+                if (notif.parentNode) {
+                    notif.style.opacity = '0';
+                    notif.style.transition = 'opacity 0.3s';
+                    setTimeout(() => notif.remove(), 300);
+                }
+            }, 20000);
+        }
     }
     
     renderPlayerCards() {
@@ -407,11 +566,9 @@ class TutorialGame {
                         </div>
                     </div>
                     ` : `
-                    <div class="card-actions" id="positions-on-me-section" style="padding: 10px;">
-                        <div style="text-align: center; color: #2ecc71; margin-bottom: 8px;">
-                            <strong>This is YOU! 🎯</strong>
-                        </div>
-                        <div id="positions-on-me-list" style="font-size: 0.75em;"></div>
+                    <div class="positions-on-me-section">
+                        <div class="positions-on-me-header">📊 Positions on YOU</div>
+                        <div class="positions-on-me-list" id="positions-on-me-list"></div>
                     </div>
                     `}
                 </div>
@@ -512,11 +669,12 @@ class TutorialGame {
     }
     
     checkLiquidations() {
-        // Check player positions
+        // Check player positions - also check for bot bankruptcy (can't pay)
         this.player.positions = this.player.positions.filter(pos => {
             const target = this.allPlayers.find(p => p.name === pos.targetName);
             if (!target) return false;
             
+            // Use total value (cookies + generators) for price
             const currentPrice = target.cookies;
             let isLiquidated = false;
             
@@ -527,6 +685,8 @@ class TutorialGame {
             }
             
             if (isLiquidated) {
+                // Player loses stake - actually deduct it!
+                this.player.cookies -= pos.stake;
                 target.cookies += pos.stake;
                 this.showNotification(`💀 LIQUIDATED on ${pos.targetName}! Lost ${pos.stake}🍪`, 'error');
                 
@@ -536,8 +696,62 @@ class TutorialGame {
                 
                 return false;
             }
+            
+            // Check if bot would go bankrupt (can't pay out your winning position)
+            if (target.isBot) {
+                const priceChange = currentPrice - pos.entryPrice;
+                const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+                const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+                
+                // If PNL exceeds what bot can pay, auto-close (bot bankruptcy)
+                if (pnl > 0 && pnl >= target.cookies) {
+                    const payout = target.cookies; // Take everything the bot has
+                    this.player.cookies += pos.stake + payout;
+                    this.showNotification(`💸 ${target.name} BANKRUPT! You gained ${pos.stake + payout}🍪!`, 'success');
+                    target.cookies = 0;
+                    return false;
+                }
+            }
+            
             return true;
         });
+        
+        // Check bot positions on player - bots get liquidated too!
+        let botLiquidated = false;
+        this.bots.forEach(bot => {
+            bot.positions = bot.positions.filter(pos => {
+                if (pos.targetName !== 'You') return true;
+                
+                // Use total value (cookies + generators) for price
+                const currentPrice = this.player.cookies;
+                let isLiquidated = false;
+                
+                // 2x leverage = liquidated at 50% price drop (long) or 50% price rise (short)
+                if (pos.type === 'long' && currentPrice <= pos.liquidationPrice) {
+                    isLiquidated = true;
+                } else if (pos.type === 'short' && currentPrice >= pos.liquidationPrice) {
+                    isLiquidated = true;
+                }
+                
+                if (isLiquidated) {
+                    // Bot loses their stake - player gets it
+                    this.player.cookies += pos.stake;
+                    this.showNotification(`💀 ${bot.name} LIQUIDATED! You gained ${pos.stake}🍪!`, 'success');
+                    
+                    // Remove from player's positionsOnMe
+                    this.player.positionsOnMe = this.player.positionsOnMe.filter(p => p.id !== pos.id);
+                    botLiquidated = true;
+                    
+                    return false;
+                }
+                return true;
+            });
+        });
+        
+        // Update UI if any bot was liquidated
+        if (botLiquidated) {
+            this.updatePositionsOnMe();
+        }
     }
     
     updateHistory() {
@@ -567,6 +781,7 @@ class TutorialGame {
             const target = this.allPlayers.find(p => p.name === pos.targetName);
             if (!target) return;
             
+            // Use total value (cookies + generators) as the price
             const currentPrice = target.cookies;
             const priceChange = currentPrice - pos.entryPrice;
             const pnlMultiplier = pos.type === 'long' ? 1 : -1;
@@ -577,23 +792,44 @@ class TutorialGame {
     }
     
     updateUI() {
-        // Update cookie display
+        // Calculate locked stake and unrealized PNL
+        const lockedStake = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
+        const unrealizedPnl = this.calculateUnrealizedPnl(this.player);
+        
+        // player.cookies = base cookies (stakes are NOT deducted from this)
+        // Total value = base cookies + unrealized PNL (stakes are already part of base)
+        const totalValue = this.player.cookies + unrealizedPnl;
+        
+        // Update cookie display - show TOTAL VALUE (base + unrealized PNL)
         const cookieEl = document.getElementById('cookie-count');
-        if (cookieEl) cookieEl.textContent = Math.floor(this.player.cookies);
+        if (cookieEl) cookieEl.textContent = Math.floor(totalValue);
         
         const cpsEl = document.getElementById('cps-value');
         if (cpsEl) cpsEl.textContent = this.player.cps;
         
-        // Update locked margin (stake + unrealized PNL, like main game)
-        const lockedStake = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
-        const unrealizedPnl = this.calculateUnrealizedPnl(this.player);
+        // Calculate and display Net Worth (cookies + generator value + unrealized PNL)
+        const generatorValue = this.calculateGeneratorValue(this.player);
+        const netWorth = this.player.cookies + generatorValue + unrealizedPnl;
+        const networthEl = document.getElementById('networth-value');
+        if (networthEl) {
+            networthEl.textContent = Math.floor(netWorth).toLocaleString();
+        }
+        
+        // Update available (base cookies minus what's locked in positions)
+        const availableEl = document.getElementById('available-value');
+        if (availableEl) {
+            availableEl.textContent = Math.floor(this.player.cookies - lockedStake);
+        }
+        
+        // Locked shows: stake + unrealized PNL (value of your positions)
         const lockedWithPnl = lockedStake + unrealizedPnl;
         
-        const lockedEl = document.getElementById('locked-margin');
+        // Main locked display in stats
+        const lockedDisplay = document.getElementById('locked-display');
         const lockedVal = document.getElementById('locked-value');
-        if (lockedEl && lockedVal) {
+        if (lockedDisplay && lockedVal) {
             if (lockedStake > 0) {
-                lockedEl.style.display = 'block';
+                lockedDisplay.style.display = 'block';
                 lockedVal.textContent = Math.floor(lockedWithPnl);
                 // Color based on PNL like main game
                 if (unrealizedPnl > 0) {
@@ -604,7 +840,25 @@ class TutorialGame {
                     lockedVal.style.color = '#f1c40f';
                 }
             } else {
-                lockedEl.style.display = 'none';
+                lockedDisplay.style.display = 'none';
+            }
+        }
+        
+        // Also update locked-margin if it exists (player card)
+        const lockedMarginEl = document.getElementById('locked-margin');
+        if (lockedMarginEl) {
+            if (lockedStake > 0) {
+                lockedMarginEl.textContent = `🔒 ${Math.floor(lockedWithPnl)}`;
+                lockedMarginEl.style.display = 'inline-block';
+                if (unrealizedPnl > 0) {
+                    lockedMarginEl.style.color = '#2ecc71';
+                } else if (unrealizedPnl < 0) {
+                    lockedMarginEl.style.color = '#e74c3c';
+                } else {
+                    lockedMarginEl.style.color = '#f1c40f';
+                }
+            } else {
+                lockedMarginEl.style.display = 'none';
             }
         }
         
@@ -691,6 +945,7 @@ class TutorialGame {
             const target = this.allPlayers.find(p => p.name === pos.targetName);
             if (!target) return;
             
+            // Use total value (cookies + generators) as the price
             const currentPrice = target.cookies;
             const priceChange = currentPrice - pos.entryPrice;
             const pnlMultiplier = pos.type === 'long' ? 1 : -1;
@@ -750,32 +1005,32 @@ class TutorialGame {
     }
     
     updatePositionsOnMe() {
-        const list = document.getElementById('positions-on-me-list');
-        if (!list) return;
+        const container = document.getElementById('positions-on-me-list');
+        if (!container) return;
         
-        if (this.player.positionsOnMe.length === 0) {
-            list.innerHTML = '<div style="color: rgba(255,255,255,0.5); text-align:center;">No one trading on you</div>';
+        const positionsOnMe = this.player.positionsOnMe || [];
+        
+        if (positionsOnMe.length === 0) {
+            container.innerHTML = '<div class="no-positions-on-me">No one is trading on you yet</div>';
             return;
         }
         
-        list.innerHTML = this.player.positionsOnMe.map(pos => {
-            const owner = this.allPlayers.find(p => p.name === pos.ownerName);
-            if (!owner) return '';
-            
-            // Calculate their PNL (negative = bad for you)
+        container.innerHTML = positionsOnMe.map(pos => {
             const currentPrice = this.player.cookies;
             const priceChange = currentPrice - pos.entryPrice;
             const pnlMultiplier = pos.type === 'long' ? 1 : -1;
-            const theirPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
             
-            const pnlClass = theirPnl > 0 ? 'color:#e74c3c' : 'color:#2ecc71'; // Red if they profit (bad for you)
-            const pnlText = theirPnl >= 0 ? `+${theirPnl}` : `${theirPnl}`;
+            // Show their PNL with standard colors: green if up, red if down
+            const theirPnlClass = pnl >= 0 ? 'positive' : 'negative';
+            const theirPnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
             
             return `
-                <div style="background:rgba(231,76,60,0.2); padding:6px; border-radius:4px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                    <span>🤖 ${pos.ownerName}</span>
-                    <span style="color:${pos.type === 'long' ? '#2ecc71' : '#e74c3c'}">${pos.type.toUpperCase()}</span>
-                    <span style="${pnlClass}">${pnlText}🍪</span>
+                <div class="position-on-me-item ${pos.type}">
+                    <span class="pom-trader">${pos.ownerName}</span>
+                    <span class="pom-type ${pos.type}">${pos.type.toUpperCase()} ${pos.leverage}x</span>
+                    <span class="pom-stake">${pos.stake}🍪</span>
+                    <span class="pom-pnl ${theirPnlClass}">${theirPnlText}</span>
                 </div>
             `;
         }).join('');
@@ -1056,11 +1311,11 @@ class TutorialGame {
             return;
         }
         
-        // Calculate bounds
+        // Calculate bounds - allow negative values for debt display
         let min = Math.min(...data);
         let max = Math.max(...data);
         const padding = (max - min) * 0.15 || 10;
-        min = Math.max(0, min - padding);
+        min = min - padding; // Allow negative values
         max += padding;
         const range = max - min || 1;
         
@@ -1099,6 +1354,25 @@ class TutorialGame {
         ctx.moveTo(MARGIN_LEFT, 0);
         ctx.lineTo(MARGIN_LEFT, H);
         ctx.stroke();
+        
+        // Draw zero line if chart includes negative values
+        if (min < 0) {
+            const zeroY = H - ((0 - min) / range) * H;
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(MARGIN_LEFT, zeroY);
+            ctx.lineTo(W, zeroY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('DEBT', MARGIN_LEFT + 5, zeroY + 15);
+        }
         
         // Draw liquidation zones if player has position on this target
         if (player && player.name !== 'You') {
@@ -1279,8 +1553,10 @@ class TutorialGame {
                     }
                 }
                 
-                // Occasionally open position on player if they have enough cookies
-                if (bot.cookies > 150 && this.player.cookies > 200 && Math.random() < 0.02) {
+                // Occasionally open position on player if they have enough cookies (need 100+ to be traded on)
+                // Bots need player to have 100+ total value to trade on
+                const playerValue = this.player.cookies;
+                if (bot.cookies > 150 && playerValue >= 100 && Math.random() < 0.02) {
                     const stake = Math.floor(Math.min(bot.cookies * 0.1, 30));
                     const type = Math.random() < 0.5 ? 'long' : 'short';
                     
@@ -1291,8 +1567,8 @@ class TutorialGame {
                         type,
                         stake,
                         leverage: 2,
-                        entryPrice: this.player.cookies,
-                        liquidationPrice: type === 'long' ? this.player.cookies * 0.5 : this.player.cookies * 1.5,
+                        entryPrice: playerValue,
+                        liquidationPrice: type === 'long' ? playerValue * 0.5 : playerValue * 1.5,
                         openTime: Date.now()
                     };
                     
@@ -1300,7 +1576,7 @@ class TutorialGame {
                     bot.cookies -= stake;
                     this.player.positionsOnMe.push(position);
                     
-                    this.showNotification(`🤖 ${bot.name} opened ${type.toUpperCase()} on YOU!`, 'warning');
+                    this.showNotification(`🤖 ${bot.name} opened a position on YOU!`, 'warning');
                 }
                 
                 // Occasionally close profitable positions on player
@@ -1335,19 +1611,10 @@ class TutorialGame {
         bot.cookies += position.stake;
         
         if (pnl > 0) {
-            // Bot profits - player pays
-            const actualPnl = Math.min(pnl, this.player.cookies);
-            
-            if (actualPnl < pnl) {
-                // BANKRUPTCY! Player can't pay full amount!
-                this.showNotification(`💸 BANKRUPTCY! ${bot.name} took ALL your ${actualPnl}🍪!`, 'error');
-                bot.cookies += actualPnl;
-                this.player.cookies = 0;
-            } else {
-                bot.cookies += actualPnl;
-                this.player.cookies -= actualPnl;
-                this.showNotification(`🤖 ${bot.name} closed PROFITABLE position! You paid ${actualPnl}🍪`, 'warning');
-            }
+            // Bot profits - force player to pay (sell generators, go into debt)
+            this.forcePayment(this.player, pnl);
+            bot.cookies += pnl;
+            this.showNotification(`🤖 ${bot.name} closed position! You paid ${pnl}🍪`, 'warning');
         } else if (pnl < 0) {
             // Bot loses - bot pays player
             const loss = Math.min(Math.abs(pnl), position.stake);
@@ -1362,6 +1629,20 @@ class TutorialGame {
         this.player.positionsOnMe = this.player.positionsOnMe.filter(p => p.id !== position.id);
         
         this.cookies = this.player.cookies;
+    }
+    
+    closeAllPositionsOnPlayer() {
+        // Close all positions that bots have on the player (bankruptcy)
+        this.bots.forEach(bot => {
+            const positionsOnPlayer = bot.positions.filter(p => p.targetName === 'You');
+            positionsOnPlayer.forEach(pos => {
+                // Return stake to bot without paying PNL (already bankrupted)
+                bot.cookies += pos.stake;
+                bot.positions = bot.positions.filter(p => p.id !== pos.id);
+            });
+        });
+        this.player.positionsOnMe = [];
+        this.showNotification(`All positions on you have been closed!`, 'info');
     }
 }
 
@@ -1393,88 +1674,110 @@ class TutorialManager {
             // Step 2: Generators
             {
                 title: '🏭 Step 2: Buy Generators!',
-                text: 'Generators produce cookies <strong>automatically</strong>!<br><br>Buy a <span class="gold">Grandma</span> (costs 15🍪) to earn +1/sec!',
+                text: 'Generators produce cookies <strong>automatically</strong>!<br><br>Buy a <span class="gold">Grandma</span> (costs 15🍪) to earn +1/sec!<br><br>⚡ Generators also count towards your <strong>Net Worth</strong>!',
                 button: 'Got it!',
                 action: 'highlightGenerators',
                 task: 'Buy a Grandma generator!',
                 checkComplete: () => game.player.generators.grandma >= 1
             },
-            // Step 3: Charts explained
+            // Step 3: Click Power Upgrade
             {
-                title: '📈 Step 3: Understanding Charts',
+                title: '⬆️ Step 3: Click Power Upgrade!',
+                text: 'Below generators is the <span class="red">Click Power</span> upgrade!<br><br>• Increases cookies earned per click<br>• Cost doubles each level (50, 100, 200...)<br><br>⚠️ <strong>WARNING:</strong> These cookies are <span class="red">LOST FOREVER</span> - they don\'t count as net worth like generators!',
+                button: 'Risky but powerful!',
+                action: 'highlightClickUpgrade',
+                task: null
+            },
+            // Step 4: Charts explained
+            {
+                title: '📈 Step 4: Understanding Charts',
                 text: 'Each player has a <strong>chart</strong> showing their cookie count over time.<br><br><span class="green">Your chart is GREEN</span><br><span class="red">Opponents are RED</span><br><br>You can <strong>trade</strong> on opponent charts!',
                 button: 'Show me trading!',
                 action: null
             },
-            // Step 4: Long position
+            // Step 5: Long position
             {
-                title: '📈 Step 4: Going LONG',
-                text: '<span class="green"><strong>LONG</strong></span> = Bet cookies will go <strong>UP</strong>!<br><br>If the opponent\'s cookies increase, you <span class="green">profit</span>!<br><br>⚡ <strong>Market Impact:</strong> Opening a LONG pushes their price UP!<br><br>Open a <strong>LONG</strong> on any bot!',
+                title: '📈 Step 5: Going LONG',
+                text: '<span class="green"><strong>LONG</strong></span> = Bet cookies will go <strong>UP</strong>!<br><br>If the opponent\'s cookies increase, you <span class="green">profit</span>!<br><br>Open a <strong>LONG</strong> on any bot!',
                 button: 'Got it!',
                 action: 'highlightTrading',
                 task: 'Open a LONG position on a bot!',
                 checkComplete: () => game.player.positions.some(p => p.type === 'long')
             },
-            // Step 5: Short position
+            // Step 6: Short position
             {
-                title: '📉 Step 5: Going SHORT',
-                text: '<span class="red"><strong>SHORT</strong></span> = Bet cookies will go <strong>DOWN</strong>!<br><br>If the opponent\'s cookies decrease, you <span class="green">profit</span>!<br><br>⚡ <strong>Market Impact:</strong> Opening a SHORT pushes their price DOWN!<br><br>Open a <strong>SHORT</strong> on any bot!',
+                title: '📉 Step 6: Going SHORT',
+                text: '<span class="red"><strong>SHORT</strong></span> = Bet cookies will go <strong>DOWN</strong>!<br><br>If the opponent\'s cookies decrease, you <span class="green">profit</span>!<br><br>Open a <strong>SHORT</strong> on any bot!',
                 button: 'Got it!',
                 action: 'highlightTrading',
                 task: 'Open a SHORT position on a bot!',
                 checkComplete: () => game.player.positions.some(p => p.type === 'short')
             },
-            // Step 6: Leverage explained
+            // Step 7: Leverage explained
             {
-                title: '⚡ Step 6: Leverage',
+                title: '⚡ Step 7: Leverage',
                 text: '<strong>Leverage</strong> multiplies your gains AND losses!<br><br>• <span class="gold">2x</span> = Safe, but smaller profits<br>• <span class="gold">5x</span> = Balanced risk/reward<br>• <span class="gold">10x</span> = High risk, high reward!<br><br>⚠️ Higher leverage = closer liquidation!',
                 button: 'I understand!',
                 action: null
             },
-            // Step 7: Liquidation warning
+            // Step 8: Liquidation warning
             {
-                title: '💀 Step 7: Liquidation',
+                title: '💀 Step 8: Liquidation',
                 text: 'If the price moves <strong>against you</strong> too far, you get <span class="red">LIQUIDATED</span>!<br><br>You lose your entire stake!<br><br>Watch the <strong>LIQ price</strong> on your positions!',
                 button: 'Scary but got it!',
                 action: null
             },
-            // Step 8: Closing positions
+            // Step 9: Closing positions
             {
-                title: '✅ Step 8: Closing Positions',
+                title: '✅ Step 9: Closing Positions',
                 text: 'Click <strong>CLOSE</strong> to exit a position and lock in your profit/loss!<br><br>Try closing one of your positions now!',
                 button: 'Got it!',
                 action: 'highlightClose',
                 task: 'Close any position!',
                 checkComplete: () => this._positionClosed
             },
-            // Step 9: Others trading on YOU
+            // Step 10: Others trading on YOU
             {
-                title: '🎯 Step 9: Others Trade on YOU!',
+                title: '🎯 Step 10: Others Trade on YOU!',
                 text: 'Other players can open positions <strong>on YOUR chart</strong>!<br><br>If they go <span class="green">LONG</span> on you and you go UP, <strong>you pay them</strong>!<br>If they go <span class="red">SHORT</span> on you and you go DOWN, <strong>you pay them</strong>!<br><br>Watch - a bot will trade on you now!',
                 button: 'Got it!',
                 action: 'triggerBotTradeOnPlayer',
                 task: 'Wait for a bot to open a position on you...',
                 checkComplete: () => game.player.positionsOnMe.length > 0
             },
-            // Step 10: Bankruptcy mechanic
+            // Step 11: Debt mechanic
             {
-                title: '💸 Step 10: Bankruptcy Mechanic!',
-                text: 'If someone\'s position on you has <strong>unrealized PNL higher than your total cookies</strong>...<br><br>You\'re <span class="red">BANKRUPT</span>! They don\'t even need to close!<br><br>⚠️ ALL your cookies go to them automatically!<br><br>Build up cookies & generators to survive attacks!',
+                title: '📉 Step 11: Going Into DEBT!',
+                text: 'When you <strong>lose on a position</strong> or someone profits from trading on you...<br><br>Your cookies can go <span class="red">NEGATIVE</span>!<br><br>This is <strong>debt</strong> - you owe cookies!<br><br>But don\'t panic - your generators still produce income to pay it back!',
+                button: 'So I can owe cookies?',
+                action: null
+            },
+            // Step 12: Generators as collateral
+            {
+                title: '🏭 Step 12: Generators = Collateral!',
+                text: 'Your generators have <strong>value</strong> (90% of purchase price)!<br><br>This value is your <span class="gold">NET WORTH</span> = Cookies + Generator Value<br><br>You can go into debt as long as your <strong>net worth stays positive</strong>!<br><br>Generators protect you from bankruptcy!',
+                button: 'Build generators to survive!',
+                action: null
+            },
+            // Step 13: Bankruptcy mechanic
+            {
+                title: '💀 Step 13: BANKRUPTCY!',
+                text: 'If your <span class="red">NET WORTH goes negative</span>...<br><br>💥 <strong>FULL BANKRUPTCY!</strong> 💥<br><br>• ALL generators are sold<br>• Cookies set to 0<br>• Everything goes to the winner<br><br>Build generators as insurance against big losses!',
                 button: 'Scary!',
                 action: 'demoBankruptcy',
                 task: null
             },
-            // Step 11: Win condition
+            // Step 14: Win condition
             {
-                title: '🏆 Step 11: How to Win',
-                text: 'First player to reach <span class="gold">1,000,000 cookies</span> wins!<br><br>Combine:<br>• 👆 Clicking<br>• 🏭 Generators<br>• 📈 Smart trading<br><br>to dominate!',
+                title: '🏆 Step 14: How to Win',
+                text: 'First player to reach <span class="gold">1,000,000 cookies</span> wins!<br><br>Combine:<br>• 👆 Clicking (+ Click Power upgrades)<br>• 🏭 Generators (passive income + protection)<br>• 📈 Smart trading (profit from others)<br><br>to dominate!',
                 button: 'Ready to compete!',
                 action: null
             },
-            // Step 12: Final
+            // Step 15: Final
             {
                 title: '🎉 Tutorial Complete!',
-                text: 'You\'ve learned all the mechanics!<br><br>Now practice against the bots, or jump into <strong>real multiplayer</strong>!<br><br>Good luck, cookie trader! 🍪',
+                text: 'You\'ve learned all the mechanics!<br><br>Remember:<br>• <span class="green">Generators</span> = Income + Protection<br>• <span class="red">Click Power</span> = Power but no protection<br>• <span class="gold">Net Worth</span> = Your survival buffer<br><br>Good luck, cookie trader! 🍪',
                 button: 'Finish Tutorial',
                 action: 'completeTutorial'
             }
@@ -1596,6 +1899,18 @@ class TutorialManager {
         const gen = document.getElementById('generator-grandma');
         if (gen) {
             gen.classList.add('highlight-element');
+        }
+    }
+    
+    highlightClickUpgrade() {
+        // Remove previous highlights
+        document.querySelectorAll('.highlight-element').forEach(el => el.classList.remove('highlight-element'));
+        
+        const upgradeBtn = document.getElementById('upgrade-click');
+        if (upgradeBtn) {
+            upgradeBtn.classList.add('highlight-element');
+            // Scroll to make it visible
+            upgradeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
     

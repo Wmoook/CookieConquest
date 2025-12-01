@@ -133,10 +133,17 @@ class MultiplayerGame {
         });
         
         this.socket.on('game:liquidated', ({ position }) => {
+            console.log('RECEIVED game:liquidated', position);
             this.showNotification(`💀 LIQUIDATED! Lost ${position.stake}🍪 on ${position.targetName}!`, 'error');
         });
         
+        this.socket.on('game:youLiquidatedSomeone', ({ from, amount }) => {
+            console.log('RECEIVED game:youLiquidatedSomeone', from, amount);
+            this.showNotification(`🎉 You LIQUIDATED ${from}! Gained ${amount}🍪!`, 'success');
+        });
+        
         this.socket.on('game:maxPayout', ({ position, amount }) => {
+            console.log('RECEIVED game:maxPayout', position, amount);
             this.showNotification(`🎯 MAX PAYOUT on ${position.targetName}! Won ${amount}🍪!`, 'success');
         });
         
@@ -183,9 +190,15 @@ class MultiplayerGame {
         });
         
         // Generator clicks
-        document.querySelectorAll('.generator-btn').forEach(btn => {
+        document.querySelectorAll('.generator-btn:not(.click-upgrade-btn)').forEach(btn => {
             btn.addEventListener('click', () => this.handleGeneratorClick(btn.dataset.generator));
         });
+        
+        // Click power upgrade button
+        const upgradeClickBtn = document.getElementById('upgrade-click');
+        if (upgradeClickBtn) {
+            upgradeClickBtn.addEventListener('click', () => this.handleClickUpgrade());
+        }
         
         // Give up button
         const giveUpBtn = document.getElementById('give-up-btn');
@@ -308,7 +321,12 @@ class MultiplayerGame {
                         </div>
                         <div class="active-position" id="pos-${player.name}"></div>
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="positions-on-me-section">
+                        <div class="positions-on-me-header">📊 Positions on YOU</div>
+                        <div class="positions-on-me-list" id="positions-on-me-list"></div>
+                    </div>
+                `}
             `;
             
             playersGrid.appendChild(card);
@@ -571,14 +589,7 @@ class MultiplayerGame {
             return;
         }
         
-        const maxStake = Math.floor(target.cookies * 0.5);
-        const existingPos = me.positions.find(p => p.targetName === targetName);
-        const totalStake = existingPos ? existingPos.stake + stake : stake;
-        
-        if (totalStake > maxStake) {
-            this.showNotification(`Max total stake on ${target.name} is ${maxStake}🍪`, 'error');
-            return;
-        }
+
         
         // Send to server using targetName (stable identifier)
         this.socket.emit('game:openPosition', {
@@ -728,11 +739,11 @@ class MultiplayerGame {
             return;
         }
         
-        // Calculate bounds
+        // Calculate bounds - allow negative values for debt display
         let min = Math.min(...data);
         let max = Math.max(...data);
         const padding = (max - min) * 0.15 || 10;
-        min = Math.max(0, min - padding);
+        min = min - padding; // Allow negative values
         max += padding;
         const range = max - min || 1;
         
@@ -771,6 +782,25 @@ class MultiplayerGame {
         ctx.moveTo(MARGIN_LEFT, 0);
         ctx.lineTo(MARGIN_LEFT, H);
         ctx.stroke();
+        
+        // Draw zero line if chart includes negative values
+        if (min < 0) {
+            const zeroY = H - ((0 - min) / range) * H;
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(MARGIN_LEFT, zeroY);
+            ctx.lineTo(W, zeroY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('DEBT', MARGIN_LEFT + 5, zeroY + 15);
+        }
         
         // Draw liquidation zones if player has position on this target
         const me = this.getMe();
@@ -986,6 +1016,34 @@ class MultiplayerGame {
         return totalPnl;
     }
     
+    // Calculate generator value (90% of what you paid - collateral value)
+    calculateGeneratorValue(player) {
+        if (!player || !player.generators) return 0;
+        
+        const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000 };
+        let totalValue = 0;
+        
+        for (const [genType, count] of Object.entries(player.generators)) {
+            for (let i = 0; i < count; i++) {
+                // Each generator is worth 90% of purchase price
+                totalValue += Math.floor(basePrices[genType] * Math.pow(1.15, i) * 0.9);
+            }
+        }
+        
+        return totalValue;
+    }
+    
+    // Calculate PNL for any position
+    calculatePositionPnl(position) {
+        const target = this.gameState.players.find(p => p.name === position.targetName);
+        if (!target) return 0;
+        
+        const currentPrice = target.cookies;
+        const priceChange = currentPrice - position.entryPrice;
+        const pnlMultiplier = position.type === 'long' ? 1 : -1;
+        return Math.floor((priceChange / (position.entryPrice || 1)) * position.stake * position.leverage * pnlMultiplier);
+    }
+    
     updateSmoothDisplays() {
         if (!this.gameState) return;
         
@@ -1022,6 +1080,14 @@ class MultiplayerGame {
         // Update CPS
         const cpsValue = document.getElementById('cps-value');
         if (cpsValue) cpsValue.textContent = me.cps || 0;
+        
+        // Calculate and display Net Worth (cookies + generator value + unrealized PNL)
+        const generatorValue = this.calculateGeneratorValue(me);
+        const netWorth = me.cookies + generatorValue + unrealizedPnl;
+        const networthEl = document.getElementById('networth-value');
+        if (networthEl) {
+            networthEl.textContent = Math.floor(netWorth).toLocaleString();
+        }
         
         // Calculate locked margin (stake + unrealized PNL)
         const lockedStake = me.positions.reduce((sum, p) => sum + p.stake, 0);
@@ -1131,11 +1197,46 @@ class MultiplayerGame {
             }
         });
         
+        // Update positions on me (under my chart)
+        this.updatePositionsOnMeDisplay(me);
+        
         // Update Live Positions in left panel (who has position on whom)
         this.updateLivePositionsDisplay();
         
         // Update MAIN positions panel in center (with close buttons)
         this.updateMainPositionsPanel(me);
+    }
+    
+    updatePositionsOnMeDisplay(me) {
+        const container = document.getElementById('positions-on-me-list');
+        if (!container) return;
+        
+        const positionsOnMe = me.positionsOnMe || [];
+        
+        if (positionsOnMe.length === 0) {
+            container.innerHTML = '<div class="no-positions-on-me">No one is trading on you yet</div>';
+            return;
+        }
+        
+        container.innerHTML = positionsOnMe.map(pos => {
+            const currentPrice = me.cookies;
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            
+            // Show their PNL with standard colors: green if up, red if down
+            const theirPnlClass = pnl >= 0 ? 'positive' : 'negative';
+            const theirPnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
+            
+            return `
+                <div class="position-on-me-item ${pos.type}">
+                    <span class="pom-trader">${pos.ownerName}</span>
+                    <span class="pom-type ${pos.type}">${pos.type.toUpperCase()} ${pos.leverage}x</span>
+                    <span class="pom-stake">${pos.stake}🍪</span>
+                    <span class="pom-pnl ${theirPnlClass}">${theirPnlText}</span>
+                </div>
+            `;
+        }).join('');
     }
     
     // Update the live positions section showing who's targeting who
@@ -1150,21 +1251,32 @@ class MultiplayerGame {
         
         // My positions on other players
         for (const pos of me.positions) {
+            const pnl = this.calculatePositionPnl(pos);
             allPositions.push({
                 trader: 'YOU',
                 target: pos.targetName,
                 isPlayer: true,
-                isOpponentOnMe: false
+                isOpponentOnMe: false,
+                pnl: pnl,
+                type: pos.type
             });
         }
         
         // Other players' positions on me
         for (const pos of (me.positionsOnMe || [])) {
+            // Calculate PNL from opponent's perspective (they have position on me)
+            const currentPrice = me.cookies;
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            
             allPositions.push({
                 trader: pos.ownerName,
                 target: 'YOU',
                 isPlayer: false,
-                isOpponentOnMe: true
+                isOpponentOnMe: true,
+                pnl: pnl,
+                type: pos.type
             });
         }
         
@@ -1176,11 +1288,22 @@ class MultiplayerGame {
                 // Skip positions on me (already handled above)
                 if (pos.targetName.toLowerCase() === me.name.toLowerCase()) continue;
                 
+                // Calculate their PNL
+                const target = this.gameState.players.find(p => p.name === pos.targetName);
+                if (!target) continue;
+                
+                const currentPrice = target.cookies;
+                const priceChange = currentPrice - pos.entryPrice;
+                const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+                const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+                
                 allPositions.push({
                     trader: player.name,
                     target: pos.targetName,
                     isPlayer: false,
-                    isOpponentOnMe: false
+                    isOpponentOnMe: false,
+                    pnl: pnl,
+                    type: pos.type
                 });
             }
         });
@@ -1194,10 +1317,16 @@ class MultiplayerGame {
             let classes = 'position-item';
             if (pos.isPlayer) classes += ' player-position';
             if (pos.isOpponentOnMe) classes += ' opponent-on-me';
+            
+            const pnlClass = pos.pnl >= 0 ? 'profit' : 'loss';
+            const pnlText = pos.pnl >= 0 ? `+${pos.pnl}` : `${pos.pnl}`;
+            const typeIcon = pos.type === 'long' ? '📈' : '📉';
+            
             return `<div class="${classes}">
                 <span class="trader">${pos.trader}</span>
-                <span class="arrow">➜</span>
+                <span class="arrow">${typeIcon}</span>
                 <span class="target">${pos.target}</span>
+                <span class="pos-pnl-mini ${pnlClass}">${pnlText}🍪</span>
             </div>`;
         }).join('');
     }
@@ -1362,11 +1491,15 @@ class MultiplayerGame {
         // Update click speed for multiplier
         this.updateClickSpeed();
         
-        const cookiesEarned = Math.floor(1 * this.clickMultiplier);
-        console.log('Emitting game:click with multiplier:', cookiesEarned);
+        // Get click power from current player state
+        const me = this.getMe();
+        const clickPower = me?.clickPower || 1;
         
-        // Send to server WITH multiplier
-        this.socket.emit('game:click', { multiplier: cookiesEarned });
+        const cookiesEarned = Math.floor(clickPower * this.clickMultiplier);
+        console.log('Emitting game:click with multiplier:', this.clickMultiplier, 'clickPower:', clickPower);
+        
+        // Send to server WITH multiplier (server will also multiply by clickPower)
+        this.socket.emit('game:click', { multiplier: Math.floor(this.clickMultiplier) });
         
         this.showClickFeedback(e, cookiesEarned);
     }
@@ -1435,6 +1568,10 @@ class MultiplayerGame {
         this.socket.emit('game:buy', genId);
     }
     
+    handleClickUpgrade() {
+        this.socket.emit('game:upgradeClick');
+    }
+    
     updateGeneratorButtons() {
         if (!this.gameState) return;
         
@@ -1473,6 +1610,35 @@ class MultiplayerGame {
                 btn.classList.add('locked');
             }
         });
+        
+        // Update click power upgrade button
+        this.updateClickUpgradeButton(me, available);
+    }
+    
+    updateClickUpgradeButton(me, available) {
+        const btn = document.getElementById('upgrade-click');
+        if (!btn) return;
+        
+        const clickPower = me.clickPower || 1;
+        const currentLevel = clickPower - 1;
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
+        const nextPower = clickPower + 1;
+        
+        const costSpan = btn.querySelector('.click-power-cost');
+        if (costSpan) costSpan.textContent = cost;
+        
+        const levelSpan = btn.querySelector('.click-power-level');
+        if (levelSpan) levelSpan.textContent = `Lv.${clickPower}`;
+        
+        const descSpan = btn.querySelector('.click-power-desc');
+        if (descSpan) descSpan.textContent = `+${clickPower} per click → +${nextPower}`;
+        
+        if (available >= cost) {
+            btn.classList.remove('locked');
+        } else {
+            btn.classList.add('locked');
+        }
     }
     
     giveUp() {
@@ -1514,7 +1680,9 @@ class MultiplayerGame {
     }
     
     showNotification(message, type = 'info') {
-        // Add to activity feed (like tutorial)
+        console.log('showNotification called:', message, type);
+        
+        // Add to activity feed
         const feed = document.getElementById('notif-feed');
         if (feed) {
             const notif = document.createElement('div');
@@ -1537,6 +1705,48 @@ class MultiplayerGame {
                 }
             }, 15000);
         }
+        
+        // Also show a floating toast for important notifications
+        if (type === 'success' || type === 'error') {
+            this.showToast(message, type);
+        }
+    }
+    
+    showToast(message, type = 'info') {
+        // Create floating toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'rgba(46,204,113,0.95)' : 
+                       type === 'error' ? 'rgba(231,76,60,0.95)' :
+                       type === 'warning' ? 'rgba(243,156,18,0.95)' : 'rgba(52,152,219,0.95)';
+        
+        toast.style.cssText = `
+            background: ${bgColor};
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1em;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: toastSlideIn 0.3s ease;
+            max-width: 350px;
+        `;
+        toast.textContent = message;
+        
+        toastContainer.appendChild(toast);
+        
+        // Remove after 4 seconds
+        setTimeout(() => {
+            toast.style.animation = 'toastSlideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     }
 }
 
