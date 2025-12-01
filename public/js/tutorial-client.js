@@ -1448,7 +1448,7 @@ class TutorialManager {
             // Step 10: Bankruptcy mechanic
             {
                 title: '💸 Step 10: Bankruptcy Mechanic!',
-                text: 'If someone closes a position on you and you <strong>can\'t pay</strong> the full amount...<br><br>You pay <span class="red">ALL your cookies</span> to them!<br><br>⚠️ This can wipe you out! Build up cookies and generators to survive!',
+                text: 'If someone\'s position on you has <strong>unrealized PNL higher than your total cookies</strong>...<br><br>You\'re <span class="red">BANKRUPT</span>! They don\'t even need to close!<br><br>⚠️ ALL your cookies go to them automatically!<br><br>Build up cookies & generators to survive attacks!',
                 button: 'Scary!',
                 action: 'demoBankruptcy',
                 task: null
@@ -1642,11 +1642,11 @@ class TutorialManager {
         const message = `
             <strong>Example Scenario:</strong><br><br>
             • You have <span class="gold">50🍪</span><br>
-            • Bot has LONG position that's +200🍪 in profit<br>
-            • Bot closes position...<br><br>
-            <span class="red">You can't pay 200🍪!</span><br>
-            <span class="red">→ You pay ALL 50🍪 instead!</span><br><br>
-            The bot gets your entire balance! 💀
+            • Bot has LONG on you, unrealized PNL: +60🍪<br><br>
+            <span class="red">Their PNL > Your cookies!</span><br>
+            <span class="red">→ INSTANT BANKRUPTCY!</span><br>
+            <span class="red">→ They take ALL 50🍪 automatically!</span><br><br>
+            No closing needed - it happens instantly! 💀
         `;
         
         // Update the tutorial text to show this
