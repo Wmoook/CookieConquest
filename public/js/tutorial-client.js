@@ -17,6 +17,7 @@ class TutorialGame {
         this.chartViewport = {};
         this.displayValues = {};
         this.lastChartTime = performance.now();
+        this.targetLeverage = {};
         
         // Bot players
         this.bots = [
@@ -609,10 +610,13 @@ class TutorialGame {
             const chartId = player.name;
             const levSelect = document.getElementById(`lev-select-${chartId}`);
             if (levSelect) {
+                // Initialize default leverage (5x is active by default)
+                this.targetLeverage[chartId] = 5;
                 levSelect.querySelectorAll('.lev-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         levSelect.querySelectorAll('.lev-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
+                        this.targetLeverage[chartId] = parseInt(btn.dataset.lev) || 5;
                     });
                 });
             }
@@ -1863,8 +1867,8 @@ class TutorialManager {
             },
             // Step 7: Leverage explained
             {
-                title: '⚡ Step 7: Leverage',
-                text: '<strong>Leverage</strong> multiplies your gains AND losses!<br><br>• <span class="gold">2x</span> = Safe, but smaller profits<br>• <span class="gold">5x</span> = Balanced risk/reward<br>• <span class="gold">10x</span> = High risk, high reward!<br><br>⚠️ Higher leverage = closer liquidation!',
+                title: '⚡ Step 7: Leverage & Limits',
+                text: '<strong>Leverage</strong> multiplies your gains AND losses!<br><br>• <span class="gold">2x</span> = Safe, but smaller profits<br>• <span class="gold">5x</span> = Balanced risk/reward<br>• <span class="gold">10x</span> = High risk, high reward!<br><br>⚠️ <strong>LIMIT:</strong> You can only bet up to <span class="gold">50%</span> of someone\'s net worth!<br>Use the <strong>MAX</strong> button to calculate your maximum stake.',
                 button: 'I understand!',
                 action: null
             },
