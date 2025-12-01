@@ -407,8 +407,11 @@ class TutorialGame {
                         </div>
                     </div>
                     ` : `
-                    <div class="card-actions" style="text-align: center; padding: 15px; color: #2ecc71;">
-                        <strong>This is YOU! 🎯</strong>
+                    <div class="card-actions" id="positions-on-me-section" style="padding: 10px;">
+                        <div style="text-align: center; color: #2ecc71; margin-bottom: 8px;">
+                            <strong>This is YOU! 🎯</strong>
+                        </div>
+                        <div id="positions-on-me-list" style="font-size: 0.75em;"></div>
                     </div>
                     `}
                 </div>
@@ -730,6 +733,41 @@ class TutorialGame {
             // Keep notifications, just don't show "no positions"
             return;
         }
+        
+        // Update positions on me display
+        this.updatePositionsOnMe();
+    }
+    
+    updatePositionsOnMe() {
+        const list = document.getElementById('positions-on-me-list');
+        if (!list) return;
+        
+        if (this.player.positionsOnMe.length === 0) {
+            list.innerHTML = '<div style="color: rgba(255,255,255,0.5); text-align:center;">No one trading on you</div>';
+            return;
+        }
+        
+        list.innerHTML = this.player.positionsOnMe.map(pos => {
+            const owner = this.allPlayers.find(p => p.name === pos.ownerName);
+            if (!owner) return '';
+            
+            // Calculate their PNL (negative = bad for you)
+            const currentPrice = this.player.cookies;
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const theirPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+            
+            const pnlClass = theirPnl > 0 ? 'color:#e74c3c' : 'color:#2ecc71'; // Red if they profit (bad for you)
+            const pnlText = theirPnl >= 0 ? `+${theirPnl}` : `${theirPnl}`;
+            
+            return `
+                <div style="background:rgba(231,76,60,0.2); padding:6px; border-radius:4px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🤖 ${pos.ownerName}</span>
+                    <span style="color:${pos.type === 'long' ? '#2ecc71' : '#e74c3c'}">${pos.type.toUpperCase()}</span>
+                    <span style="${pnlClass}">${pnlText}🍪</span>
+                </div>
+            `;
+        }).join('');
     }
     
     resizeCharts() {
@@ -1232,7 +1270,7 @@ class TutorialGame {
                 
                 // Occasionally open position on player if they have enough cookies
                 if (bot.cookies > 150 && this.player.cookies > 200 && Math.random() < 0.02) {
-                    const stake = Math.floor(bot.cookies * 0.1);
+                    const stake = Math.floor(Math.min(bot.cookies * 0.1, 30));
                     const type = Math.random() < 0.5 ? 'long' : 'short';
                     
                     const position = {
@@ -1248,12 +1286,71 @@ class TutorialGame {
                     };
                     
                     bot.positions.push(position);
+                    bot.cookies -= stake;
                     this.player.positionsOnMe.push(position);
                     
                     this.showNotification(`🤖 ${bot.name} opened ${type.toUpperCase()} on YOU!`, 'warning');
                 }
+                
+                // Occasionally close profitable positions on player
+                const posOnPlayer = bot.positions.filter(p => p.targetName === 'You');
+                posOnPlayer.forEach(pos => {
+                    const currentPrice = this.player.cookies;
+                    const priceChange = currentPrice - pos.entryPrice;
+                    const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+                    const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+                    
+                    // Close if profitable or randomly after 10 seconds
+                    const age = Date.now() - pos.openTime;
+                    if ((pnl > pos.stake * 0.5 && Math.random() < 0.1) || (age > 15000 && Math.random() < 0.05)) {
+                        this.botClosePosition(bot, pos);
+                    }
+                });
             });
         }, 2000);
+    }
+    
+    botClosePosition(bot, position) {
+        // Bot closes their position on the player
+        const posIndex = bot.positions.findIndex(p => p.id === position.id);
+        if (posIndex === -1) return;
+        
+        const currentPrice = this.player.cookies;
+        const priceChange = currentPrice - position.entryPrice;
+        const pnlMultiplier = position.type === 'long' ? 1 : -1;
+        const pnl = Math.floor((priceChange / (position.entryPrice || 1)) * position.stake * position.leverage * pnlMultiplier);
+        
+        // Return stake to bot
+        bot.cookies += position.stake;
+        
+        if (pnl > 0) {
+            // Bot profits - player pays
+            const actualPnl = Math.min(pnl, this.player.cookies);
+            
+            if (actualPnl < pnl) {
+                // BANKRUPTCY! Player can't pay full amount!
+                this.showNotification(`💸 BANKRUPTCY! ${bot.name} took ALL your ${actualPnl}🍪!`, 'error');
+                bot.cookies += actualPnl;
+                this.player.cookies = 0;
+            } else {
+                bot.cookies += actualPnl;
+                this.player.cookies -= actualPnl;
+                this.showNotification(`🤖 ${bot.name} closed PROFITABLE position! You paid ${actualPnl}🍪`, 'warning');
+            }
+        } else if (pnl < 0) {
+            // Bot loses - bot pays player
+            const loss = Math.min(Math.abs(pnl), position.stake);
+            this.player.cookies += loss;
+            this.showNotification(`🎉 ${bot.name} closed at LOSS! You gained ${loss}🍪!`, 'success');
+        } else {
+            this.showNotification(`🤖 ${bot.name} closed position at breakeven`, 'info');
+        }
+        
+        // Remove position
+        bot.positions.splice(posIndex, 1);
+        this.player.positionsOnMe = this.player.positionsOnMe.filter(p => p.id !== position.id);
+        
+        this.cookies = this.player.cookies;
     }
 }
 
@@ -1339,14 +1436,31 @@ class TutorialManager {
                 task: 'Close any position!',
                 checkComplete: () => this._positionClosed
             },
-            // Step 9: Win condition
+            // Step 9: Others trading on YOU
             {
-                title: '🏆 Step 9: How to Win',
+                title: '🎯 Step 9: Others Trade on YOU!',
+                text: 'Other players can open positions <strong>on YOUR chart</strong>!<br><br>If they go <span class="green">LONG</span> on you and you go UP, <strong>you pay them</strong>!<br>If they go <span class="red">SHORT</span> on you and you go DOWN, <strong>you pay them</strong>!<br><br>Watch - a bot will trade on you now!',
+                button: 'Got it!',
+                action: 'triggerBotTradeOnPlayer',
+                task: 'Wait for a bot to open a position on you...',
+                checkComplete: () => game.player.positionsOnMe.length > 0
+            },
+            // Step 10: Bankruptcy mechanic
+            {
+                title: '💸 Step 10: Bankruptcy Mechanic!',
+                text: 'If someone closes a position on you and you <strong>can\'t pay</strong> the full amount...<br><br>You pay <span class="red">ALL your cookies</span> to them!<br><br>⚠️ This can wipe you out! Build up cookies and generators to survive!',
+                button: 'Scary!',
+                action: 'demoBankruptcy',
+                task: null
+            },
+            // Step 11: Win condition
+            {
+                title: '🏆 Step 11: How to Win',
                 text: 'First player to reach <span class="gold">1,000,000 cookies</span> wins!<br><br>Combine:<br>• 👆 Clicking<br>• 🏭 Generators<br>• 📈 Smart trading<br><br>to dominate!',
                 button: 'Ready to compete!',
                 action: null
             },
-            // Step 10: Final
+            // Step 12: Final
             {
                 title: '🎉 Tutorial Complete!',
                 text: 'You\'ve learned all the mechanics!<br><br>Now practice against the bots, or jump into <strong>real multiplayer</strong>!<br><br>Good luck, cookie trader! 🍪',
@@ -1488,6 +1602,58 @@ class TutorialManager {
     highlightClose() {
         // Will highlight when position exists
         this._positionClosed = false;
+    }
+    
+    triggerBotTradeOnPlayer() {
+        // Force a bot to open a position on the player for demonstration
+        const bot = game.bots[0]; // CookieBot
+        
+        // Make sure player has some cookies first
+        if (game.player.cookies < 50) {
+            game.player.cookies = 100;
+        }
+        
+        // Bot opens a LONG on player
+        setTimeout(() => {
+            const stake = 20;
+            const position = {
+                id: Date.now() + '-demo-' + Math.random().toString(36).substr(2, 9),
+                ownerName: bot.name,
+                targetName: 'You',
+                type: 'long',
+                stake,
+                leverage: 2,
+                entryPrice: game.player.cookies,
+                liquidationPrice: game.player.cookies * 0.5,
+                openTime: Date.now()
+            };
+            
+            bot.positions.push(position);
+            game.player.positionsOnMe.push(position);
+            bot.cookies -= stake;
+            
+            game.showNotification(`🤖 ${bot.name} opened LONG on YOU for ${stake}🍪!`, 'warning');
+        }, 1500);
+    }
+    
+    demoBankruptcy() {
+        // Show a demonstration of what happens when you can't pay
+        // Create a mock scenario visualization
+        const message = `
+            <strong>Example Scenario:</strong><br><br>
+            • You have <span class="gold">50🍪</span><br>
+            • Bot has LONG position that's +200🍪 in profit<br>
+            • Bot closes position...<br><br>
+            <span class="red">You can't pay 200🍪!</span><br>
+            <span class="red">→ You pay ALL 50🍪 instead!</span><br><br>
+            The bot gets your entire balance! 💀
+        `;
+        
+        // Update the tutorial text to show this
+        const textEl = document.getElementById('tutorial-text');
+        if (textEl) {
+            textEl.innerHTML += `<div style="margin-top:15px; padding:10px; background:rgba(231,76,60,0.2); border-radius:8px; font-size:0.85em;">${message}</div>`;
+        }
     }
     
     completeTutorial() {
