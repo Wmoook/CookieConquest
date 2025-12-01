@@ -919,11 +919,13 @@ class TutorialGame {
                 velEl.className = 'stat-velocity up';
             }
             
-            // Update net worth display for other players
+            // Update net worth display for other players (cookies + generator value)
             if (player.name !== 'You') {
+                const generatorValue = this.calculateGeneratorValue(player);
+                const netWorth = Math.floor(player.cookies + generatorValue);
                 const networthEl = document.getElementById(`networth-${chartId}`);
                 if (networthEl) {
-                    networthEl.textContent = `💎 ${Math.floor(player.cookies).toLocaleString()}`;
+                    networthEl.textContent = `💎 ${netWorth.toLocaleString()}`;
                 }
             }
         });

@@ -1187,11 +1187,14 @@ class MultiplayerGame {
             const rankEl = document.getElementById(`rank-${chartId}`);
             if (rankEl) rankEl.textContent = ranks[idx];
             
-            // Update net worth display for other players
+            // Update net worth display for other players (cookies + generator value)
             if (!this.isMe(p)) {
+                const fullPlayer = this.gameState.players.find(fp => fp.name === p.name);
+                const generatorValue = fullPlayer ? this.calculateGeneratorValue(fullPlayer) : 0;
+                const netWorth = Math.floor(p.cookies + generatorValue);
                 const networthEl = document.getElementById(`networth-${chartId}`);
                 if (networthEl) {
-                    networthEl.textContent = `💎 ${Math.floor(p.cookies).toLocaleString()}`;
+                    networthEl.textContent = `💎 ${netWorth.toLocaleString()}`;
                 }
             }
         });
