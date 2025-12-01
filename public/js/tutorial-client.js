@@ -814,9 +814,10 @@ class TutorialGame {
         const cpsEl = document.getElementById('cps-value');
         if (cpsEl) cpsEl.textContent = this.player.cps;
         
-        // Calculate and display Net Worth (cookies + generator value + unrealized PNL)
+        // Calculate and display Net Worth (totalValue + generator value)
+        // Use totalValue which already includes unrealized PNL for consistency with cookie display
         const generatorValue = this.calculateGeneratorValue(this.player);
-        const netWorth = this.player.cookies + generatorValue + unrealizedPnl;
+        const netWorth = Math.floor(totalValue) + generatorValue;
         const networthEl = document.getElementById('networth-value');
         if (networthEl) {
             networthEl.textContent = Math.floor(netWorth).toLocaleString();

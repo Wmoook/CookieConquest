@@ -1080,9 +1080,10 @@ class MultiplayerGame {
         const cpsValue = document.getElementById('cps-value');
         if (cpsValue) cpsValue.textContent = me.cps || 0;
         
-        // Calculate and display Net Worth (cookies + generator value + unrealized PNL)
+        // Calculate and display Net Worth (smoothed cookies + generator value)
+        // Use smoothCookies (which already includes unrealizedPnl from displayValues)
         const generatorValue = this.calculateGeneratorValue(me);
-        const netWorth = me.cookies + generatorValue + unrealizedPnl;
+        const netWorth = smoothCookies + generatorValue;
         const networthEl = document.getElementById('networth-value');
         if (networthEl) {
             networthEl.textContent = Math.floor(netWorth).toLocaleString();
