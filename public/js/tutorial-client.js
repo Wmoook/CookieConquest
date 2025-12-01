@@ -548,7 +548,13 @@ class TutorialGame {
                         <div class="trade-controls">
                             <div class="leverage-select" id="lev-select-${chartId}">
                                 <button class="lev-btn" data-lev="2">2x</button>
+                                <button class="lev-btn" data-lev="3">3x</button>
+                                <button class="lev-btn" data-lev="4">4x</button>
                                 <button class="lev-btn active" data-lev="5">5x</button>
+                                <button class="lev-btn" data-lev="6">6x</button>
+                                <button class="lev-btn" data-lev="7">7x</button>
+                                <button class="lev-btn" data-lev="8">8x</button>
+                                <button class="lev-btn" data-lev="9">9x</button>
                                 <button class="lev-btn" data-lev="10">10x</button>
                             </div>
                             <div class="stake-row">

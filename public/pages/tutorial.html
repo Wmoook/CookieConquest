@@ -139,8 +139,9 @@
         /* Trade controls */
         .card-actions { padding: 8px 10px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; }
         .trade-controls { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; }
-        .leverage-select { display: flex; gap: 2px; }
-        .lev-btn { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .leverage-select { display: flex; gap: 2px; flex-wrap: wrap; }
+        .lev-btn { padding: 3px 5px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.6em; font-weight: bold; cursor: pointer; transition: all 0.15s; }
+        .lev-btn:hover { background: #2a2a3e; border-color: #f39c12; color: #f39c12; }
         .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
         .stake-row { display: flex; gap: 3px; align-items: center; flex: 1; }
         .stake-input { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.7em; width: 50px; text-align: center; flex: 1; min-width: 40px; }
