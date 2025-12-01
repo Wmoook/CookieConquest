@@ -367,11 +367,12 @@ class MultiplayerGame {
         document.querySelectorAll('.max-stake-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.target;
-                const maxStake = this.calculateMaxStake(targetId);
+                const leverage = this.targetLeverage[targetId] || 2;
+                const maxStake = this.calculateMaxStake(targetId, leverage);
                 const stakeInput = document.getElementById(`stake-${targetId}`);
                 if (stakeInput && maxStake > 0) {
                     stakeInput.value = maxStake;
-                    this.showNotification(`Max stake: ${maxStake}🍪`, 'info');
+                    this.showNotification(`Max stake: ${maxStake}🍪 @ ${leverage}x`, 'info');
                 } else if (maxStake <= 0) {
                     this.showNotification(`Can't trade on this player yet!`, 'error');
                 }
@@ -537,7 +538,7 @@ class MultiplayerGame {
         };
     }
     
-    calculateMaxStake(targetName) {
+    calculateMaxStake(targetName, leverage = 2) {
         if (!this.gameState) return 0;
         
         const me = this.getMe();
@@ -551,16 +552,25 @@ class MultiplayerGame {
         const lockedMargin = me.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = me.cookies - lockedMargin;
         
-        const maxFromTarget = Math.floor(target.cookies * 0.5);
+        // Calculate target's net worth
+        const targetGenValue = Object.entries(target.generators).reduce((sum, [type, count]) => {
+            const prices = { grandma: 100, bakery: 500, factory: 2000, mine: 10000, bank: 50000, temple: 250000 };
+            return sum + (count * prices[type] * 0.9);
+        }, 0);
+        const targetNetWorth = target.cookies + targetGenValue;
         
-        // Check if already have position on target
-        const existingPos = me.positions.find(p => p.targetName === targetName);
-        if (existingPos) {
-            const maxAdd = maxFromTarget - existingPos.stake;
-            return Math.max(0, Math.min(maxAdd, Math.floor(available)));
-        }
+        // Max per position = 25% of target's net worth / leverage
+        const maxPerPosition = Math.floor((targetNetWorth * 0.25) / leverage);
         
-        return Math.min(maxFromTarget, Math.floor(available));
+        // Max total exposure = 50% of target's net worth
+        const existingExposure = me.positions
+            .filter(p => p.targetName === targetName)
+            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
+        const remainingExposure = Math.floor((targetNetWorth * 0.5) - existingExposure);
+        const maxFromExposure = Math.floor(remainingExposure / leverage);
+        
+        // Take minimum of all constraints
+        return Math.max(0, Math.min(available, maxPerPosition, maxFromExposure));
     }
     
     executeQuickTrade(targetName, action) {

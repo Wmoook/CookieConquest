@@ -647,10 +647,36 @@ class TutorialGame {
     }
     
     setMaxStake(chartId) {
+        const target = this.allPlayers.find(p => {
+            const tid = p.name === 'You' ? 'you' : p.name;
+            return tid === chartId;
+        });
+        if (!target || target.name === 'You') return;
+        
+        const leverage = this.targetLeverage[chartId] || 2;
+        
+        // Available cookies
         const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
-        const available = Math.floor((this.player.cookies - lockedMargin) * 0.9);
+        const available = this.player.cookies - lockedMargin;
+        
+        // Target's net worth
+        const targetNetWorth = target.cookies + this.calculateGeneratorValue(target);
+        
+        // Max per position = 25% of target's net worth / leverage
+        const maxPerPosition = Math.floor((targetNetWorth * 0.25) / leverage);
+        
+        // Max total exposure = 50% of target's net worth
+        const existingExposure = this.player.positions
+            .filter(p => p.targetName === target.name)
+            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
+        const remainingExposure = Math.floor((targetNetWorth * 0.5) - existingExposure);
+        const maxFromExposure = Math.floor(remainingExposure / leverage);
+        
+        // Take minimum of all constraints
+        const maxStake = Math.max(1, Math.min(available, maxPerPosition, maxFromExposure));
+        
         const input = document.getElementById(`stake-${chartId}`);
-        if (input) input.value = Math.max(1, available);
+        if (input) input.value = maxStake;
     }
     
     startGameLoop() {
