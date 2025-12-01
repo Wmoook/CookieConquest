@@ -921,9 +921,11 @@ class TutorialGame {
             }
             
             // Update net worth display for other players (cookies + generator value)
+            // Use floored cookies for consistency with cookie display
             if (player.name !== 'You') {
                 const generatorValue = this.calculateGeneratorValue(player);
-                const netWorth = Math.floor(player.cookies + generatorValue);
+                const flooredCookies = Math.floor(player.cookies);
+                const netWorth = flooredCookies + generatorValue;
                 const networthEl = document.getElementById(`networth-${chartId}`);
                 if (networthEl) {
                     networthEl.textContent = `💎 ${netWorth.toLocaleString()}`;

@@ -1189,10 +1189,12 @@ class MultiplayerGame {
             if (rankEl) rankEl.textContent = ranks[idx];
             
             // Update net worth display for other players (cookies + generator value)
+            // Use floored displayValues for consistency with cookie display
             if (!this.isMe(p)) {
                 const fullPlayer = this.gameState.players.find(fp => fp.name === p.name);
                 const generatorValue = fullPlayer ? this.calculateGeneratorValue(fullPlayer) : 0;
-                const netWorth = Math.floor(p.cookies + generatorValue);
+                const smoothCookies = Math.floor(this.displayValues[p.name] || p.cookies);
+                const netWorth = smoothCookies + generatorValue;
                 const networthEl = document.getElementById(`networth-${chartId}`);
                 if (networthEl) {
                     networthEl.textContent = `💎 ${netWorth.toLocaleString()}`;
