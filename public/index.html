@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Conquest</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Particle Background -->
+        <canvas id="particles"></canvas>
+        
+        <!-- Main Menu Screen -->
+        <div id="main-menu" class="screen active">
+            <div class="menu-container">
+                <div class="logo-container">
+                    <h1 class="game-title">COOKIE</h1>
+                    <h1 class="game-title title-glow">CONQUEST</h1>
+                    <div class="title-underline"></div>
+                </div>
+                
+                <div class="menu-content">
+                    <div class="player-info-panel">
+                        <div class="balance-display">
+                            <span class="balance-label">BALANCE</span>
+                            <span class="balance-amount">$<span id="player-balance">0.00</span></span>
+                            <button id="add-balance-btn" class="btn btn-gold">+ ADD $</button>
+                        </div>
+                    </div>
+                    
+                    <div class="name-input-section">
+                        <input type="text" id="player-name" placeholder="Enter your name" maxlength="16">
+                        <button id="set-name-btn" class="btn btn-primary">SET NAME</button>
+                    </div>
+                    
+                    <div class="menu-buttons">
+                        <button id="quick-play-btn" class="btn btn-large btn-primary" disabled>QUICK PLAY</button>
+                        <button id="create-match-btn" class="btn btn-large btn-secondary" disabled>CREATE MATCH</button>
+                        <button id="browse-lobbies-btn" class="btn btn-large btn-tertiary" disabled>BROWSE LOBBIES</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Balance Modal -->
+        <div id="balance-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>ADD BALANCE</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-info">Select amount to add (V1 Demo Mode)</p>
+                    <div class="balance-options">
+                        <button class="balance-option" data-amount="10">$10</button>
+                        <button class="balance-option" data-amount="25">$25</button>
+                        <button class="balance-option" data-amount="50">$50</button>
+                        <button class="balance-option" data-amount="100">$100</button>
+                    </div>
+                    <div class="custom-amount">
+                        <input type="number" id="custom-amount" placeholder="Custom amount" min="1" max="1000">
+                        <button id="add-custom-btn" class="btn btn-primary">ADD</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Create Match Modal -->
+        <div id="create-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>CREATE MATCH</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Match Name</label>
+                        <input type="text" id="match-name" placeholder="My Awesome Match">
+                    </div>
+                    <div class="form-group">
+                        <label>Buy-In Amount</label>
+                        <div class="buyin-options">
+                            <button class="buyin-option active" data-buyin="1">$1</button>
+                            <button class="buyin-option" data-buyin="5">$5</button>
+                            <button class="buyin-option" data-buyin="10">$10</button>
+                            <button class="buyin-option" data-buyin="25">$25</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Players</label>
+                        <div class="player-count-options">
+                            <button class="player-option" data-players="2">2</button>
+                            <button class="player-option" data-players="4">4</button>
+                            <button class="player-option active" data-players="6">6</button>
+                            <button class="player-option" data-players="10">10</button>
+                        </div>
+                    </div>
+                    <button id="confirm-create-btn" class="btn btn-large btn-primary">CREATE MATCH</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lobby Browser Screen -->
+        <div id="lobby-browser" class="screen">
+            <div class="browser-container">
+                <div class="browser-header">
+                    <h2>AVAILABLE MATCHES</h2>
+                    <button id="refresh-lobbies-btn" class="btn btn-icon">REFRESH</button>
+                    <button id="back-to-menu-btn" class="btn btn-secondary">BACK</button>
+                </div>
+                <div class="lobby-list" id="lobby-list">
+                    <div class="no-lobbies">No matches available. Create one!</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Match Lobby Screen -->
+        <div id="match-lobby" class="screen">
+            <div class="lobby-container">
+                <div class="lobby-header">
+                    <h2 id="lobby-match-name">Match Lobby</h2>
+                    <div class="prize-pool-display">
+                        <span class="pool-label">PRIZE POOL</span>
+                        <span class="pool-amount">$<span id="lobby-prize-pool">0</span></span>
+                    </div>
+                </div>
+                <div class="players-grid" id="lobby-players">
+                    <!-- Players will be added here -->
+                </div>
+                <div class="lobby-actions">
+                    <button id="start-match-btn" class="btn btn-large btn-primary" style="display: none;">START MATCH</button>
+                    <button id="leave-lobby-btn" class="btn btn-large btn-secondary">LEAVE LOBBY</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="game-container">
+                <!-- Top HUD -->
+                <div class="game-hud-top">
+                    <div class="phase-indicator">
+                        <span class="phase-label">PHASE</span>
+                        <span class="phase-name" id="phase-name">EARLY GAME</span>
+                    </div>
+                    <div class="timer-display">
+                        <span class="timer-label">TIME</span>
+                        <span class="timer-value" id="game-timer">6:00</span>
+                    </div>
+                    <div class="prize-display">
+                        <span class="prize-label">PRIZE</span>
+                        <span class="prize-value">$<span id="game-prize-pool">0</span></span>
+                    </div>
+                </div>
+                
+                <!-- Main Game Area -->
+                <div class="game-main">
+                    <!-- Left Panel - Player Stats -->
+                    <div class="panel panel-left">
+                        <div class="panel-header">YOUR STATS</div>
+                        <div class="cookie-display">
+                            <div class="cookie-count">
+                                <span class="cookie-value" id="player-cookies">0</span>
+                                <span class="cookie-label">COOKIES</span>
+                            </div>
+                            <div class="public-count">
+                                <span class="public-label">PUBLIC:</span>
+                                <span class="public-value" id="player-public-cookies">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="generators-section">
+                            <div class="section-header">GENERATORS</div>
+                            <div class="generators-list" id="generators-list">
+                                <!-- Generators added by JS -->
+                            </div>
+                        </div>
+                        
+                        <div class="defenses-section">
+                            <div class="section-header">DEFENSES</div>
+                            <div class="defenses-list" id="defenses-list">
+                                <!-- Defenses added by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Center - Cookie Clicker -->
+                    <div class="game-center">
+                        <div class="perfect-click-indicator" id="perfect-indicator">
+                            <div class="pulse-ring"></div>
+                            <span>PERFECT!</span>
+                        </div>
+                        
+                        <div class="cookie-container">
+                            <div class="cookie-glow"></div>
+                            <div class="main-cookie" id="main-cookie">
+                                <div class="cookie-inner"></div>
+                                <div class="cookie-chip chip-1"></div>
+                                <div class="cookie-chip chip-2"></div>
+                                <div class="cookie-chip chip-3"></div>
+                                <div class="cookie-chip chip-4"></div>
+                                <div class="cookie-chip chip-5"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="crit-bar-container">
+                            <div class="crit-bar">
+                                <div class="crit-zone perfect"></div>
+                                <div class="crit-zone near"></div>
+                                <div class="crit-indicator" id="crit-indicator"></div>
+                            </div>
+                            <div class="crit-labels">
+                                <span>2x</span>
+                                <span>4x</span>
+                                <span>2x</span>
+                            </div>
+                        </div>
+                        
+                        <div class="streak-display" id="streak-display">
+                            <span class="streak-value">0</span>
+                            <span class="streak-label">STREAK</span>
+                        </div>
+                        
+                        <div class="click-feedback" id="click-feedback"></div>
+                    </div>
+                    
+                    <!-- Right Panel - Opponents & Actions -->
+                    <div class="panel panel-right">
+                        <div class="panel-header">OPPONENTS</div>
+                        <div class="opponents-list" id="opponents-list">
+                            <!-- Opponents added by JS -->
+                        </div>
+                        
+                        <div class="actions-section">
+                            <div class="action-tabs">
+                                <button class="tab-btn active" data-tab="bluff">BLUFF</button>
+                                <button class="tab-btn" data-tab="sabotage">SABOTAGE</button>
+                            </div>
+                            
+                            <div class="tab-content" id="bluff-tab">
+                                <div class="bluff-list" id="bluff-list">
+                                    <!-- Bluffs added by JS -->
+                                </div>
+                            </div>
+                            
+                            <div class="tab-content hidden" id="sabotage-tab">
+                                <div class="target-select">
+                                    <label>Target:</label>
+                                    <select id="sabotage-target">
+                                        <!-- Targets added by JS -->
+                                    </select>
+                                </div>
+                                <div class="sabotage-list" id="sabotage-list">
+                                    <!-- Sabotages added by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom HUD -->
+                <div class="game-hud-bottom">
+                    <div class="active-effects" id="active-effects">
+                        <!-- Active effects shown here -->
+                    </div>
+                    <div class="notification-area" id="notifications">
+                        <!-- Notifications shown here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Golden Cookie (appears during bakeoff) -->
+            <div class="golden-cookie hidden" id="golden-cookie">
+                <div class="golden-cookie-inner"></div>
+            </div>
+        </div>
+        
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <div class="results-container">
+                <div class="results-header">
+                    <h1 id="results-title">MATCH COMPLETE</h1>
+                </div>
+                <div class="winner-display" id="winner-display">
+                    <div class="crown-icon"></div>
+                    <div class="winner-name" id="winner-name">Winner</div>
+                    <div class="winner-cookies" id="winner-cookies">0 cookies</div>
+                    <div class="prize-won">WON $<span id="prize-won">0</span></div>
+                </div>
+                <div class="standings-list" id="standings-list">
+                    <!-- Standings added by JS -->
+                </div>
+                <button id="back-to-menu-results-btn" class="btn btn-large btn-primary">BACK TO MENU</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/particles.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
