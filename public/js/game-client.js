@@ -1046,7 +1046,7 @@ class MultiplayerGame {
     calculateGeneratorValue(player) {
         if (!player || !player.generators) return 0;
         
-        const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000 };
+        const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000, wizard: 200000, portal: 1000000, prism: 5000000, universe: 25000000 };
         let totalValue = 0;
         
         for (const [genType, count] of Object.entries(player.generators)) {
@@ -1627,7 +1627,11 @@ class MultiplayerGame {
             factory: { baseCost: 500, cps: 20 },
             mine: { baseCost: 2000, cps: 100 },
             bank: { baseCost: 10000, cps: 500 },
-            temple: { baseCost: 50000, cps: 2500 }
+            temple: { baseCost: 50000, cps: 2500 },
+            wizard: { baseCost: 200000, cps: 10000 },
+            portal: { baseCost: 1000000, cps: 50000 },
+            prism: { baseCost: 5000000, cps: 250000 },
+            universe: { baseCost: 25000000, cps: 1000000 }
         };
         
         Object.keys(generatorData).forEach(genId => {

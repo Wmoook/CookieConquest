@@ -179,7 +179,7 @@ function initGameState(lobby) {
             cps: 0,
             clickPower: 5, // Base click power (buffed from 1)
             lastClickTime: 0, // Track last click for activity indicator
-            generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 },
+            generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
             positions: [], // Positions this player has on others
             positionsOnMe: [] // Positions others have on this player
         })),
@@ -227,7 +227,7 @@ function forcePayment(player, amount) {
     
     // Would go below 0 net worth - FULL BANKRUPTCY!
     // Sell ALL generators and set cookies to 0
-    const generatorOrder = ['grandma', 'bakery', 'factory', 'mine', 'bank', 'temple'];
+    const generatorOrder = ['grandma', 'bakery', 'factory', 'mine', 'bank', 'temple', 'wizard', 'portal', 'prism', 'universe'];
     
     for (const genType of generatorOrder) {
         player.generators[genType] = 0;
@@ -372,10 +372,14 @@ io.on('connection', (socket) => {
             factory: 500 * Math.pow(1.15, player.generators.factory),
             mine: 2000 * Math.pow(1.15, player.generators.mine),
             bank: 10000 * Math.pow(1.15, player.generators.bank),
-            temple: 50000 * Math.pow(1.15, player.generators.temple)
+            temple: 50000 * Math.pow(1.15, player.generators.temple),
+            wizard: 200000 * Math.pow(1.15, player.generators.wizard),
+            portal: 1000000 * Math.pow(1.15, player.generators.portal),
+            prism: 5000000 * Math.pow(1.15, player.generators.prism),
+            universe: 25000000 * Math.pow(1.15, player.generators.universe)
         };
         
-        const cpsValues = { grandma: 1, bakery: 5, factory: 20, mine: 100, bank: 500, temple: 2500 };
+        const cpsValues = { grandma: 1, bakery: 5, factory: 20, mine: 100, bank: 500, temple: 2500, wizard: 10000, portal: 50000, prism: 250000, universe: 1000000 };
         
         const price = Math.floor(prices[generatorType]);
         if (player.cookies >= price) {
@@ -386,7 +390,11 @@ io.on('connection', (socket) => {
                          player.generators.factory * 20 +
                          player.generators.mine * 100 +
                          player.generators.bank * 500 +
-                         player.generators.temple * 2500;
+                         player.generators.temple * 2500 +
+                         player.generators.wizard * 10000 +
+                         player.generators.portal * 50000 +
+                         player.generators.prism * 250000 +
+                         player.generators.universe * 1000000;
             
             io.to(code).emit('game:state', lobby.gameState);
         }
