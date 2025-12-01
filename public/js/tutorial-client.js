@@ -533,13 +533,13 @@ class TutorialGame {
                             <span class="stat-velocity up" id="vel-${chartId}">+${player.cps}/s</span>
                         </div>
                     </div>
+                    <div class="chart-controls">
+                        <button class="zoom-btn zoom-in" data-chart="${chartId}">+</button>
+                        <button class="zoom-btn zoom-out" data-chart="${chartId}">-</button>
+                        <button class="zoom-btn zoom-all" data-chart="${chartId}">ALL</button>
+                        <button class="zoom-btn zoom-live" data-chart="${chartId}">LIVE</button>
+                    </div>
                     <div class="chart-container" id="chart-container-${chartId}" data-chart="${chartId}">
-                        <div class="chart-controls">
-                            <button class="zoom-btn zoom-in" data-chart="${chartId}">+</button>
-                            <button class="zoom-btn zoom-out" data-chart="${chartId}">-</button>
-                            <button class="zoom-btn zoom-all" data-chart="${chartId}">ALL</button>
-                            <button class="zoom-btn zoom-live" data-chart="${chartId}">LIVE</button>
-                        </div>
                         <canvas class="chart-canvas" id="chart-${chartId}"></canvas>
                         <div class="chart-overlay"></div>
                     </div>

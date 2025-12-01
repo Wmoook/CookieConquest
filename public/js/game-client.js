@@ -284,16 +284,15 @@ class MultiplayerGame {
                     </div>
                 </div>
                 
+                <div class="chart-controls">
+                    <button class="zoom-btn zoom-in" data-chart="${chartId}">+</button>
+                    <button class="zoom-btn zoom-out" data-chart="${chartId}">−</button>
+                    <button class="zoom-btn zoom-all" data-chart="${chartId}">ALL</button>
+                    <button class="zoom-btn zoom-live" data-chart="${chartId}">LIVE</button>
+                </div>
                 <div class="chart-container" data-chart="${chartId}">
                     <canvas class="chart-canvas" id="chart-${chartId}"></canvas>
                     <div class="chart-overlay"></div>
-                    <div class="chart-change flat" id="change-${chartId}">0%</div>
-                    <div class="chart-controls">
-                        <button class="zoom-btn zoom-in" data-chart="${chartId}">+</button>
-                        <button class="zoom-btn zoom-out" data-chart="${chartId}">−</button>
-                        <button class="zoom-btn zoom-all" data-chart="${chartId}">ALL</button>
-                        <button class="zoom-btn zoom-live" data-chart="${chartId}">LIVE</button>
-                    </div>
                 </div>
                 
                 ${!isMe ? `
@@ -927,27 +926,6 @@ class MultiplayerGame {
             ctx.stroke();
         }
         
-        // LIVE/HISTORY badge
-        if (viewport) {
-            ctx.font = 'bold 9px Arial';
-            if (isLive) {
-                ctx.fillStyle = '#e74c3c';
-                ctx.fillRect(W - 35, 4, 32, 14);
-                ctx.fillStyle = '#fff';
-                ctx.fillText('LIVE', W - 30, 14);
-            } else {
-                ctx.fillStyle = 'rgba(100,200,255,0.8)';
-                ctx.fillRect(W - 55, 4, 52, 14);
-                ctx.fillStyle = '#fff';
-                ctx.fillText('HISTORY', W - 52, 14);
-            }
-            
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.font = '8px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText(`${viewport.fullLen} pts`, MARGIN_LEFT + 4, H - 4);
-        }
-        
         // Update UI elements
         const currentCookies = data[data.length - 1] || 0;
         const oldCookies = data.length > 5 ? data[data.length - 5] : data[0];
@@ -961,20 +939,6 @@ class MultiplayerGame {
                 priceEl.textContent = (currentCookies / 1000).toFixed(2) + 'K';
             } else {
                 priceEl.textContent = Math.floor(currentCookies);
-            }
-        }
-        
-        const changeEl = document.getElementById('change-' + labelId);
-        if (changeEl) {
-            if (pctChange > 1) {
-                changeEl.textContent = '+' + pctChange.toFixed(1) + '%';
-                changeEl.className = 'chart-change up';
-            } else if (pctChange < -1) {
-                changeEl.textContent = pctChange.toFixed(1) + '%';
-                changeEl.className = 'chart-change down';
-            } else {
-                changeEl.textContent = '0%';
-                changeEl.className = 'chart-change flat';
             }
         }
         
