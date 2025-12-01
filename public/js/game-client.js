@@ -1064,7 +1064,7 @@ class MultiplayerGame {
         }
         
         // Update goal progress
-        const WIN_GOAL = 1000000;
+        const WIN_GOAL = 100000000;
         const progressPercent = Math.min(100, (smoothCookies / WIN_GOAL) * 100);
         const goalProgress = document.getElementById('goal-progress');
         const goalFill = document.getElementById('goal-fill');

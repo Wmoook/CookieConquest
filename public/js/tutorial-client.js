@@ -1825,7 +1825,7 @@ class TutorialManager {
             // Step 14: Win condition
             {
                 title: '🏆 Step 14: How to Win',
-                text: 'First player to reach <span class="gold">1,000,000 cookies</span> wins!<br><br>Combine:<br>• 👆 Clicking (+ Click Power upgrades)<br>• 🏭 Generators (passive income + protection)<br>• 📈 Smart trading (profit from others)<br><br>to dominate!',
+                text: 'First player to reach <span class="gold">100,000,000 cookies</span> wins!<br><br>Combine:<br>• 👆 Clicking (+ Click Power upgrades)<br>• 🏭 Generators (passive income + protection)<br>• 📈 Smart trading (profit from others)<br><br>to dominate!',
                 button: 'Ready to compete!',
                 action: null
             },

@@ -7,7 +7,7 @@ A real-time multiplayer cookie clicker game with trading mechanics. Click cookie
 1. **Create or Join a Lobby** - Enter your name and create a lobby (get a 4-letter code) or join with a friend's code
 2. **Click Cookies** - Build your cookie empire by clicking and buying generators
 3. **Trade Positions** - Open LONG or SHORT positions on other players' cookie counts
-4. **Win** - First player to reach 1,000,000 cookies wins!
+4. **Win** - First player to reach 100,000,000 cookies wins!
 
 ## 💹 Trading Mechanics
 

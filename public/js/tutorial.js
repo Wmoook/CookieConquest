@@ -1801,7 +1801,7 @@ class TutorialManager {
     }
     
     checkWinCondition() {
-        const WIN_GOAL = 1000000; // 1 Million cookies to win!
+        const WIN_GOAL = 100000000; // 100 Million cookies to win!
         
         // Check if game already ended
         if (this.gameEnded) return;
@@ -2664,7 +2664,7 @@ class TutorialManager {
         this.updateLockedMarginDisplay();
         
         // Update goal progress smoothly
-        const WIN_GOAL = 1000000;
+        const WIN_GOAL = 100000000;
         const progressPercent = Math.min(100, (this.displayValues.playerCookies / WIN_GOAL) * 100);
         const goalProgress = document.getElementById('goal-progress');
         const goalPercent = document.getElementById('goal-percent');

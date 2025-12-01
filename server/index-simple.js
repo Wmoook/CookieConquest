@@ -184,7 +184,7 @@ function initGameState(lobby) {
         })),
         positions: [], // All active positions: { owner, target, type, stake, leverage, entryPrice, liquidationPrice }
         winner: null,
-        winGoal: 1000000
+        winGoal: 100000000
     };
     return gameState;
 }
