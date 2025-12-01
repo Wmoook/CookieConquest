@@ -151,6 +151,26 @@ class MultiplayerGame {
             this.showNotification(`🎯 MAX PAYOUT on ${position.targetName}! Won ${amount}🍪!`, 'success');
         });
         
+        this.socket.on('game:positionClosed', ({ type, message, amount }) => {
+            console.log('RECEIVED game:positionClosed', type, message, amount);
+            const notifType = type === 'profit' ? 'success' : type === 'loss' ? 'error' : 'info';
+            this.showNotification(message, notifType);
+        });
+        
+        // Click activity indicator for other players
+        this.socket.on('game:playerClicked', ({ playerName }) => {
+            const indicator = document.getElementById(`click-ind-${playerName}`);
+            if (indicator) {
+                indicator.style.display = 'inline';
+                // Clear any existing timeout
+                if (indicator.hideTimeout) clearTimeout(indicator.hideTimeout);
+                // Hide after 0.5 seconds
+                indicator.hideTimeout = setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 500);
+            }
+        });
+        
         this.socket.on('game:winner', (winner) => {
             this.isGameActive = false;
             const isMe = winner.id === this.playerId;
@@ -280,6 +300,7 @@ class MultiplayerGame {
                     <div class="stock-header-left">
                         <div class="player-rank" id="rank-${chartId}">#${index + 1}</div>
                         <span class="player-name" style="color:${isMe ? '#2ecc71' : '#e74c3c'}">${isMe ? 'YOU' : player.name}</span>
+                        ${!isMe ? `<span class="click-indicator" id="click-ind-${player.name}" style="display:none;">🖱️</span>` : ''}
                     </div>
                     <div class="stock-stats">
                         <span class="stat-total" id="score-${chartId}">${player.cookies || 0} 🍪</span>

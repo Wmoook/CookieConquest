@@ -177,7 +177,8 @@ function initGameState(lobby) {
             color: p.color,
             cookies: 0,
             cps: 0,
-            clickPower: 1, // Base click power
+            clickPower: 5, // Base click power (buffed from 1)
+            lastClickTime: 0, // Track last click for activity indicator
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0 },
             positions: [], // Positions this player has on others
             positionsOnMe: [] // Positions others have on this player
@@ -344,8 +345,13 @@ io.on('connection', (socket) => {
         
         // Support multiplier from client (validated to reasonable range), multiplied by click power
         const multiplier = Math.min(20, Math.max(1, data?.multiplier || 1));
-        const clickPower = player.clickPower || 1;
+        const clickPower = player.clickPower || 5;
         player.cookies += Math.floor(multiplier * clickPower);
+        player.lastClickTime = Date.now();
+        
+        // Broadcast click activity to other players
+        socket.to(code).emit('game:playerClicked', { playerName: player.name });
+        
         io.to(code).emit('game:state', lobby.gameState);
     });
     
@@ -633,6 +639,51 @@ io.on('connection', (socket) => {
         lobby.gameState.positions.splice(posIndex, 1);
         player.positions = player.positions.filter(p => p.id !== positionId);
         target.positionsOnMe = target.positionsOnMe.filter(p => p.id !== positionId);
+        
+        // Send notifications about the closed position
+        const targetSocket = lobby.gameState.players.find(p => p.name === target.name);
+        if (pnl > 0) {
+            // Trader won, target lost
+            socket.emit('game:positionClosed', { 
+                type: 'profit',
+                message: `💰 Closed ${position.type.toUpperCase()} on ${target.name}: +${pnl}🍪 profit!`,
+                amount: pnl,
+                targetName: target.name
+            });
+            if (targetSocket && targetSocket.id) {
+                io.to(targetSocket.id).emit('game:positionClosed', {
+                    type: 'loss',
+                    message: `😢 ${player.name} took ${pnl}🍪 from you!`,
+                    amount: pnl,
+                    fromPlayer: player.name
+                });
+            }
+        } else if (pnl < 0) {
+            // Trader lost, target won
+            const loss = Math.min(Math.abs(pnl), position.stake);
+            socket.emit('game:positionClosed', {
+                type: 'loss',
+                message: `😢 Closed ${position.type.toUpperCase()} on ${target.name}: -${loss}🍪 loss`,
+                amount: loss,
+                targetName: target.name
+            });
+            if (targetSocket && targetSocket.id) {
+                io.to(targetSocket.id).emit('game:positionClosed', {
+                    type: 'profit',
+                    message: `💰 ${player.name} lost ${loss}🍪 to you!`,
+                    amount: loss,
+                    fromPlayer: player.name
+                });
+            }
+        } else {
+            // Breakeven
+            socket.emit('game:positionClosed', {
+                type: 'neutral',
+                message: `Closed ${position.type.toUpperCase()} on ${target.name}: breakeven`,
+                amount: 0,
+                targetName: target.name
+            });
+        }
         
         io.to(code).emit('game:state', lobby.gameState);
     });
