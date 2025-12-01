@@ -455,23 +455,15 @@ io.on('connection', (socket) => {
         }, 0);
         const targetNetWorth = target.cookies + targetGenValue;
         
-        // Max stake per position = 25% of target's net worth
-        const maxStakePerPosition = Math.floor(targetNetWorth * 0.25);
-        if (stake * leverage > maxStakePerPosition) {
-            console.log('openPosition: position too large', { stakeXleverage: stake * leverage, maxStakePerPosition });
-            socket.emit('game:error', { message: `Position too large! Max ${maxStakePerPosition}🍪 exposure on ${target.name}` });
-            return;
-        }
-        
-        // Max total exposure on target = 50% of their net worth
-        const existingExposure = player.positions
+        // Max total stake on target = 50% of their net worth (regardless of leverage)
+        const existingStakes = player.positions
             .filter(p => p.targetName === target.name)
-            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
-        const newTotalExposure = existingExposure + (stake * leverage);
-        const maxTotalExposure = Math.floor(targetNetWorth * 0.5);
-        if (newTotalExposure > maxTotalExposure) {
-            console.log('openPosition: too much exposure', { newTotalExposure, maxTotalExposure });
-            socket.emit('game:error', { message: `Too much exposure on ${target.name}! Max ${maxTotalExposure}🍪 total` });
+            .reduce((sum, p) => sum + p.stake, 0);
+        const newTotalStake = existingStakes + stake;
+        const maxTotalStake = Math.floor(targetNetWorth * 0.5);
+        if (newTotalStake > maxTotalStake) {
+            console.log('openPosition: stake too large', { newTotalStake, maxTotalStake });
+            socket.emit('game:error', { message: `Max stake on ${target.name} is ${maxTotalStake}🍪 (50% of net worth)` });
             return;
         }
         

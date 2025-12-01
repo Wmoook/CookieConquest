@@ -657,8 +657,6 @@ class TutorialGame {
         });
         if (!target || target.name === 'You') return;
         
-        const leverage = this.targetLeverage[chartId] || 2;
-        
         // Available cookies
         const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = this.player.cookies - lockedMargin;
@@ -666,18 +664,17 @@ class TutorialGame {
         // Target's net worth
         const targetNetWorth = target.cookies + this.calculateGeneratorValue(target);
         
-        // Max per position = 25% of target's net worth / leverage
-        const maxPerPosition = Math.floor((targetNetWorth * 0.25) / leverage);
+        // Max stake = 50% of target's net worth (regardless of leverage)
+        const maxFromNetWorth = Math.floor(targetNetWorth * 0.5);
         
-        // Max total exposure = 50% of target's net worth
-        const existingExposure = this.player.positions
+        // Subtract existing stakes on this target
+        const existingStakes = this.player.positions
             .filter(p => p.targetName === target.name)
-            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
-        const remainingExposure = Math.floor((targetNetWorth * 0.5) - existingExposure);
-        const maxFromExposure = Math.floor(remainingExposure / leverage);
+            .reduce((sum, p) => sum + p.stake, 0);
+        const remainingAllowed = maxFromNetWorth - existingStakes;
         
-        // Take minimum of all constraints
-        const maxStake = Math.max(1, Math.min(available, maxPerPosition, maxFromExposure));
+        // Take minimum of available cookies and remaining allowed
+        const maxStake = Math.max(1, Math.min(available, remainingAllowed));
         
         const input = document.getElementById(`stake-${chartId}`);
         if (input) input.value = maxStake;

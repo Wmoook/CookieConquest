@@ -559,18 +559,17 @@ class MultiplayerGame {
         }, 0);
         const targetNetWorth = target.cookies + targetGenValue;
         
-        // Max per position = 25% of target's net worth / leverage
-        const maxPerPosition = Math.floor((targetNetWorth * 0.25) / leverage);
+        // Max stake = 50% of target's net worth (regardless of leverage)
+        const maxFromNetWorth = Math.floor(targetNetWorth * 0.5);
         
-        // Max total exposure = 50% of target's net worth
-        const existingExposure = me.positions
+        // Subtract existing stakes on this target
+        const existingStakes = me.positions
             .filter(p => p.targetName === targetName)
-            .reduce((sum, p) => sum + (p.stake * p.leverage), 0);
-        const remainingExposure = Math.floor((targetNetWorth * 0.5) - existingExposure);
-        const maxFromExposure = Math.floor(remainingExposure / leverage);
+            .reduce((sum, p) => sum + p.stake, 0);
+        const remainingAllowed = maxFromNetWorth - existingStakes;
         
-        // Take minimum of all constraints
-        return Math.max(0, Math.min(available, maxPerPosition, maxFromExposure));
+        // Take minimum of available cookies and remaining allowed
+        return Math.max(0, Math.min(available, remainingAllowed));
     }
     
     executeQuickTrade(targetName, action) {
