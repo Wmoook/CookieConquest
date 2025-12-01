@@ -584,14 +584,25 @@ class TutorialGame {
         const cpsEl = document.getElementById('cps-value');
         if (cpsEl) cpsEl.textContent = this.player.cps;
         
-        // Update locked margin
-        const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
+        // Update locked margin (stake + unrealized PNL, like main game)
+        const lockedStake = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
+        const unrealizedPnl = this.calculateUnrealizedPnl(this.player);
+        const lockedWithPnl = lockedStake + unrealizedPnl;
+        
         const lockedEl = document.getElementById('locked-margin');
         const lockedVal = document.getElementById('locked-value');
         if (lockedEl && lockedVal) {
-            if (lockedMargin > 0) {
+            if (lockedStake > 0) {
                 lockedEl.style.display = 'block';
-                lockedVal.textContent = lockedMargin;
+                lockedVal.textContent = Math.floor(lockedWithPnl);
+                // Color based on PNL like main game
+                if (unrealizedPnl > 0) {
+                    lockedVal.style.color = '#2ecc71';
+                } else if (unrealizedPnl < 0) {
+                    lockedVal.style.color = '#e74c3c';
+                } else {
+                    lockedVal.style.color = '#f1c40f';
+                }
             } else {
                 lockedEl.style.display = 'none';
             }
