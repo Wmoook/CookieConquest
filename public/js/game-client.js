@@ -270,7 +270,7 @@ class MultiplayerGame {
         this.socket.on('game:playerFrozen', ({ frozenBy, frozenPlayer, duration }) => {
             const isMe = frozenPlayer === this.playerName;
             if (isMe) {
-                this.showNotification(`🥶 You were FROZEN by ${frozenBy}! (${duration/1000}s)`, 'error');
+                this.showNotification(`🥶 You were FROZEN by ${frozenBy}! (${duration}s)`, 'error');
                 this.screenTint('cyan', 500);
                 this.showFrozenOverlay(duration);
             } else if (frozenBy === this.playerName) {
@@ -282,7 +282,7 @@ class MultiplayerGame {
         
         // Invisibility events
         this.socket.on('game:youAreInvisible', ({ duration }) => {
-            this.showNotification(`👻 You are now INVISIBLE! (${duration/1000}s)`, 'profit');
+            this.showNotification(`👻 You are now INVISIBLE! (${duration}s)`, 'profit');
             this.showInvisibleIndicator(duration);
         });
         
@@ -1356,11 +1356,23 @@ class MultiplayerGame {
         const cookieCps = document.getElementById('cookie-cps');
         if (cookieCps) {
             const generatorCps = me.cps || 0;
-            const clickCps = this.currentCPS;
-            const multiplierText = this.clickMultiplier > 1 ? ` (${this.clickMultiplier.toFixed(1)}x)` : '';
+            const buffs = me.powerBuffs || 0;
+            const buffMultiplier = 1 + buffs * 0.05;
+            
+            // Calculate cookies per second from clicking (clicks * power * buff * multiplier)
+            const clickLevel = me.clickPower || 1;
+            const clickPower = Math.pow(2, clickLevel - 1);
+            const clickCookiesPerSec = Math.floor(this.currentCPS * clickPower * buffMultiplier * this.clickMultiplier);
+            
+            // Generator CPS with buff applied
+            const buffedGeneratorCps = Math.floor(generatorCps * buffMultiplier);
+            
+            const multiplierText = this.clickMultiplier > 1 ? ` (${this.clickMultiplier.toFixed(1)}x combo)` : '';
+            const buffText = buffs > 0 ? ` <span style="color:#f1c40f;">(+${buffs * 5}% buff)</span>` : '';
+            
             cookieCps.innerHTML = `
-                <div style="font-size: 0.85em; color: #2ecc71;">🖱️ ${clickCps} clicks/sec${multiplierText}</div>
-                <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +${generatorCps.toLocaleString()} from generators</div>
+                <div style="font-size: 0.85em; color: #2ecc71;">🖱️ +${clickCookiesPerSec.toLocaleString()}/sec from clicks${multiplierText}</div>
+                <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +${buffedGeneratorCps.toLocaleString()}/sec from generators${buffText}</div>
             `;
         }
         
@@ -1738,10 +1750,9 @@ class MultiplayerGame {
         const badge = document.getElementById(`frozen-badge-${player.name}`);
         if (!badge) return;
         
-        const now = Date.now();
-        if (player.frozenUntil && player.frozenUntil > now) {
-            const remaining = Math.ceil((player.frozenUntil - now) / 1000);
-            badge.textContent = `🥶 FROZEN (${remaining}s)`;
+        const frozenSecondsLeft = player.frozenSecondsLeft || 0;
+        if (frozenSecondsLeft > 0) {
+            badge.textContent = `🥶 FROZEN (${Math.ceil(frozenSecondsLeft)}s)`;
             badge.style.display = 'inline';
         } else {
             badge.style.display = 'none';
@@ -1754,11 +1765,10 @@ class MultiplayerGame {
         const me = this.getMe();
         if (!me) return;
         
-        // Calculate time remaining in round
+        // Calculate time remaining in round using elapsed time from server
         const roundDuration = this.gameState.kothRoundDuration || 60000;
-        const roundStart = this.gameState.kothRoundStart || Date.now();
-        const elapsed = Date.now() - roundStart;
-        const remaining = Math.max(0, roundDuration - elapsed);
+        const roundElapsed = this.gameState.kothRoundElapsed || 0;
+        const remaining = Math.max(0, roundDuration - roundElapsed);
         const remainingSeconds = Math.ceil(remaining / 1000);
         const progress = (remaining / roundDuration) * 100;
         
@@ -1794,26 +1804,48 @@ class MultiplayerGame {
             }
         }
         
-        // Update frozen state display
+        // Update frozen state display from server's frozenSecondsLeft
         const frozenOverlay = document.getElementById('frozen-overlay');
-        if (frozenOverlay && me.frozenUntil) {
-            const now = Date.now();
-            if (me.frozenUntil > now) {
+        const frozenSecondsLeft = me.frozenSecondsLeft || 0;
+        if (frozenOverlay) {
+            if (frozenSecondsLeft > 0) {
                 frozenOverlay.style.display = 'flex';
-                const remaining = Math.ceil((me.frozenUntil - now) / 1000);
                 const timerEl = document.getElementById('frozen-timer');
-                if (timerEl) timerEl.textContent = `${remaining}s`;
+                if (timerEl) timerEl.textContent = `${Math.ceil(frozenSecondsLeft)}s`;
+                
+                // Also show frozen notification if not already showing
+                this.showFrozenNotification(frozenSecondsLeft);
             } else {
                 frozenOverlay.style.display = 'none';
+                // Remove frozen notification
+                const frozenNotif = document.getElementById('frozen-notification');
+                if (frozenNotif) frozenNotif.remove();
             }
         }
+    }
+    
+    showFrozenNotification(secondsLeft) {
+        let frozenNotif = document.getElementById('frozen-notification');
+        if (!frozenNotif) {
+            frozenNotif = document.createElement('div');
+            frozenNotif.id = 'frozen-notification';
+            frozenNotif.style.cssText = `
+                position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+                background: linear-gradient(135deg, #00bfff, #0080ff); 
+                padding: 15px 30px; border-radius: 15px; color: #fff; 
+                font-size: 1.5em; font-weight: bold; z-index: 10001;
+                box-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
+                animation: frozenPulse 0.5s infinite;
+                text-align: center;
+            `;
+            document.body.appendChild(frozenNotif);
+        }
+        frozenNotif.innerHTML = `🥶 FROZEN! 🥶<br><span style="font-size: 0.7em;">Cannot click, trade, or earn CPS</span><br><span style="font-size: 1.2em;">${Math.ceil(secondsLeft)}s</span>`;
     }
     
     updateKothLeaderboard() {
         const listEl = document.getElementById('koth-leaderboard-list');
         if (!listEl || !this.gameState) return;
-        
-        const now = Date.now();
         
         // Sort players by cookie zone time (descending)
         const sorted = [...this.gameState.players].sort((a, b) => 
@@ -1827,7 +1859,7 @@ class MultiplayerGame {
             const time = (player.cookieZoneTime || 0) / 1000;
             
             // Check if player is invisible - hide their time from others
-            const isInvisible = player.invisibleUntil && player.invisibleUntil > now;
+            const isInvisible = (player.invisibleSecondsLeft || 0) > 0;
             const showTime = isMe || !isInvisible; // Always show your own time
             
             const displayTime = showTime ? `${time.toFixed(1)}s` : '👻 ???';
@@ -1868,10 +1900,14 @@ class MultiplayerGame {
         const clickLevel = me?.clickPower || 1;
         const clickPower = Math.pow(2, clickLevel - 1);
         
-        const cookiesEarned = Math.floor(clickPower * this.clickMultiplier);
-        console.log('Emitting game:click with multiplier:', this.clickMultiplier, 'clickLevel:', clickLevel, 'clickPower:', clickPower);
+        // Include buff in display (server applies buff too)
+        const buffs = me?.powerBuffs || 0;
+        const buffMultiplier = 1 + buffs * 0.05;
         
-        // Send to server WITH multiplier (server will also multiply by clickPower)
+        const cookiesEarned = Math.floor(clickPower * this.clickMultiplier * buffMultiplier);
+        console.log('Emitting game:click with multiplier:', this.clickMultiplier, 'clickLevel:', clickLevel, 'clickPower:', clickPower, 'buffMultiplier:', buffMultiplier);
+        
+        // Send to server WITH multiplier (server will also multiply by clickPower and buff)
         this.socket.emit('game:click', { multiplier: Math.floor(this.clickMultiplier) });
         
         this.showClickFeedback(e, cookiesEarned);
@@ -2199,46 +2235,11 @@ class MultiplayerGame {
     }
     
     showFrozenOverlay(duration) {
+        // The frozen overlay and notification are now managed by updateKothDisplay()
+        // which reads frozenSecondsLeft from the server state
+        // This function is just called once when first frozen to show initial feedback
         const overlay = document.getElementById('frozen-overlay');
-        const timer = document.getElementById('frozen-timer');
-        if (!overlay) return;
-        
-        overlay.style.display = 'flex';
-        
-        // Also show a big frozen notification at the top
-        let frozenNotif = document.getElementById('frozen-notification');
-        if (!frozenNotif) {
-            frozenNotif = document.createElement('div');
-            frozenNotif.id = 'frozen-notification';
-            frozenNotif.style.cssText = `
-                position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-                background: linear-gradient(135deg, #00bfff, #0080ff); 
-                padding: 15px 30px; border-radius: 15px; color: #fff; 
-                font-size: 1.5em; font-weight: bold; z-index: 10001;
-                box-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
-                animation: frozenPulse 0.5s infinite;
-                text-align: center;
-            `;
-            document.body.appendChild(frozenNotif);
-        }
-        
-        let remaining = duration;
-        
-        const updateTimer = () => {
-            const secs = Math.ceil(remaining / 1000);
-            if (timer) timer.textContent = `${secs}s`;
-            frozenNotif.innerHTML = `🥶 FROZEN! 🥶<br><span style="font-size: 0.7em;">Cannot click, trade, or earn CPS</span><br><span style="font-size: 1.2em;">${secs}s</span>`;
-            remaining -= 100;
-            if (remaining <= 0) {
-                overlay.style.display = 'none';
-                frozenNotif.remove();
-                this.showNotification('❄️ You are unfrozen! Resume playing!', 'profit');
-                this.screenTint('green', 300);
-            } else {
-                setTimeout(updateTimer, 100);
-            }
-        };
-        updateTimer();
+        if (overlay) overlay.style.display = 'flex';
     }
     
     showInvisibleIndicator(duration) {
@@ -2250,10 +2251,11 @@ class MultiplayerGame {
             document.body.appendChild(indicator);
         }
         
+        // Duration is now in seconds from server
         let remaining = duration;
         const updateIndicator = () => {
-            indicator.textContent = `👻 INVISIBLE (${Math.ceil(remaining / 1000)}s)`;
-            remaining -= 100;
+            indicator.textContent = `👻 INVISIBLE (${Math.ceil(remaining)}s)`;
+            remaining -= 0.1;
             if (remaining <= 0) {
                 indicator.remove();
             } else {
@@ -2267,11 +2269,12 @@ class MultiplayerGame {
         const cursor = this.otherCursors[playerName];
         if (cursor) {
             cursor.style.display = 'none';
+            // Duration is now in seconds from server
             setTimeout(() => {
                 if (this.otherCursors[playerName]) {
                     this.otherCursors[playerName].style.display = 'block';
                 }
-            }, duration);
+            }, duration * 1000);
         }
     }
 }

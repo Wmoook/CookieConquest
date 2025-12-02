@@ -169,8 +169,10 @@ function leaveLobby(socket) {
 
 // ==================== GAME STATE ====================
 function initGameState(lobby) {
+    const now = Date.now();
     const gameState = {
-        startTime: Date.now(),
+        startTime: now,
+        serverTime: now, // Will be updated each tick for client sync
         players: lobby.players.map(p => ({
             id: p.id,
             name: p.name,
@@ -186,17 +188,15 @@ function initGameState(lobby) {
             // King of the Hill
             powerBuffs: 0, // Number of KotH wins (+5% everything per win)
             cookieZoneTime: 0, // Milliseconds spent on cookie this round
-            // Abilities
-            frozenUntil: 0, // Timestamp when freeze ends (0 = not frozen)
-            invisibleUntil: 0, // Timestamp when invisibility ends (0 = visible)
-            lastFreezeUse: 0, // Cooldown tracking for freeze ability
-            lastInvisUse: 0 // Cooldown tracking for invisibility ability
+            // Abilities - store as seconds remaining, not timestamps
+            frozenSecondsLeft: 0, // Seconds until freeze ends (0 = not frozen)
+            invisibleSecondsLeft: 0 // Seconds until invisibility ends (0 = visible)
         })),
         positions: [], // All active positions: { owner, target, type, stake, leverage, entryPrice, liquidationPrice }
         winner: null,
         winGoal: 100000000,
-        // King of the Hill state
-        kothRoundStart: Date.now(),
+        // King of the Hill state - use elapsed time instead of timestamps
+        kothRoundElapsed: 0, // Milliseconds elapsed in current round
         kothRoundDuration: 60000 // 60 seconds per round
     };
     return gameState;
@@ -379,7 +379,7 @@ io.on('connection', (socket) => {
         }
         
         // Check if player is frozen
-        if (player.frozenUntil > Date.now()) {
+        if ((player.frozenSecondsLeft || 0) > 0) {
             return; // Can't click while frozen
         }
         
@@ -411,7 +411,7 @@ io.on('connection', (socket) => {
         if (!player) return;
         
         // Don't broadcast cursor if player is invisible
-        if (player.invisibleUntil > Date.now()) return;
+        if ((player.invisibleSecondsLeft || 0) > 0) return;
         
         // Broadcast cursor to other players in the room
         socket.to(code).emit('game:cursor', {
@@ -462,14 +462,14 @@ io.on('connection', (socket) => {
         }
         
         // Can't freeze someone who's already frozen
-        if (target.frozenUntil > Date.now()) {
+        if ((target.frozenSecondsLeft || 0) > 0) {
             socket.emit('game:error', { message: `${targetName} is already frozen!` });
             return;
         }
         
         // Consume 1 buff and freeze target for 15 seconds
         player.powerBuffs--;
-        target.frozenUntil = Date.now() + 15000;
+        target.frozenSecondsLeft = 15;
         
         console.log(`[FREEZE] ${player.name} froze ${target.name} for 15 seconds (buffs remaining: ${player.powerBuffs})`);
         
@@ -477,7 +477,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('game:playerFrozen', {
             frozenBy: player.name,
             frozenPlayer: target.name,
-            duration: 15000
+            duration: 15
         });
         
         io.to(code).emit('game:state', lobby.gameState);
@@ -501,24 +501,24 @@ io.on('connection', (socket) => {
         }
         
         // Can't use if already invisible
-        if (player.invisibleUntil > Date.now()) {
+        if ((player.invisibleSecondsLeft || 0) > 0) {
             socket.emit('game:error', { message: 'You are already invisible!' });
             return;
         }
         
         // Consume 1 buff and go invisible for 15 seconds
         player.powerBuffs--;
-        player.invisibleUntil = Date.now() + 15000;
+        player.invisibleSecondsLeft = 15;
         
         console.log(`[INVISIBLE] ${player.name} went invisible for 15 seconds (buffs remaining: ${player.powerBuffs})`);
         
         // Notify the player who went invisible
-        socket.emit('game:youAreInvisible', { duration: 15000 });
+        socket.emit('game:youAreInvisible', { duration: 15 });
         
         // Notify others that this player disappeared
         socket.to(code).emit('game:playerInvisible', {
             playerName: player.name,
-            duration: 15000
+            duration: 15
         });
         
         io.to(code).emit('game:state', lobby.gameState);
@@ -534,6 +534,12 @@ io.on('connection', (socket) => {
         
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
+        
+        // Check if player is frozen
+        if ((player.frozenSecondsLeft || 0) > 0) {
+            socket.emit('game:error', { message: 'You cannot buy generators while frozen!' });
+            return;
+        }
         
         const prices = {
             grandma: 15 * Math.pow(1.15, player.generators.grandma),
@@ -619,7 +625,7 @@ io.on('connection', (socket) => {
         }
         
         // Check if player is frozen
-        if (player.frozenUntil > Date.now()) {
+        if ((player.frozenSecondsLeft || 0) > 0) {
             socket.emit('game:error', { message: 'You cannot trade while frozen!' });
             return;
         }
@@ -749,7 +755,7 @@ io.on('connection', (socket) => {
         }
         
         // Check if player is frozen
-        if (player.frozenUntil > Date.now()) {
+        if ((player.frozenSecondsLeft || 0) > 0) {
             socket.emit('game:error', { message: 'You cannot trade while frozen!' });
             return;
         }
@@ -894,18 +900,34 @@ setInterval(() => {
         // Don't process if game already has a winner
         if (gs.winner) return;
         
+        // Update server time for client sync
+        gs.serverTime = Date.now();
+        
+        // ==================== DECREMENT ABILITY TIMERS ====================
+        // Decrement frozen and invisible timers (0.5 seconds per tick)
+        gs.players.forEach(player => {
+            if ((player.frozenSecondsLeft || 0) > 0) {
+                player.frozenSecondsLeft = Math.max(0, player.frozenSecondsLeft - 0.5);
+            }
+            if ((player.invisibleSecondsLeft || 0) > 0) {
+                player.invisibleSecondsLeft = Math.max(0, player.invisibleSecondsLeft - 0.5);
+            }
+        });
+        
         // ==================== KING OF THE HILL ====================
+        // Accumulate KotH round elapsed time
+        gs.kothRoundElapsed = (gs.kothRoundElapsed || 0) + 500;
+        
         // Accumulate time for players whose cursor is on the cookie (not frozen)
-        const now = Date.now();
         gs.players.forEach(player => {
             // Only count time if cursor on cookie AND not frozen
-            if (player.cursorOnCookie && !(player.frozenUntil > now)) {
+            if (player.cursorOnCookie && !((player.frozenSecondsLeft || 0) > 0)) {
                 player.cookieZoneTime = (player.cookieZoneTime || 0) + 500; // 500ms per tick
             }
         });
         
         // Check if KotH round is over (60 seconds)
-        if (now - gs.kothRoundStart >= gs.kothRoundDuration) {
+        if (gs.kothRoundElapsed >= gs.kothRoundDuration) {
             // Find the winner (most time on cookie)
             let winner = null;
             let maxTime = 0;
@@ -930,7 +952,7 @@ setInterval(() => {
             }
             
             // Reset for next round
-            gs.kothRoundStart = now;
+            gs.kothRoundElapsed = 0;
             gs.players.forEach(player => {
                 player.cookieZoneTime = 0;
             });
@@ -940,7 +962,7 @@ setInterval(() => {
         // Apply CPS to all players (with power buff multiplier, unless frozen)
         gs.players.forEach(player => {
             // Skip CPS if player is frozen
-            if (player.frozenUntil > now) return;
+            if ((player.frozenSecondsLeft || 0) > 0) return;
             
             if (player.cps > 0) {
                 // Power buff: +5% per buff to everything
