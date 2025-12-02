@@ -3,8 +3,8 @@
 
 class TutorialGame {
     constructor() {
-        // Player state - start with 500 cookies so trading/crash abilities work
-        this.cookies = 500;
+        // Player state - start with 0 cookies, will receive starting bonus later
+        this.cookies = 0;
         this.cps = 0; // cookies per second from generators
         this.clickPower = 1;
         this.clickPowerLevel = 1;
@@ -16,10 +16,10 @@ class TutorialGame {
         // Bot positions on the player (for liquidation tutorial)
         this.botPositions = []; // Positions bots have opened on the player
         
-        // Bots - start at 500 so crash ability can be used
+        // Bots - start at 0, will get bonus later along with player
         this.bots = [
-            { name: 'CookieBot', cookies: 500, cps: 2, color: '#e74c3c', history: [500] },
-            { name: 'ChipMaster', cookies: 500, cps: 1, color: '#9b59b6', history: [500] }
+            { name: 'CookieBot', cookies: 0, cps: 2, color: '#e74c3c', history: [0] },
+            { name: 'ChipMaster', cookies: 0, cps: 1, color: '#9b59b6', history: [0] }
         ];
         
         // Tutorial state
@@ -55,6 +55,13 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
+            // STARTING BONUS
+            {
+                title: "Starting Bonus! 💰",
+                text: "Nice work! Now let's learn about <span class='highlight'>trading</span>.<br><br>Here's <span class='highlight'>500 cookies</span> to get you started - everyone in the game gets this!<br><br>The bots also received 500🍪 each.",
+                action: 'give-starting-bonus',
+                highlight: null
+            },
             // LOOKING AT CHARTS
             {
                 title: "Step 3: The Stock Market 📊",
@@ -79,7 +86,7 @@ class TutorialGame {
             // STAKE SLIDER
             {
                 title: "Step 6: Setting Your Stake 🎚️",
-                text: "Use the <span class='highlight'>stake slider</span> to choose how many cookies to bet.<br><br>• More stake = more potential profit (and loss)<br>• Your stake gets <span class='warning'>locked</span> until you close the position<br>• You can see locked cookies in the 🔒 indicator",
+                text: "Use the <span class='highlight'>stake slider</span> to choose how many cookies to bet.<br><br>• More stake = more potential profit (and loss)<br>• Your stake gets <span class='warning'>locked</span> until you close the position<br>• <span class='warning'>Max stake = 50%</span> of target's current 🍪 (not net worth!)<br><br>This limit applies at ANY leverage level!",
                 action: null,
                 highlight: null
             },
@@ -1525,6 +1532,19 @@ class TutorialGame {
         overlay?.classList.remove('hidden');
         
         // Handle special actions when step is shown
+        if (stepData.action === 'give-starting-bonus') {
+            // Give player and bots 500 cookies each
+            this.cookies += 500;
+            this.bots.forEach(bot => {
+                bot.cookies += 500;
+                bot.history.push(bot.cookies);
+            });
+            stepData.completed = true;
+            this.showNotification('💰 Received 500 starting cookies!', 'success');
+            this.showScreenTint('green', 600);
+            this.updateDisplays();
+        }
+        
         if (stepData.action === 'bot-shorts-you') {
             // Mark as completed immediately - this is just an informational step
             stepData.completed = true;
