@@ -1124,6 +1124,10 @@ class MultiplayerGame {
         const cpsValue = document.getElementById('cps-value');
         if (cpsValue) cpsValue.textContent = me.cps || 0;
         
+        // Update CPS under cookie
+        const cookieCps = document.getElementById('cookie-cps');
+        if (cookieCps) cookieCps.textContent = '+' + (me.cps || 0).toLocaleString();
+        
         // Calculate and display Net Worth (smoothed cookies + generator value)
         // Use smoothCookies (which already includes unrealizedPnl from displayValues)
         const generatorValue = this.calculateGeneratorValue(me);
@@ -1781,7 +1785,7 @@ class MultiplayerGame {
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            toastContainer.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
             document.body.appendChild(toastContainer);
         }
         

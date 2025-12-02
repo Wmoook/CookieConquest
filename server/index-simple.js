@@ -643,14 +643,13 @@ io.on('connection', (socket) => {
                 targetPaid: pnl 
             });
         } else if (pnl < 0) {
-            // Player is in loss - use forcePayment to allow debt before bankruptcy
+            // Player is in loss - their stake was already locked, just transfer loss to target
+            // DON'T call forcePayment on player - stake is already locked
             const loss = Math.min(Math.abs(pnl), position.stake);
-            forcePayment(player, loss);
             target.cookies += loss;
             console.log('closePosition: LOSS', { 
                 pnlLoss: pnl, 
                 actualLoss: loss, 
-                playerLost: loss, 
                 targetGot: loss 
             });
         } else {
@@ -763,8 +762,8 @@ setInterval(() => {
         for (const { pos, owner, target, currentPrice, pnl, index } of positionsToCheck) {
             if ((pos.type === 'long' && currentPrice <= pos.liquidationPrice) ||
                 (pos.type === 'short' && currentPrice >= pos.liquidationPrice)) {
-                // Owner loses stake - use forcePayment to allow debt before bankruptcy
-                forcePayment(owner, pos.stake);
+                // Owner loses stake - stake was already locked (not deducted), so just transfer to target
+                // DON'T call forcePayment - the stake is already "removed" from available balance
                 target.cookies += pos.stake;
                 console.log(`Position liquidated: ${owner.name} loses stake ${pos.stake} to ${target.name}`);
                 
