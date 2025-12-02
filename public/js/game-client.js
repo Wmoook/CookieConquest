@@ -1786,61 +1786,11 @@ class MultiplayerGame {
             // Add to top of feed
             feed.insertBefore(notif, feed.firstChild);
             
-            // Keep only last 10 notifications
-            while (feed.children.length > 10) {
+            // Keep only last 50 notifications (no auto-remove)
+            while (feed.children.length > 50) {
                 feed.removeChild(feed.lastChild);
             }
-            
-            // Auto-remove after 15 seconds
-            setTimeout(() => {
-                if (notif.parentNode) {
-                    notif.style.opacity = '0';
-                    setTimeout(() => notif.remove(), 300);
-                }
-            }, 15000);
         }
-        
-        // Also show a floating toast for important notifications
-        if (type === 'success' || type === 'error') {
-            this.showToast(message, type);
-        }
-    }
-    
-    showToast(message, type = 'info') {
-        // Create floating toast container if it doesn't exist
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toast = document.createElement('div');
-        const bgColor = type === 'success' ? 'rgba(46,204,113,0.95)' : 
-                       type === 'error' ? 'rgba(231,76,60,0.95)' :
-                       type === 'warning' ? 'rgba(243,156,18,0.95)' : 'rgba(52,152,219,0.95)';
-        
-        toast.style.cssText = `
-            background: ${bgColor};
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 1em;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            animation: toastSlideIn 0.3s ease;
-            max-width: 350px;
-        `;
-        toast.textContent = message;
-        
-        toastContainer.appendChild(toast);
-        
-        // Remove after 4 seconds
-        setTimeout(() => {
-            toast.style.animation = 'toastSlideOut 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
     }
     
     updateRemoteCursor(playerName, color, xPercent, yPercent) {
