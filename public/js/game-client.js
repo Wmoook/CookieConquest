@@ -246,11 +246,15 @@ class MultiplayerGame {
         }
         
         // Track mouse movement for cursor sharing (throttled to ~20fps)
+        // Send as percentages for cross-resolution compatibility
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             if (now - this.lastCursorUpdate > 50) {
                 this.lastCursorUpdate = now;
-                this.socket.emit('game:cursor', { x: e.clientX, y: e.clientY });
+                // Normalize to percentages (0-100) of viewport
+                const xPercent = (e.clientX / window.innerWidth) * 100;
+                const yPercent = (e.clientY / window.innerHeight) * 100;
+                this.socket.emit('game:cursor', { x: xPercent, y: yPercent });
             }
         });
         
@@ -1839,9 +1843,13 @@ class MultiplayerGame {
         }, 4000);
     }
     
-    updateRemoteCursor(playerName, color, x, y) {
+    updateRemoteCursor(playerName, color, xPercent, yPercent) {
         // Don't show our own cursor
         if (playerName === this.playerName) return;
+        
+        // Convert percentages back to local viewport pixels
+        const x = (xPercent / 100) * window.innerWidth;
+        const y = (yPercent / 100) * window.innerHeight;
         
         let cursor = this.otherCursors[playerName];
         
