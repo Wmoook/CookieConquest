@@ -28,8 +28,8 @@ class MultiplayerGame {
         this.targetLeverage = {}; // playerId -> leverage
         
         // Multiplayer cursor tracking
-        this.remoteCursors = {}; // playerName -> { x, y, color, element, lastUpdate }
-        this.lastCursorBroadcast = 0;
+        this.otherCursors = {}; // playerName -> cursor DOM element
+        this.lastCursorUpdate = 0;
         
         this.init();
     }
@@ -177,6 +177,7 @@ class MultiplayerGame {
         
         // Remote cursor updates
         this.socket.on('game:cursor', ({ playerName, color, x, y }) => {
+            console.log('Received cursor from', playerName, 'at', x, y);
             this.updateRemoteCursor(playerName, color, x, y);
         });
         
@@ -298,10 +299,8 @@ class MultiplayerGame {
         
         playersGrid.innerHTML = '';
         
-        // Sort players: me first, then others (match by name since socket ID may have changed)
-        const me = this.getMe();
-        const others = this.gameState.players.filter(p => !this.isMe(p));
-        const sortedPlayers = me ? [me, ...others] : others;
+        // Sort players ALPHABETICALLY by name - same order for ALL players
+        const sortedPlayers = [...this.gameState.players].sort((a, b) => a.name.localeCompare(b.name));
         
         console.log('Creating cards for players:', sortedPlayers.map(p => p.name));
         
@@ -1549,12 +1548,13 @@ class MultiplayerGame {
         // Update click speed for multiplier
         this.updateClickSpeed();
         
-        // Get click power from current player state
+        // Get click power from current player state (exponential: 2^(level-1))
         const me = this.getMe();
-        const clickPower = me?.clickPower || 1;
+        const clickLevel = me?.clickPower || 1;
+        const clickPower = Math.pow(2, clickLevel - 1);
         
         const cookiesEarned = Math.floor(clickPower * this.clickMultiplier);
-        console.log('Emitting game:click with multiplier:', this.clickMultiplier, 'clickPower:', clickPower);
+        console.log('Emitting game:click with multiplier:', this.clickMultiplier, 'clickLevel:', clickLevel, 'clickPower:', clickPower);
         
         // Send to server WITH multiplier (server will also multiply by clickPower)
         this.socket.emit('game:click', { multiplier: Math.floor(this.clickMultiplier) });
@@ -1681,20 +1681,21 @@ class MultiplayerGame {
         const btn = document.getElementById('upgrade-click');
         if (!btn) return;
         
-        const clickPower = me.clickPower || 1;
-        const currentLevel = clickPower - 1;
-        const basePrice = 50;
-        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
-        const nextPower = clickPower + 1;
+        const clickLevel = me.clickPower || 1;
+        const currentPower = Math.pow(2, clickLevel - 1);
+        const basePrice = 100;
+        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
+        const nextLevel = clickLevel + 1;
+        const nextPower = Math.pow(2, nextLevel - 1);
         
         const costSpan = btn.querySelector('.click-power-cost');
         if (costSpan) costSpan.textContent = cost;
         
         const levelSpan = btn.querySelector('.click-power-level');
-        if (levelSpan) levelSpan.textContent = `Lv.${clickPower}`;
+        if (levelSpan) levelSpan.textContent = `Lv.${clickLevel}`;
         
         const descSpan = btn.querySelector('.click-power-desc');
-        if (descSpan) descSpan.textContent = `+${clickPower} per click → +${nextPower}`;
+        if (descSpan) descSpan.textContent = `+${currentPower} per click → +${nextPower}`;
         
         if (available >= cost) {
             btn.classList.remove('locked');
@@ -1822,19 +1823,21 @@ class MultiplayerGame {
             cursor = document.createElement('div');
             cursor.className = 'remote-cursor';
             cursor.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="${color}" stroke="#fff" stroke-width="1">
-                    <path d="M4 4 L4 20 L9 15 L14 22 L16 21 L11 14 L18 14 Z"/>
+                <svg width="24" height="24" viewBox="0 0 24 24" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+                    <path d="M4 4 L4 20 L9 15 L14 22 L16 21 L11 14 L18 14 Z" fill="${color}" fill-opacity="0.8" stroke="#fff" stroke-width="1.5"/>
                 </svg>
-                <span class="cursor-label" style="background: ${color}">${playerName}</span>
+                <span class="cursor-label" style="background: ${color}; opacity: 0.9;">${playerName}</span>
             `;
             cursor.style.cssText = `
                 position: fixed;
                 pointer-events: none;
                 z-index: 99999;
                 transition: left 0.05s linear, top 0.05s linear;
+                opacity: 0.85;
             `;
             document.body.appendChild(cursor);
             this.otherCursors[playerName] = cursor;
+            console.log('Created cursor for', playerName, 'with color', color);
         }
         
         cursor.style.left = x + 'px';

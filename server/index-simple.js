@@ -177,7 +177,7 @@ function initGameState(lobby) {
             color: p.color,
             cookies: 0,
             cps: 0,
-            clickPower: 5, // Base click power (buffed from 1)
+            clickPower: 1, // Base click power (level 1)
             lastClickTime: 0, // Track last click for activity indicator
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
             positions: [], // Positions this player has on others
@@ -345,7 +345,9 @@ io.on('connection', (socket) => {
         
         // Support multiplier from client (validated to reasonable range), multiplied by click power
         const multiplier = Math.min(20, Math.max(1, data?.multiplier || 1));
-        const clickPower = player.clickPower || 5;
+        const clickLevel = player.clickPower || 1;
+        // Exponential click power: level 1 = 1, level 2 = 2, level 3 = 4, level 4 = 8, etc.
+        const clickPower = Math.pow(2, clickLevel - 1);
         player.cookies += Math.floor(multiplier * clickPower);
         player.lastClickTime = Date.now();
         
@@ -367,9 +369,10 @@ io.on('connection', (socket) => {
         if (!player) return;
         
         // Broadcast cursor to other players in the room
+        console.log('Broadcasting cursor from', player.name, 'to room', code);
         socket.to(code).emit('game:cursor', {
             playerName: player.name,
-            color: player.color,
+            color: player.color || '#ffffff',
             x,
             y
         });
@@ -431,14 +434,14 @@ io.on('connection', (socket) => {
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
         
-        // Price doubles each level: 50, 100, 200, 400, etc.
-        const basePrice = 50;
-        const currentLevel = player.clickPower - 1; // Level 0 = clickPower 1
-        const price = Math.floor(basePrice * Math.pow(2, currentLevel));
+        // Price scales exponentially: 100, 500, 2500, 12500, etc.
+        const basePrice = 100;
+        const currentLevel = player.clickPower || 1;
+        const price = Math.floor(basePrice * Math.pow(5, currentLevel - 1));
         
         if (player.cookies >= price) {
             player.cookies -= price;
-            player.clickPower++;
+            player.clickPower = currentLevel + 1;
             io.to(code).emit('game:state', lobby.gameState);
         }
     });

@@ -114,7 +114,8 @@ class TutorialGame {
             this.clickMultiplier = 1;
         }
         
-        const clickPower = this.player.clickPower || 1;
+        const clickLevel = this.player.clickPower || 1;
+        const clickPower = Math.pow(2, clickLevel - 1); // Exponential: 1, 2, 4, 8...
         const cookiesEarned = Math.floor(this.clickMultiplier * clickPower);
         this.player.cookies += cookiesEarned;
         this.cookies = this.player.cookies;
@@ -197,17 +198,16 @@ class TutorialGame {
     }
     
     upgradeClickPower() {
-        const clickPower = this.player.clickPower || 1;
-        const currentLevel = clickPower - 1;
-        const basePrice = 50;
-        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
+        const clickLevel = this.player.clickPower || 1;
+        const basePrice = 100;
+        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
         
         const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = this.player.cookies - lockedMargin;
         
         if (available >= cost) {
             this.player.cookies -= cost;
-            this.player.clickPower++;
+            this.player.clickPower = clickLevel + 1;
             this.cookies = this.player.cookies;
             
             // Notify tutorial
@@ -261,20 +261,21 @@ class TutorialGame {
         const btn = document.getElementById('upgrade-click');
         if (!btn) return;
         
-        const clickPower = this.player.clickPower || 1;
-        const currentLevel = clickPower - 1;
-        const basePrice = 50;
-        const cost = Math.floor(basePrice * Math.pow(2, currentLevel));
-        const nextPower = clickPower + 1;
+        const clickLevel = this.player.clickPower || 1;
+        const currentPower = Math.pow(2, clickLevel - 1);
+        const basePrice = 100;
+        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
+        const nextLevel = clickLevel + 1;
+        const nextPower = Math.pow(2, nextLevel - 1);
         
         const costSpan = btn.querySelector('.click-power-cost');
         if (costSpan) costSpan.textContent = cost;
         
         const levelSpan = btn.querySelector('.click-power-level');
-        if (levelSpan) levelSpan.textContent = `Lv.${clickPower}`;
+        if (levelSpan) levelSpan.textContent = `Lv.${clickLevel}`;
         
         const descSpan = btn.querySelector('.click-power-desc');
-        if (descSpan) descSpan.textContent = `+${clickPower} per click → +${nextPower}`;
+        if (descSpan) descSpan.textContent = `+${currentPower} per click → +${nextPower}`;
         
         if (available >= cost) {
             btn.classList.remove('locked');
