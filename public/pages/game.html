@@ -15,6 +15,17 @@
         html, body { height: 100%; overflow: hidden; }
         body { font-family: 'Nunito', sans-serif; background: #0a0a14; color: #fff; display: flex; justify-content: center; align-items: center; }
         
+        /* Prevent text selection and cursor throughout game */
+        .game-wrapper, .game-wrapper * {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .game-wrapper { cursor: default; }
+        .game-wrapper button { cursor: pointer; }
+        .game-wrapper input[type="range"] { cursor: pointer; }
+        
         /* Game wrapper - FIXED 1600x900 design, scaled with CSS transform to fit screen */
         .game-wrapper { 
             position: relative; 
@@ -41,29 +52,31 @@
         .pot-amount { font-weight: 700; }
         
         /* COOKIE AREA */
-        .cookie-area { text-align: center; padding: 20px; position: relative; overflow: visible; }
-        .big-cookie { width: 120px; height: 120px; border: none; background: none; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
+        .cookie-area { text-align: center; padding: 8px; position: relative; overflow: visible; }
+        .big-cookie { width: 90px; height: 90px; border: none; background: none; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
         .big-cookie:hover { transform: scale(1.05); }
         .big-cookie:active { transform: scale(0.95); }
         .cookie-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(246, 212, 155, 0.5)); }
         .click-indicator { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; opacity: 0; }
         
         /* KING OF THE HILL */
-        .koth-display { padding: 10px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-top: 10px; border: 1px solid rgba(241,196,15,0.3); text-align: center; }
-        .koth-title { font-size: 0.75em; color: #f1c40f; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .koth-timer-bar { height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden; margin: 5px 0; }
+        .koth-display { padding: 6px; background: rgba(241,196,15,0.1); border-radius: 6px; margin-top: 6px; border: 1px solid rgba(241,196,15,0.3); text-align: center; }
+        .koth-title { font-size: 0.65em; color: #f1c40f; margin-bottom: 3px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .koth-timer-bar { height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; overflow: hidden; margin: 3px 0; }
         .koth-timer-fill { height: 100%; background: linear-gradient(90deg, #f1c40f, #e67e22); transition: width 0.5s linear; }
-        .koth-stats { display: flex; justify-content: space-between; font-size: 0.7em; gap: 5px; }
-        .koth-stat { flex: 1; padding: 4px; background: rgba(0,0,0,0.2); border-radius: 4px; }
-        .koth-stat-label { color: #888; font-size: 0.9em; }
+        .koth-stats { display: flex; justify-content: space-between; font-size: 0.6em; gap: 4px; }
+        .koth-stat { flex: 1; padding: 2px; background: rgba(0,0,0,0.2); border-radius: 3px; }
+        .koth-stat-label { color: #888; font-size: 0.85em; }
         .koth-stat-value { color: #f1c40f; font-weight: 700; }
-        .koth-buff { font-size: 0.65em; color: #2ecc71; margin-top: 4px; }
+        .koth-buff { font-size: 0.6em; color: #2ecc71; margin-top: 2px; }
         
         /* KOTH ABILITIES */
-        .ability-btn { flex: 1; padding: 6px 8px; background: linear-gradient(135deg, #2a4a2a, #1a2e1a); border: 1px solid #3a5a3a; border-radius: 6px; cursor: pointer; color: #fff; font-size: 0.7em; transition: all 0.2s; }
+        .ability-btn { flex: 1; padding: 4px 6px; background: linear-gradient(135deg, #2a4a2a, #1a2e1a); border: 1px solid #3a5a3a; border-radius: 4px; cursor: pointer; color: #fff; font-size: 0.55em; transition: all 0.2s; min-width: 55px; }
         .ability-btn:hover:not(:disabled) { border-color: #2ecc71; transform: scale(1.05); }
         .ability-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ability-btn.on-cooldown { background: linear-gradient(135deg, #4a2a2a, #2e1a1a); border-color: #5a3a3a; }
+        .ability-btn.ability-crash { background: linear-gradient(135deg, #4a2a2a, #2e1a1a); border-color: #e74c3c; }
+        .ability-btn.ability-crash:hover:not(:disabled) { border-color: #ff6b6b; box-shadow: 0 0 10px rgba(231,76,60,0.5); }
         
         /* FROZEN OVERLAY */
         .frozen-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(100, 200, 255, 0.3); display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none; border-radius: 10px; animation: frozenPulse 1s ease-in-out infinite; }
@@ -76,10 +89,10 @@
         @keyframes invisPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         /* STATS */
-        .cookie-stats { padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 15px; }
-        .stat-main { text-align: center; margin-bottom: 15px; }
-        .stat-main .stat-label { font-size: 0.8em; color: #888; }
-        .stat-main .stat-value { font-size: 2em; font-weight: 800; color: #F6D49B; display: block; }
+        .cookie-stats { padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 8px; }
+        .stat-main { text-align: center; margin-bottom: 6px; }
+        .stat-main .stat-label { font-size: 0.75em; color: #888; }
+        .stat-main .stat-value { font-size: 1.5em; font-weight: 800; color: #F6D49B; display: block; }
         .stat-goal { text-align: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; }
         .goal-label { font-size: 0.75em; color: #f39c12; display: block; margin-bottom: 5px; }
         .goal-progress-bar { height: 8px; background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
@@ -89,7 +102,7 @@
         .stat-item { flex: 1; text-align: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; }
         .stat-item .stat-label { font-size: 0.65em; color: #888; display: block; }
         .stat-item .stat-value { font-size: 0.9em; font-weight: 700; color: #2ecc71; }
-        .stat-locked-main { text-align: center; padding: 10px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(241,196,15,0.3); }
+        .stat-locked-main { text-align: center; padding: 6px; background: rgba(241,196,15,0.1); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(241,196,15,0.3); }
         
         /* GENERATORS */
         .generators-list { display: flex; flex-direction: column; gap: 10px; }
@@ -120,30 +133,30 @@
         .tab-panel.active { display: block; }
         
         /* LIVE POSITIONS */
-        .live-positions { margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
-        .positions-title { font-size: 0.8em; color: #f39c12; margin-bottom: 8px; }
-        .no-positions { font-size: 0.75em; color: #555; text-align: center; padding: 10px; }
+        .live-positions { margin-top: 6px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 6px; flex-shrink: 0; }
+        .positions-title { font-size: 0.7em; color: #f39c12; margin-bottom: 4px; }
+        .no-positions { font-size: 0.65em; color: #555; text-align: center; padding: 4px; }
         .position-item { display: flex; align-items: center; gap: 5px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 4px; font-size: 0.7em; }
         .position-item .trader { color: #F6D49B; font-weight: 600; }
         .position-item .arrow { color: #666; }
         .position-item .target { color: #9b59b6; font-weight: 600; }
         
         /* NOTIFICATION FEED */
-        .notification-feed { margin-top: 15px; }
-        .notif-feed-title { font-size: 0.8em; color: #888; margin-bottom: 8px; }
-        .notif-feed-list { max-height: 150px; overflow-y: auto; }
-        .notif-item { padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 5px; font-size: 0.75em; border-left: 3px solid #3498db; transition: opacity 0.3s; }
+        .notification-feed { margin-top: 6px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .notif-feed-title { font-size: 0.7em; color: #888; margin-bottom: 4px; flex-shrink: 0; }
+        .notif-feed-list { flex: 1; min-height: 60px; max-height: none; overflow-y: auto; }
+        .notif-item { padding: 5px 6px; background: rgba(0,0,0,0.2); border-radius: 4px; margin-bottom: 3px; font-size: 0.65em; border-left: 2px solid #3498db; transition: opacity 0.3s; }
         .notif-item.success { border-left-color: #2ecc71; background: rgba(46,204,113,0.1); }
         .notif-item.error { border-left-color: #e74c3c; background: rgba(231,76,60,0.1); }
         .notif-item.warning { border-left-color: #f39c12; background: rgba(243,156,18,0.1); }
         .notif-item.info { border-left-color: #3498db; background: rgba(52,152,219,0.1); }
         
         /* LIVE POSITIONS */
-        .live-positions { margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
-        .live-positions .positions-title { font-size: 0.8em; color: #888; margin-bottom: 8px; display: block; }
-        .live-positions .positions-list { max-height: 120px; overflow-y: auto; }
-        .live-positions .no-positions { color: #555; font-size: 0.75em; text-align: center; padding: 10px; }
-        .live-positions .position-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 4px; font-size: 0.75em; }
+        .live-positions { margin-top: 6px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 6px; flex-shrink: 0; }
+        .live-positions .positions-title { font-size: 0.7em; color: #888; margin-bottom: 4px; display: block; }
+        .live-positions .positions-list { max-height: 80px; overflow-y: auto; }
+        .live-positions .no-positions { color: #555; font-size: 0.65em; text-align: center; padding: 4px; }
+        .live-positions .position-item { display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: rgba(0,0,0,0.2); border-radius: 4px; margin-bottom: 2px; font-size: 0.65em; }
         .live-positions .position-item .trader { color: #aaa; }
         .live-positions .position-item .arrow { color: #666; }
         .live-positions .position-item .target { color: #aaa; }
@@ -204,6 +217,18 @@
         .stat-velocity.flat { background: rgba(150, 150, 150, 0.2); color: #888; }
         .stat-locked { font-size: 0.55em; padding: 1px 3px; border-radius: 3px; font-weight: 600; background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
         
+        /* Header ability buttons */
+        .header-ability-btn { padding: 3px 6px; border-radius: 4px; font-size: 0.65em; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 2px; }
+        .header-ability-btn .ability-cost { font-size: 0.8em; opacity: 0.8; }
+        .header-ability-btn.locked { background: #333; border: 1px solid #555; color: #666; opacity: 0.6; }
+        .header-ability-btn.locked:hover { cursor: not-allowed; }
+        .header-ability-btn.unlocked { animation: abilityPulse 1.5s infinite; }
+        .header-freeze-btn.unlocked { background: linear-gradient(135deg, #0077b6, #00b4d8); border: 1px solid #00bfff; color: #fff; }
+        .header-freeze-btn.unlocked:hover { transform: scale(1.1); box-shadow: 0 0 12px rgba(0, 191, 255, 0.7); }
+        .header-crash-btn.unlocked { background: linear-gradient(135deg, #8b0000, #dc143c); border: 1px solid #ff4444; color: #fff; }
+        .header-crash-btn.unlocked:hover { transform: scale(1.1); box-shadow: 0 0 12px rgba(220, 20, 60, 0.7); }
+        @keyframes abilityPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        
         /* Chart - flex to fill available space in player card */
         .chart-container { position: relative; width: 100%; flex: 1; min-height: 40px; background: #050508; cursor: crosshair; overflow: hidden; }
         .chart-canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -223,15 +248,19 @@
         .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
         
         /* Stake slider row */
-        .stake-slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 0; }
+        .stake-slider-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; padding: 2px 0; }
         .stake-label { font-size: 0.6em; color: #888; font-weight: 600; }
-        .stake-slider { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: linear-gradient(90deg, #1a1a2e, #2a2a4a); border-radius: 3px; outline: none; cursor: pointer; }
-        .stake-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.1s; }
-        .stake-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-        .stake-slider::-moz-range-thumb { width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .stake-slider { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: linear-gradient(90deg, #1a1a2e, #2a2a4a); border-radius: 4px; outline: none; cursor: pointer; transition: background 0.2s; }
+        .stake-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.15s ease-out; }
+        .stake-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+        .stake-slider::-webkit-slider-thumb:active { transform: scale(0.95); }
+        .stake-slider::-moz-range-thumb { width: 16px; height: 16px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         .stake-slider:disabled { opacity: 0.4; cursor: not-allowed; }
         .stake-slider:disabled::-webkit-slider-thumb { background: #666; cursor: not-allowed; }
-        .stake-value { font-size: 0.65em; color: #f39c12; font-weight: 700; min-width: 40px; text-align: right; }
+        .stake-value { font-size: 0.6em; color: #f39c12; font-weight: 700; min-width: 35px; text-align: right; }
+        .max-stake-btn { padding: 2px 5px; background: #1a1a2e; border: 1px solid #555; border-radius: 3px; color: #888; font-size: 0.5em; font-weight: bold; cursor: pointer; transition: all 0.15s; }
+        .max-stake-btn:hover { background: #252540; border-color: #f39c12; color: #f39c12; }
+        .max-stake-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
         .quick-trade-btns { display: flex; gap: 4px; }
         .quick-trade-btn { flex: 1; padding: 6px 4px; border: none; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 50px; }
         .quick-trade-btn.long { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
@@ -464,14 +493,14 @@
                             <circle cx="48" cy="50" r="4" fill="#5D3A1A"/>
                         </svg>
                     </button>
-                    <div class="cookie-cps-display" style="margin-top: 10px; text-align: center;" id="cookie-cps">
-                        <div style="font-size: 0.85em; color: #2ecc71;">🖱️ 0 clicks/sec</div>
-                        <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +0 from generators</div>
+                    <div class="cookie-cps-display" style="margin-top: 4px; text-align: center;" id="cookie-cps">
+                        <div style="font-size: 0.7em; color: #2ecc71;">🖱️ 0 cookies/sec</div>
+                        <div style="font-size: 0.7em; color: #f39c12;">🏭 +0 from generators</div>
                     </div>
                     
                     <!-- King of the Hill Display -->
                     <div class="koth-display" id="koth-display">
-                        <div class="koth-title">👑 Cookie King of the Hill</div>
+                        <div class="koth-title">👑 King of the Hill</div>
                         <div class="koth-timer-bar">
                             <div class="koth-timer-fill" id="koth-timer-fill" style="width: 100%;"></div>
                         </div>
@@ -487,22 +516,25 @@
                         </div>
                         
                         <!-- KotH Leaderboard -->
-                        <div class="koth-leaderboard" id="koth-leaderboard" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(241,196,15,0.3);">
-                            <div style="font-size: 0.65em; color: #f1c40f; margin-bottom: 4px;">📊 Round Standings:</div>
-                            <div id="koth-leaderboard-list" style="font-size: 0.6em; max-height: 60px; overflow-y: auto;"></div>
+                        <div class="koth-leaderboard" id="koth-leaderboard" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(241,196,15,0.3);">
+                            <div style="font-size: 0.55em; color: #f1c40f; margin-bottom: 2px;">📊 Standings:</div>
+                            <div id="koth-leaderboard-list" style="font-size: 0.55em; max-height: 45px; overflow-y: auto;"></div>
                         </div>
                         
                         <div class="koth-buff" id="koth-buff-display">No buffs yet</div>
                         
                         <!-- Abilities -->
-                        <div class="koth-abilities" id="koth-abilities" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(241,196,15,0.3);">
-                            <div style="font-size: 0.7em; color: #f1c40f; margin-bottom: 5px;">⚡ Use Buffs (costs 1 buff each):</div>
-                            <div style="display: flex; gap: 5px;">
-                                <button class="ability-btn" id="ability-freeze" title="Freeze a player for 15s">
-                                    🥶 Freeze
+                        <div class="koth-abilities" id="koth-abilities" style="display: none; margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(241,196,15,0.3);">
+                            <div style="font-size: 0.55em; color: #f1c40f; margin-bottom: 3px;">⚡ Abilities:</div>
+                            <div style="display: flex; gap: 3px; flex-wrap: wrap;">
+                                <button class="ability-btn" id="ability-freeze" title="Freeze a player for 15s (1 buff)">
+                                    🥶 Freeze <span style="opacity:0.7">(1)</span>
                                 </button>
-                                <button class="ability-btn" id="ability-invisible" title="Go invisible for 15s">
-                                    👻 Invisible
+                                <button class="ability-btn" id="ability-invisible" title="Go invisible for 15s (1 buff)">
+                                    👻 Invis <span style="opacity:0.7">(1)</span>
+                                </button>
+                                <button class="ability-btn ability-crash" id="ability-crash" title="Target loses 10% cookies (2 buffs)">
+                                    📉 Crash <span style="opacity:0.7">(2)</span>
                                 </button>
                             </div>
                         </div>
@@ -522,19 +554,19 @@
                         <span class="stat-label">Your Cookies</span>
                         <span class="stat-value" id="cookie-count">0</span>
                     </div>
-                    <div class="stat-real-balance" style="text-align: center; padding: 8px; background: rgba(231,76,60,0.1); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.75em;">⚠️ Real Balance (if positions close)</span>
-                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 1.1em; display: block; font-weight: 700;">0</span>
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.7em; margin-top: 4px; display: block;">💎 Real Net Worth</span>
-                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 1em; display: block; font-weight: 700;">0</span>
+                    <div class="stat-real-balance" style="text-align: center; padding: 5px; background: rgba(231,76,60,0.1); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.65em;">⚠️ Real Balance</span>
+                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 0.9em; display: block; font-weight: 700;">0</span>
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.6em; display: inline;">💎 Real NW: </span>
+                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 0.85em; display: inline; font-weight: 700;">0</span>
                     </div>
-                    <div class="stat-networth" style="text-align: center; padding: 8px; background: rgba(155,89,182,0.15); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(155,89,182,0.3);">
-                        <span class="stat-label" style="color: #9b59b6; font-size: 0.8em;">💎 Net Worth</span>
-                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1.2em; display: block;">0</span>
+                    <div class="stat-networth" style="text-align: center; padding: 5px; background: rgba(155,89,182,0.15); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(155,89,182,0.3);">
+                        <span class="stat-label" style="color: #9b59b6; font-size: 0.7em;">💎 Net Worth</span>
+                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1em; display: block;">0</span>
                     </div>
                     <div class="stat-locked-main" id="locked-display">
-                        <span class="stat-label" style="color: #f1c40f;">🔒 Locked</span>
-                        <span class="stat-value" id="locked-value" style="color: #f1c40f;">0</span>
+                        <span class="stat-label" style="color: #f1c40f; font-size: 0.7em;">🔒 Locked</span>
+                        <span class="stat-value" id="locked-value" style="color: #f1c40f; font-size: 0.9em;">0</span>
                     </div>
                 </div>
                 

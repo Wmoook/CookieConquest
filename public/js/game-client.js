@@ -27,9 +27,13 @@ class MultiplayerGame {
         // Leverage per target
         this.targetLeverage = {}; // playerId -> leverage
         
+        // Max stake mode per target (always set slider to max)
+        this.maxStakeMode = {}; // targetId -> boolean
+        
         // Multiplayer cursor tracking
         this.otherCursors = {}; // playerName -> cursor DOM element
         this.lastCursorUpdate = 0;
+        this.lastCursorPosition = { x: 50, y: 50 }; // Store last cursor position for heartbeat
         
         // Screen tint timeout tracker
         this.screenTintTimeout = null;
@@ -227,7 +231,8 @@ class MultiplayerGame {
             // Screen tint based on profit/loss
             if (type === 'profit' && amount > 0) {
                 this.showScreenTint('green', 500);
-            } else if (type === 'loss' && amount < 0) {
+            } else if (type === 'loss') {
+                // Loss - either you closed at a loss, or someone took money from you
                 this.showScreenTint('red', 500);
             }
         });
@@ -291,6 +296,19 @@ class MultiplayerGame {
             this.hideRemoteCursor(playerName, duration);
         });
         
+        // Market Crash events
+        this.socket.on('game:marketCrash', ({ crashedBy, crashedPlayer, amountLost }) => {
+            const isMe = crashedPlayer === this.playerName;
+            const isCrasher = crashedBy === this.playerName;
+            if (isMe) {
+                // Already handled by positionClosed event for red tint
+            } else if (isCrasher) {
+                this.showScreenTint('green', 500); // Green for successful attack
+            } else {
+                this.showNotification(`📉 ${crashedBy} crashed ${crashedPlayer}'s market! (-${amountLost.toLocaleString()}🍪)`, 'warning');
+            }
+        });
+        
         this.socket.on('game:winner', (winner) => {
             this.isGameActive = false;
             const isMe = winner.id === this.playerId;
@@ -346,6 +364,11 @@ class MultiplayerGame {
             invisBtn.addEventListener('click', () => this.useInvisibility());
         }
         
+        const crashBtn = document.getElementById('ability-crash');
+        if (crashBtn) {
+            crashBtn.addEventListener('click', () => this.showCrashTargetPicker());
+        }
+        
         // Track mouse movement for cursor sharing (throttled to ~20fps)
         // Send as percentages RELATIVE TO GAME WRAPPER for cross-resolution accuracy
         document.addEventListener('mousemove', (e) => {
@@ -377,10 +400,21 @@ class MultiplayerGame {
                     const clampedX = Math.max(0, Math.min(100, xPercent));
                     const clampedY = Math.max(0, Math.min(100, yPercent));
                     
+                    // Store last position for heartbeat
+                    this.lastCursorPosition = { x: clampedX, y: clampedY };
+                    
                     this.socket.emit('game:cursor', { x: clampedX, y: clampedY });
                 }
             }
         });
+        
+        // Cursor heartbeat - send position every 1.5 seconds even if not moving
+        // This keeps the cursor visible for other players
+        setInterval(() => {
+            if (this.isGameActive && this.lastCursorPosition) {
+                this.socket.emit('game:cursor', { x: this.lastCursorPosition.x, y: this.lastCursorPosition.y });
+            }
+        }, 1500);
         
         // Tab clicks
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -486,6 +520,10 @@ class MultiplayerGame {
                         ${!isMe ? `<span class="click-indicator" id="click-ind-${player.name}" style="display:none;">🖱️</span>` : ''}
                     </div>
                     <div class="stock-stats">
+                        ${!isMe ? `
+                            <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${player.name}" data-target="${player.name}" title="Freeze: 15s (1 buff)">🥶 Freeze <span class="ability-cost">(1)</span></button>
+                            <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${player.name}" data-target="${player.name}" title="Crash: -10% cookies (2 buffs)">📉 Crash <span class="ability-cost">(2)</span></button>
+                        ` : ''}
                         <span class="stat-total" id="score-${chartId}">${player.cookies || 0} 🍪</span>
                         ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 ${player.cookies || 0}</span>`}
                         <span class="stat-velocity up" id="vel-${chartId}">+0/s</span>
@@ -514,8 +552,9 @@ class MultiplayerGame {
                         </div>
                         <div class="stake-slider-row">
                             <span class="stake-label">Stake:</span>
-                            <input type="range" class="stake-slider" id="slider-${player.name}" min="1" max="100" value="10" data-target="${player.name}">
+                            <input type="range" class="stake-slider" id="slider-${player.name}" min="1" max="100" value="10" step="1" data-target="${player.name}">
                             <span class="stake-value" id="stake-display-${player.name}">10🍪</span>
+                            <button class="max-stake-btn" id="max-btn-${player.name}" data-target="${player.name}" title="Lock to MAX">MAX</button>
                         </div>
                         <div class="quick-trade-btns">
                             <button class="quick-trade-btn long" data-target="${player.name}" data-action="long">
@@ -581,7 +620,7 @@ class MultiplayerGame {
             });
         });
         
-        // Stake sliders
+        // Stake sliders - smooth input handling
         document.querySelectorAll('.stake-slider').forEach(slider => {
             slider.addEventListener('input', () => {
                 const targetId = slider.dataset.target;
@@ -589,6 +628,33 @@ class MultiplayerGame {
                 const display = document.getElementById(`stake-display-${targetId}`);
                 if (display) {
                     display.textContent = `${value}🍪`;
+                }
+                // If user manually moves slider, turn off max mode
+                if (this.maxStakeMode && this.maxStakeMode[targetId]) {
+                    const maxBtn = document.getElementById(`max-btn-${targetId}`);
+                    const maxStake = parseInt(slider.max);
+                    // Only turn off if they moved away from max
+                    if (value < maxStake) {
+                        this.maxStakeMode[targetId] = false;
+                        if (maxBtn) maxBtn.classList.remove('active');
+                    }
+                }
+            });
+        });
+        
+        // MAX buttons for stake sliders
+        document.querySelectorAll('.max-stake-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.target;
+                if (!this.maxStakeMode) this.maxStakeMode = {};
+                
+                // Toggle max mode
+                this.maxStakeMode[targetId] = !this.maxStakeMode[targetId];
+                btn.classList.toggle('active', this.maxStakeMode[targetId]);
+                
+                if (this.maxStakeMode[targetId]) {
+                    // Set to max immediately
+                    this.updateSliderMax(targetId);
                 }
             });
         });
@@ -599,6 +665,33 @@ class MultiplayerGame {
                 const targetId = btn.dataset.target;
                 const action = btn.dataset.action;
                 this.executeQuickTrade(targetId, action);
+            });
+        });
+        
+        // Header ability buttons (freeze and crash)
+        document.querySelectorAll('.header-freeze-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetName = btn.dataset.target;
+                const me = this.getMe();
+                if (!me || (me.powerBuffs || 0) < 1) {
+                    this.showNotification('🔒 You need at least 1 buff to use Freeze!', 'error');
+                    return;
+                }
+                this.socket.emit('game:useFreeze', { targetName });
+            });
+        });
+        
+        document.querySelectorAll('.header-crash-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetName = btn.dataset.target;
+                const me = this.getMe();
+                if (!me || (me.powerBuffs || 0) < 2) {
+                    this.showNotification('🔒 You need at least 2 buffs to use Market Crash!', 'error');
+                    return;
+                }
+                this.socket.emit('game:useMarketCrash', { targetName });
             });
         });
         
@@ -617,11 +710,17 @@ class MultiplayerGame {
             const newMax = Math.max(1, maxStake); // Minimum 1 to keep slider functional
             slider.max = newMax;
             
-            // If current value exceeds new max, adjust it down
-            const currentValue = parseInt(slider.value);
-            if (currentValue > newMax) {
+            // If MAX mode is active, always set to max
+            if (this.maxStakeMode && this.maxStakeMode[targetId]) {
                 slider.value = newMax;
                 if (display) display.textContent = `${newMax}🍪`;
+            } else {
+                // If current value exceeds new max, adjust it down
+                const currentValue = parseInt(slider.value);
+                if (currentValue > newMax) {
+                    slider.value = newMax;
+                    if (display) display.textContent = `${newMax}🍪`;
+                }
             }
             
             // Disable slider if max stake is 0 or less
@@ -1781,7 +1880,7 @@ class MultiplayerGame {
         // Update your time on cookie
         const yourTimeEl = document.getElementById('koth-your-time');
         const myTime = (me.cookieZoneTime || 0) / 1000;
-        if (yourTimeEl) yourTimeEl.textContent = `${myTime.toFixed(1)}s`;
+        if (yourTimeEl) yourTimeEl.textContent = `${myTime.toFixed(2)}s`;
         
         // Update KotH leaderboard
         this.updateKothLeaderboard();
@@ -1802,6 +1901,16 @@ class MultiplayerGame {
                 // Hide abilities if no buffs
                 if (abilitiesEl) abilitiesEl.style.display = 'none';
             }
+            
+            // Update header ability button states based on buff count
+            document.querySelectorAll('.header-freeze-btn').forEach(btn => {
+                btn.classList.toggle('locked', buffs < 1);
+                btn.classList.toggle('unlocked', buffs >= 1);
+            });
+            document.querySelectorAll('.header-crash-btn').forEach(btn => {
+                btn.classList.toggle('locked', buffs < 2);
+                btn.classList.toggle('unlocked', buffs >= 2);
+            });
         }
         
         // Update frozen state display from server's frozenSecondsLeft
@@ -1831,12 +1940,13 @@ class MultiplayerGame {
             frozenNotif.id = 'frozen-notification';
             frozenNotif.style.cssText = `
                 position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-                background: linear-gradient(135deg, #00bfff, #0080ff); 
+                background: #0066cc; 
                 padding: 15px 30px; border-radius: 15px; color: #fff; 
                 font-size: 1.5em; font-weight: bold; z-index: 10001;
-                box-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
+                box-shadow: 0 0 30px rgba(0, 191, 255, 0.8), inset 0 0 20px rgba(0, 150, 255, 0.5);
                 animation: frozenPulse 0.5s infinite;
                 text-align: center;
+                border: 2px solid #00bfff;
             `;
             document.body.appendChild(frozenNotif);
         }
@@ -1847,13 +1957,43 @@ class MultiplayerGame {
         const listEl = document.getElementById('koth-leaderboard-list');
         if (!listEl || !this.gameState) return;
         
-        // Sort players by cookie zone time (descending)
-        const sorted = [...this.gameState.players].sort((a, b) => 
+        // First, sort by actual cookie zone time to get real positions
+        const realSorted = [...this.gameState.players].sort((a, b) => 
             (b.cookieZoneTime || 0) - (a.cookieZoneTime || 0)
         );
         
+        // Track last known positions for invisible players
+        if (!this.lastKnownPositions) this.lastKnownPositions = {};
+        
+        // Update last known position for non-invisible players
+        realSorted.forEach((player, index) => {
+            const isInvisible = (player.invisibleSecondsLeft || 0) > 0;
+            if (!isInvisible) {
+                // Store their current position and time when visible
+                this.lastKnownPositions[player.name] = {
+                    time: player.cookieZoneTime || 0,
+                    index: index
+                };
+            }
+        });
+        
+        // For display, use last known time for invisible players (from other players' perspective)
+        // But show real time for yourself
+        const displaySorted = [...this.gameState.players].map(player => {
+            const isInvisible = (player.invisibleSecondsLeft || 0) > 0;
+            const isMe = this.isMe(player);
+            
+            // For invisible players (that aren't me), use their last known time for sorting
+            let sortTime = player.cookieZoneTime || 0;
+            if (isInvisible && !isMe && this.lastKnownPositions[player.name]) {
+                sortTime = this.lastKnownPositions[player.name].time;
+            }
+            
+            return { ...player, sortTime };
+        }).sort((a, b) => (b.sortTime || 0) - (a.sortTime || 0));
+        
         let html = '';
-        sorted.forEach((player, index) => {
+        displaySorted.forEach((player, index) => {
             const isMe = this.isMe(player);
             const displayColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
             const time = (player.cookieZoneTime || 0) / 1000;
@@ -1862,14 +2002,20 @@ class MultiplayerGame {
             const isInvisible = (player.invisibleSecondsLeft || 0) > 0;
             const showTime = isMe || !isInvisible; // Always show your own time
             
-            const displayTime = showTime ? `${time.toFixed(1)}s` : '👻 ???';
+            const displayTime = showTime ? `${time.toFixed(2)}s` : '👻 ???';
             const displayName = isMe ? 'YOU' : player.name;
             
-            // Show crown for leader
-            const crown = index === 0 && time > 0 ? '👑 ' : '';
+            // Show buff count
+            const buffs = player.powerBuffs || 0;
+            const buffText = buffs > 0 ? ` (${buffs} buff${buffs > 1 ? 's' : ''})` : '';
+            
+            // Show crown for leader (but only if actually visible leader or it's you)
+            const realLeaderIndex = realSorted.findIndex(p => p.name === player.name);
+            const showCrown = realLeaderIndex === 0 && time > 0 && (isMe || !isInvisible);
+            const crown = showCrown ? '👑 ' : '';
             
             html += `<div style="display: flex; justify-content: space-between; padding: 2px 4px; background: ${index === 0 ? 'rgba(241,196,15,0.2)' : 'rgba(0,0,0,0.2)'}; border-radius: 3px; margin-bottom: 2px;">
-                <span style="color: ${displayColor};">${crown}${displayName}</span>
+                <span style="color: ${displayColor};">${crown}${displayName}<span style="color: #f1c40f; font-size: 0.85em;">${buffText}</span></span>
                 <span style="color: ${showTime ? '#f1c40f' : '#9b59b6'};">${displayTime}</span>
             </div>`;
         });
@@ -2232,6 +2378,58 @@ class MultiplayerGame {
         }
         
         this.socket.emit('game:useInvisible');
+    }
+    
+    showCrashTargetPicker() {
+        // Create a modal to pick target player for Market Crash
+        const me = this.getMe();
+        if (!me || (me.powerBuffs || 0) < 2) {
+            this.showNotification('You need at least 2 buffs to use Market Crash!', 'error');
+            return;
+        }
+        
+        const otherPlayers = this.gameState.players.filter(p => p.name !== this.playerName);
+        if (otherPlayers.length === 0) {
+            this.showNotification('No other players to crash!', 'error');
+            return;
+        }
+        
+        // Create picker modal
+        let existingPicker = document.getElementById('crash-picker');
+        if (existingPicker) existingPicker.remove();
+        
+        const picker = document.createElement('div');
+        picker.id = 'crash-picker';
+        picker.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(40, 20, 20, 0.95); padding: 20px; border-radius: 10px;
+            border: 2px solid #e74c3c; z-index: 10000; min-width: 200px; text-align: center;
+        `;
+        picker.innerHTML = `
+            <div style="color: #e74c3c; font-weight: bold; margin-bottom: 10px;">📉 MARKET CRASH</div>
+            <div style="color: #888; font-size: 0.8em; margin-bottom: 15px;">Target loses 10% of cookies!</div>
+            <div id="crash-targets" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 16px; background: #333; border: 1px solid #555; color: #fff; border-radius: 5px; cursor: pointer;">Cancel</button>
+        `;
+        
+        const targetsDiv = picker.querySelector('#crash-targets');
+        otherPlayers.forEach(p => {
+            const crashAmount = Math.floor(p.cookies * 0.10);
+            const btn = document.createElement('button');
+            btn.style.cssText = `
+                padding: 10px; background: linear-gradient(135deg, #5a2a2a, #3a1a1a);
+                border: 1px solid #e74c3c; border-radius: 5px; color: #fff; cursor: pointer;
+                font-weight: bold;
+            `;
+            btn.innerHTML = `📉 ${p.name} <span style="color: #e74c3c; font-size: 0.8em;">(-${crashAmount.toLocaleString()}🍪)</span>`;
+            btn.onclick = () => {
+                this.socket.emit('game:useMarketCrash', { targetName: p.name });
+                picker.remove();
+            };
+            targetsDiv.appendChild(btn);
+        });
+        
+        document.body.appendChild(picker);
     }
     
     showFrozenOverlay(duration) {

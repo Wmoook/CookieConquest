@@ -43,7 +43,7 @@ function createLobby(hostSocket, hostName) {
             ready: false,
             cookies: 0,
             cps: 0,
-            color: '#2ecc71' // Green for player 1
+            color: '#e74c3c' // Red - green is reserved for client-side 'you'
         }],
         gameState: null,
         inGame: false,
@@ -113,6 +113,7 @@ function joinLobby(socket, code, playerName) {
         return { success: true, lobby };
     }
     
+    // Colors for players - green (#2ecc71) is reserved for client-side 'you' display
     const colors = ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#00bcd4', '#ff5722'];
     const player = {
         id: socket.id,
@@ -468,7 +469,7 @@ io.on('connection', (socket) => {
         }
         
         // Consume 1 buff and freeze target for 15 seconds
-        player.powerBuffs--;
+        player.powerBuffs = Math.max(0, (player.powerBuffs || 0) - 1);
         target.frozenSecondsLeft = 15;
         
         console.log(`[FREEZE] ${player.name} froze ${target.name} for 15 seconds (buffs remaining: ${player.powerBuffs})`);
@@ -507,7 +508,7 @@ io.on('connection', (socket) => {
         }
         
         // Consume 1 buff and go invisible for 15 seconds
-        player.powerBuffs--;
+        player.powerBuffs = Math.max(0, (player.powerBuffs || 0) - 1);
         player.invisibleSecondsLeft = 15;
         
         console.log(`[INVISIBLE] ${player.name} went invisible for 15 seconds (buffs remaining: ${player.powerBuffs})`);
@@ -519,6 +520,75 @@ io.on('connection', (socket) => {
         socket.to(code).emit('game:playerInvisible', {
             playerName: player.name,
             duration: 15
+        });
+        
+        io.to(code).emit('game:state', lobby.gameState);
+    });
+    
+    // Ability: Market Crash - Target loses 10% of cookies (costs 2 buffs)
+    socket.on('game:useMarketCrash', ({ targetName }) => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Check if player has enough buffs (costs 2)
+        if ((player.powerBuffs || 0) < 2) {
+            socket.emit('game:error', { message: 'You need at least 2 KotH buffs to use Market Crash!' });
+            return;
+        }
+        
+        // Find target player
+        const target = lobby.gameState.players.find(p => p.name === targetName);
+        if (!target || target.id === socket.id) {
+            socket.emit('game:error', { message: 'Invalid target!' });
+            return;
+        }
+        
+        // Can't crash someone with less than 500 cookies
+        if (target.cookies < 500) {
+            socket.emit('game:error', { message: `${targetName} has less than 500🍪 - can't crash!` });
+            return;
+        }
+        
+        // Can't crash someone who's shielded (future-proofing)
+        if ((target.shieldSecondsLeft || 0) > 0) {
+            socket.emit('game:error', { message: `${targetName} is shielded!` });
+            return;
+        }
+        
+        // Consume 2 buffs and crash target's cookies by 10%
+        player.powerBuffs = Math.max(0, (player.powerBuffs || 0) - 2);
+        const crashAmount = Math.floor(target.cookies * 0.10);
+        target.cookies = Math.max(0, target.cookies - crashAmount);
+        
+        console.log(`[MARKET CRASH] ${player.name} crashed ${target.name}'s market! Lost ${crashAmount} cookies (buffs remaining: ${player.powerBuffs})`);
+        
+        // Notify everyone
+        io.to(code).emit('game:marketCrash', {
+            crashedBy: player.name,
+            crashedPlayer: target.name,
+            amountLost: crashAmount
+        });
+        
+        // Send notification to target
+        const targetSocket = lobby.gameState.players.find(p => p.name === target.name);
+        if (targetSocket && targetSocket.id) {
+            io.to(targetSocket.id).emit('game:positionClosed', {
+                type: 'loss',
+                message: `📉 ${player.name} CRASHED your market! Lost ${crashAmount}🍪!`,
+                amount: crashAmount
+            });
+        }
+        
+        // Send notification to attacker
+        socket.emit('game:notification', {
+            type: 'success',
+            message: `📉 Market Crash hit ${target.name} for ${crashAmount}🍪!`
         });
         
         io.to(code).emit('game:state', lobby.gameState);
@@ -891,6 +961,7 @@ io.on('connection', (socket) => {
 });
 
 // ==================== GAME TICK ====================
+const TICK_INTERVAL = 100; // milliseconds per tick for smooth updates
 setInterval(() => {
     lobbies.forEach((lobby, code) => {
         if (!lobby.inGame || !lobby.gameState) return;
@@ -904,25 +975,25 @@ setInterval(() => {
         gs.serverTime = Date.now();
         
         // ==================== DECREMENT ABILITY TIMERS ====================
-        // Decrement frozen and invisible timers (0.5 seconds per tick)
+        // Decrement frozen and invisible timers (0.1 seconds per tick)
         gs.players.forEach(player => {
             if ((player.frozenSecondsLeft || 0) > 0) {
-                player.frozenSecondsLeft = Math.max(0, player.frozenSecondsLeft - 0.5);
+                player.frozenSecondsLeft = Math.max(0, player.frozenSecondsLeft - (TICK_INTERVAL / 1000));
             }
             if ((player.invisibleSecondsLeft || 0) > 0) {
-                player.invisibleSecondsLeft = Math.max(0, player.invisibleSecondsLeft - 0.5);
+                player.invisibleSecondsLeft = Math.max(0, player.invisibleSecondsLeft - (TICK_INTERVAL / 1000));
             }
         });
         
         // ==================== KING OF THE HILL ====================
         // Accumulate KotH round elapsed time
-        gs.kothRoundElapsed = (gs.kothRoundElapsed || 0) + 500;
+        gs.kothRoundElapsed = (gs.kothRoundElapsed || 0) + TICK_INTERVAL;
         
         // Accumulate time for players whose cursor is on the cookie (not frozen)
         gs.players.forEach(player => {
             // Only count time if cursor on cookie AND not frozen
             if (player.cursorOnCookie && !((player.frozenSecondsLeft || 0) > 0)) {
-                player.cookieZoneTime = (player.cookieZoneTime || 0) + 500; // 500ms per tick
+                player.cookieZoneTime = (player.cookieZoneTime || 0) + TICK_INTERVAL; // ms per tick
             }
         });
         
@@ -967,10 +1038,10 @@ setInterval(() => {
             if (player.cps > 0) {
                 // Power buff: +5% per buff to everything
                 const buffMultiplier = 1 + (player.powerBuffs || 0) * 0.05;
-                const gain = player.cps * 0.5 * buffMultiplier; // 500ms tick
+                const gain = player.cps * (TICK_INTERVAL / 1000) * buffMultiplier; // scale by tick interval
                 player.cookies += gain;
-                // Log occasionally (every 10 seconds = 20 ticks)
-                if (Math.random() < 0.05) {
+                // Log occasionally (every ~10 seconds)
+                if (Math.random() < 0.01) {
                     console.log(`[CPS_TICK] ${player.name}: +${gain.toFixed(1)} (cps=${player.cps}, buff=${buffMultiplier.toFixed(2)}x), cookies=${player.cookies.toFixed(1)}`);
                 }
             }
@@ -1087,7 +1158,7 @@ setInterval(() => {
         // Send state update
         io.to(code).emit('game:state', gs);
     });
-}, 500);
+}, TICK_INTERVAL);
 
 // ==================== PAGE ROUTES ====================
 app.get('/', (req, res) => {
