@@ -1788,12 +1788,12 @@ class MultiplayerGame {
     }
     
     showToast(message, type = 'info') {
-        // Create floating toast container if it doesn't exist
+        // Create floating toast container if it doesn't exist - bottom right to avoid UI
         let toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
+            toastContainer.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 10px; align-items: flex-end;';
             document.body.appendChild(toastContainer);
         }
         
@@ -1805,13 +1805,13 @@ class MultiplayerGame {
         toast.style.cssText = `
             background: ${bgColor};
             color: white;
-            padding: 15px 25px;
+            padding: 12px 20px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 1em;
+            font-size: 0.9em;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             animation: toastSlideIn 0.3s ease;
-            max-width: 350px;
+            max-width: 300px;
         `;
         toast.textContent = message;
         
