@@ -31,7 +31,42 @@ class MultiplayerGame {
         this.otherCursors = {}; // playerName -> cursor DOM element
         this.lastCursorUpdate = 0;
         
+        // Screen tint timeout tracker
+        this.screenTintTimeout = null;
+        
         this.init();
+    }
+    
+    // Screen tint effect for money gain/loss
+    showScreenTint(type, duration = 500) {
+        const tint = document.getElementById('screen-tint');
+        if (!tint) return;
+        
+        // Clear any existing timeout
+        if (this.screenTintTimeout) {
+            clearTimeout(this.screenTintTimeout);
+        }
+        
+        // Remove existing classes
+        tint.classList.remove('green', 'red', 'active');
+        
+        // Add the appropriate color class
+        tint.classList.add(type);
+        
+        // Force reflow to restart animation
+        tint.offsetHeight;
+        
+        // Activate
+        tint.classList.add('active');
+        
+        // Fade out after duration
+        this.screenTintTimeout = setTimeout(() => {
+            tint.classList.remove('active');
+            // Clean up class after fade
+            setTimeout(() => {
+                tint.classList.remove('green', 'red');
+            }, 150);
+        }, duration);
     }
     
     // Helper to find the current player in game state
@@ -170,22 +205,31 @@ class MultiplayerGame {
         this.socket.on('game:liquidated', ({ position }) => {
             console.log('RECEIVED game:liquidated', position);
             this.showNotification(`💀 LIQUIDATED! Lost ${position.stake}🍪 on ${position.targetName}!`, 'error');
+            this.showScreenTint('red', 800); // Red tint when YOU get liquidated (lose money)
         });
         
         this.socket.on('game:youLiquidatedSomeone', ({ from, amount }) => {
             console.log('RECEIVED game:youLiquidatedSomeone', from, amount);
             this.showNotification(`🎉 You LIQUIDATED ${from}! Gained ${amount}🍪!`, 'success');
+            this.showScreenTint('green', 800); // Green tint when you liquidate someone (gain money)
         });
         
         this.socket.on('game:maxPayout', ({ position, amount }) => {
             console.log('RECEIVED game:maxPayout', position, amount);
             this.showNotification(`🎯 MAX PAYOUT on ${position.targetName}! Won ${amount}🍪!`, 'success');
+            this.showScreenTint('green', 600); // Green tint for max payout win
         });
         
         this.socket.on('game:positionClosed', ({ type, message, amount }) => {
             console.log('RECEIVED game:positionClosed', type, message, amount);
             const notifType = type === 'profit' ? 'success' : type === 'loss' ? 'error' : 'info';
             this.showNotification(message, notifType);
+            // Screen tint based on profit/loss
+            if (type === 'profit' && amount > 0) {
+                this.showScreenTint('green', 500);
+            } else if (type === 'loss' && amount < 0) {
+                this.showScreenTint('red', 500);
+            }
         });
         
         // Click activity indicator for other players

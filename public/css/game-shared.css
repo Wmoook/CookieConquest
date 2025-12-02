@@ -1,0 +1,217 @@
+/* Cookie Conquest - Shared Game Styles */
+/* Used by both game.html and tutorial.html */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Nunito', sans-serif; background: #0a0a14; color: #fff; display: flex; justify-content: center; align-items: center; }
+
+/* Game wrapper - FIXED 1600x900 design, scaled with CSS zoom to fit screen */
+.game-wrapper { 
+    position: relative; 
+    width: 1600px; 
+    height: 900px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); 
+    overflow: hidden;
+    transform-origin: center center;
+}
+
+.game-container { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+.game-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+.game-main { display: grid; grid-template-columns: 280px 1fr 280px; gap: 10px; padding: 10px; flex: 1; overflow: hidden; min-height: 0; }
+.game-panel { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; overflow-y: auto; min-height: 0; }
+.panel-left { width: 100%; display: flex; flex-direction: column; }
+.panel-right { width: 100%; }
+.panel-center { display: flex; flex-direction: column; overflow: hidden; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; }
+.match-code { font-weight: 700; color: #f39c12; }
+.header-center { display: flex; align-items: center; gap: 15px; }
+.goal-bar { width: 200px; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; }
+.goal-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12); transition: width 0.3s; }
+.goal-text { font-size: 0.8em; color: #888; }
+.pot-amount { font-weight: 700; }
+
+/* COOKIE AREA */
+.cookie-area { text-align: center; padding: 20px; position: relative; overflow: visible; }
+.big-cookie { width: 120px; height: 120px; border: none; background: none; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
+.big-cookie:hover { transform: scale(1.05); }
+.big-cookie:active { transform: scale(0.95); }
+.cookie-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(246, 212, 155, 0.5)); }
+.click-indicator { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; opacity: 0; }
+
+/* STATS */
+.cookie-stats { padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 15px; }
+.stat-main { text-align: center; margin-bottom: 15px; }
+.stat-main .stat-label { font-size: 0.8em; color: #888; }
+.stat-main .stat-value { font-size: 2em; font-weight: 800; color: #F6D49B; display: block; }
+.stat-goal { text-align: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; }
+.goal-label { font-size: 0.75em; color: #f39c12; display: block; margin-bottom: 5px; }
+.goal-progress-bar { height: 8px; background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+.goal-progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12); transition: width 0.3s; }
+.goal-percent { font-size: 0.7em; color: #888; }
+.stat-secondary { display: flex; gap: 10px; }
+.stat-item { flex: 1; text-align: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+.stat-item .stat-label { font-size: 0.65em; color: #888; display: block; }
+.stat-item .stat-value { font-size: 0.9em; font-weight: 700; color: #2ecc71; }
+.stat-locked-main { text-align: center; padding: 10px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(241,196,15,0.3); }
+
+/* GENERATORS */
+.generators-list { display: flex; flex-direction: column; gap: 10px; }
+.generator-btn { display: flex; align-items: center; gap: 12px; padding: 12px; background: linear-gradient(135deg, #2a2a4a, #1a1a2e); border: 1px solid #3a3a5a; border-radius: 10px; cursor: pointer; transition: all 0.2s; color: #fff; text-align: left; }
+.generator-btn:hover:not(.locked):not(:disabled) { border-color: #F6D49B; transform: translateX(5px); }
+.generator-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.generator-btn.locked { opacity: 0.4; cursor: not-allowed; filter: grayscale(50%); }
+.generator-btn.locked .cost-value { color: #e74c3c; }
+.gen-icon-svg { flex-shrink: 0; }
+.gen-info { flex: 1; }
+.gen-name { font-weight: 700; display: block; }
+.gen-desc { font-size: 0.75em; color: #888; }
+.gen-cost { text-align: right; }
+.gen-level { font-size: 0.7em; color: #888; display: block; }
+.cost-value { font-weight: 700; color: #F6D49B; }
+
+/* Click Upgrade Section */
+.click-upgrade-section { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #3a3a5a; }
+.click-upgrade-btn { background: linear-gradient(135deg, #4a2a2a, #2e1a1a) !important; border-color: #6a3a3a !important; }
+.click-upgrade-btn:hover:not(.locked) { border-color: #e74c3c !important; }
+
+/* TAB SYSTEM */
+.tab-nav { display: flex; gap: 5px; margin-bottom: 10px; }
+.tab-btn { flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 8px; color: #888; cursor: pointer; font-size: 0.8em; }
+.tab-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* LIVE POSITIONS */
+.live-positions { margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+.positions-title { font-size: 0.8em; color: #f39c12; margin-bottom: 8px; }
+.no-positions { font-size: 0.75em; color: #555; text-align: center; padding: 10px; }
+.position-item { display: flex; align-items: center; gap: 5px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 4px; font-size: 0.7em; }
+.position-item .trader { color: #F6D49B; font-weight: 600; }
+.position-item .arrow { color: #666; }
+.position-item .target { color: #9b59b6; font-weight: 600; }
+.position-item.player-position .trader { color: #2ecc71; font-weight: bold; }
+.position-item.opponent-on-me .target { color: #e74c3c; font-weight: bold; }
+.position-item .pos-pnl-mini { font-size: 0.8em; font-weight: bold; margin-left: auto; }
+.position-item .pos-pnl-mini.profit { color: #2ecc71; }
+.position-item .pos-pnl-mini.loss { color: #e74c3c; }
+
+/* NOTIFICATION FEED */
+.notification-feed { margin-top: 15px; }
+.notif-feed-title { font-size: 0.8em; color: #888; margin-bottom: 8px; }
+.notif-feed-list { max-height: 150px; overflow-y: auto; }
+.notif-item { padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 5px; font-size: 0.75em; border-left: 3px solid #3498db; }
+.notif-item.success { border-left-color: #2ecc71; background: rgba(46,204,113,0.1); }
+.notif-item.error { border-left-color: #e74c3c; background: rgba(231,76,60,0.1); }
+.notif-item.warning { border-left-color: #f39c12; background: rgba(243,156,18,0.1); }
+.notif-item.info { border-left-color: #3498db; background: rgba(52,152,219,0.1); }
+
+/* CHART SYSTEM */
+.scoreboard-with-charts { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.scoreboard-title { flex-shrink: 0; }
+.players-column { display: flex; flex-direction: column; overflow: hidden; min-height: 0; flex: 1; }
+.player-stocks-grid { display: flex; flex-direction: column; gap: 6px; padding: 5px; flex: 1; overflow: hidden; min-height: 0; }
+
+/* Player row: chart on left, positions on right */
+.player-row { display: flex; gap: 8px; flex: 1; min-height: 0; }
+.player-stock-card { background: linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%); border: 1px solid #2a2a4a; border-radius: 10px; padding: 0; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chart-container { flex: 1; min-height: 60px; }
+.player-stock-card.you { border-color: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.15); }
+.player-stock-card.tradeable:hover { border-color: #f39c12; box-shadow: 0 0 20px rgba(243, 156, 18, 0.2); }
+
+/* Positions sidebar for each player */
+.player-positions-sidebar { width: 150px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+.player-positions-header { font-size: 0.65em; font-weight: bold; color: #f39c12; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+.player-positions-pnl { font-size: 0.9em; }
+.player-positions-pnl.profit { color: #2ecc71; }
+.player-positions-pnl.loss { color: #e74c3c; }
+.player-positions-pnl.neutral { color: #888; }
+.player-positions-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.player-pos-item { padding: 4px 5px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 2px solid #888; font-size: 0.6em; }
+.player-pos-item.long { border-left-color: #2ecc71; }
+.player-pos-item.short { border-left-color: #e74c3c; }
+.player-pos-item .pos-trader { font-weight: bold; color: #fff; }
+.player-pos-item .pos-type-badge { font-size: 0.85em; padding: 1px 3px; border-radius: 2px; margin-left: 3px; }
+.player-pos-item .pos-type-badge.long { background: rgba(46,204,113,0.3); color: #2ecc71; }
+.player-pos-item .pos-type-badge.short { background: rgba(231,76,60,0.3); color: #e74c3c; }
+.player-pos-item .pos-details-row { display: flex; justify-content: space-between; margin-top: 2px; color: #888; }
+.player-pos-item .pos-pnl-small { font-weight: bold; }
+.player-pos-item .pos-pnl-small.profit { color: #2ecc71; }
+.player-pos-item .pos-pnl-small.loss { color: #e74c3c; }
+.player-pos-item .close-btn-small { margin-top: 3px; width: 100%; padding: 2px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.9em; font-weight: bold; cursor: pointer; position: relative; z-index: 100; pointer-events: auto !important; }
+.player-pos-item .close-btn-small:hover { filter: brightness(1.2); }
+.no-positions-small { color: #555; font-size: 0.6em; text-align: center; padding: 8px 4px; }
+
+.stock-header { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(0,0,0,0.3); border-bottom: 1px solid #1a1a2e; flex-shrink: 0; }
+.stock-header-left { display: flex; align-items: center; gap: 4px; }
+.player-rank { background: linear-gradient(135deg, #f39c12, #e67e22); color: #000; font-size: 0.55em; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
+.player-name { font-weight: 700; font-size: 0.75em; }
+.click-indicator { font-size: 0.8em; animation: clickPulse 0.5s ease-out; }
+@keyframes clickPulse { 0% { transform: scale(1.5); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+.stock-stats { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+.stat-total { font-size: 0.7em; font-weight: 800; color: #f39c12; }
+.stat-networth-small { font-size: 0.65em; color: #9b59b6; }
+.stat-velocity { font-size: 0.6em; padding: 1px 3px; border-radius: 3px; font-weight: 600; }
+.stat-velocity.up { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+.stat-velocity.down { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+.stat-velocity.flat { background: rgba(150, 150, 150, 0.2); color: #888; }
+.stat-locked { font-size: 0.55em; padding: 1px 3px; border-radius: 3px; font-weight: 600; background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
+
+/* Chart container */
+.chart-container { position: relative; width: 100%; flex: 1; min-height: 40px; background: #050508; cursor: crosshair; overflow: hidden; }
+.chart-canvas { display: block; width: 100% !important; height: 100% !important; }
+.chart-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5,5,8,0.8) 0%, transparent 15%, transparent 85%, rgba(5,5,8,0.8) 100%); }
+.chart-price { position: absolute; bottom: 4px; right: 6px; font-size: 1em; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 5; pointer-events: none; }
+.chart-change { position: absolute; bottom: 4px; left: 6px; font-size: 0.65em; font-weight: 700; padding: 2px 5px; border-radius: 4px; z-index: 5; pointer-events: none; }
+.chart-change.up { background: #2ecc71; color: #000; }
+.chart-change.down { background: #e74c3c; color: #fff; }
+.chart-change.flat { background: #555; color: #fff; }
+
+/* Trade controls */
+.card-actions { padding: 4px 6px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; flex-shrink: 0; }
+.trade-controls { display: flex; gap: 3px; align-items: center; margin-bottom: 4px; }
+.leverage-select { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; }
+.lev-btn { padding: 2px 4px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.55em; font-weight: bold; cursor: pointer; transition: all 0.1s; }
+.lev-btn:hover { background: #252540; border-color: #555; }
+.lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
+
+/* Stake slider row */
+.stake-slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 0; }
+.stake-label { font-size: 0.6em; color: #888; font-weight: 600; }
+.stake-slider { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: linear-gradient(90deg, #1a1a2e, #2a2a4a); border-radius: 3px; outline: none; cursor: pointer; }
+.stake-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.1s; }
+.stake-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.stake-slider::-moz-range-thumb { width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.stake-slider:disabled { opacity: 0.4; cursor: not-allowed; }
+.stake-slider:disabled::-webkit-slider-thumb { background: #666; cursor: not-allowed; }
+.stake-value { font-size: 0.65em; color: #f39c12; font-weight: 700; min-width: 40px; text-align: right; }
+.quick-trade-btns { display: flex; gap: 4px; }
+.quick-trade-btn { flex: 1; padding: 6px 4px; border: none; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 50px; }
+.quick-trade-btn.long { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+.quick-trade-btn.short { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+.quick-trade-btn:hover { filter: brightness(1.15); transform: scale(1.02); }
+.quick-trade-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.quick-trade-btn .btn-label { font-size: 0.9em; font-weight: 800; }
+.quick-trade-btn .btn-leverage { font-size: 0.65em; opacity: 0.8; }
+
+/* Chart controls */
+.chart-controls { display: flex; gap: 3px; justify-content: center; padding: 4px 0; opacity: 0.8; }
+.player-stock-card:hover .chart-controls { opacity: 1; }
+.zoom-btn { padding: 4px 8px; background: rgba(0,0,0,0.7); border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.65em; cursor: pointer; }
+.zoom-btn:hover { background: #333; color: #fff; }
+.zoom-btn.zoom-live { background: #e74c3c; color: #fff; }
+.zoom-btn.zoom-all { background: #3498db; color: #fff; }
+
+/* Victory overlay */
+.victory-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+.victory-overlay.show { display: flex; }
+.victory-content { text-align: center; }
+.victory-emoji { font-size: 6rem; margin-bottom: 20px; }
+.victory-title { font-size: 3rem; font-weight: 800; color: #F6D49B; margin-bottom: 10px; }
+.victory-subtitle { font-size: 1.5rem; color: #888; margin-bottom: 30px; }
+.victory-btn { padding: 15px 40px; background: linear-gradient(135deg, #F6D49B, #E8A954); border: none; border-radius: 10px; color: #1a1a2e; font-size: 1.2rem; font-weight: 700; cursor: pointer; }
+
+/* Click feedback */
+.click-feedback { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 100; }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+
+/* Leave button */
+.leave-btn { width: 100%; margin-top: 8px; padding: 8px; background: linear-gradient(135deg, #c0392b, #e74c3c); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 0.8em; cursor: pointer; flex-shrink: 0; }
