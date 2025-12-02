@@ -1151,9 +1151,17 @@ class MultiplayerGame {
         const cpsValue = document.getElementById('cps-value');
         if (cpsValue) cpsValue.textContent = me.cps || 0;
         
-        // Update CPS under cookie
+        // Update CPS under cookie - show detailed breakdown
         const cookieCps = document.getElementById('cookie-cps');
-        if (cookieCps) cookieCps.textContent = '+' + (me.cps || 0).toLocaleString();
+        if (cookieCps) {
+            const generatorCps = me.cps || 0;
+            const clickCps = this.currentCPS;
+            const multiplierText = this.clickMultiplier > 1 ? ` (${this.clickMultiplier.toFixed(1)}x)` : '';
+            cookieCps.innerHTML = `
+                <div style="font-size: 0.85em; color: #2ecc71;">🖱️ ${clickCps} clicks/sec${multiplierText}</div>
+                <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +${generatorCps.toLocaleString()} from generators</div>
+            `;
+        }
         
         // Calculate and display Net Worth (smoothed cookies + generator value)
         // Use smoothCookies (which already includes unrealizedPnl from displayValues)
@@ -1557,19 +1565,7 @@ class MultiplayerGame {
     }
     
     updateCPSIndicator() {
-        let cpsIndicator = document.getElementById('cps-indicator');
-        if (!cpsIndicator) {
-            cpsIndicator = document.createElement('div');
-            cpsIndicator.id = 'cps-indicator';
-            cpsIndicator.style.cssText = 'position: fixed; top: 60px; right: 10px; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 5px; z-index: 80; font-size: 0.8em; pointer-events: none;';
-            document.body.appendChild(cpsIndicator);
-        }
-        
-        const color = this.currentCPS >= 10 ? '#f39c12' : (this.currentCPS >= 5 ? '#2ecc71' : '#fff');
-        cpsIndicator.innerHTML = `
-            <div style="color: ${color};">${this.currentCPS} CPS</div>
-            <div style="color: #888; font-size: 0.8em;">${this.clickMultiplier.toFixed(1)}x</div>
-        `;
+        // CPS indicator is now shown under cookie, no floating indicator needed
     }
     
     handleCookieClick(e) {
@@ -1812,7 +1808,7 @@ class MultiplayerGame {
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; top: 8px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;';
+            toastContainer.style.cssText = 'position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
             document.body.appendChild(toastContainer);
         }
         
