@@ -175,10 +175,13 @@ class MultiplayerGame {
             }
         });
         
-        // Remote cursor updates
+        // Remote cursor updates (coordinates are percentages, convert to local pixels)
         this.socket.on('game:cursor', ({ playerName, color, x, y }) => {
-            console.log('Received cursor from', playerName, 'at', x, y);
-            this.updateRemoteCursor(playerName, color, x, y);
+            // Convert percentage to local pixel coordinates
+            const localX = x * window.innerWidth;
+            const localY = y * window.innerHeight;
+            console.log('Received cursor from', playerName, 'at', localX, localY);
+            this.updateRemoteCursor(playerName, color, localX, localY);
         });
         
         this.socket.on('game:winner', (winner) => {
@@ -219,11 +222,15 @@ class MultiplayerGame {
         }
         
         // Track mouse movement for cursor sharing (throttled to ~20fps)
+        // Use percentage-based coordinates for cross-resolution compatibility
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             if (now - this.lastCursorUpdate > 50) {
                 this.lastCursorUpdate = now;
-                this.socket.emit('game:cursor', { x: e.clientX, y: e.clientY });
+                // Convert to percentage of viewport
+                const xPercent = e.clientX / window.innerWidth;
+                const yPercent = e.clientY / window.innerHeight;
+                this.socket.emit('game:cursor', { x: xPercent, y: yPercent });
             }
         });
         
@@ -1530,19 +1537,20 @@ class MultiplayerGame {
     }
     
     updateCPSIndicator() {
-        let cpsIndicator = document.getElementById('cps-indicator');
-        if (!cpsIndicator) {
-            cpsIndicator = document.createElement('div');
-            cpsIndicator.id = 'cps-indicator';
-            cpsIndicator.style.cssText = 'position: fixed; top: 60px; right: 10px; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 5px; z-index: 80; font-size: 0.8em; pointer-events: none;';
-            document.body.appendChild(cpsIndicator);
+        // Update click CPS display under cookie
+        const clickCpsEl = document.getElementById('click-cps');
+        const multiplierEl = document.getElementById('click-multiplier');
+        
+        if (clickCpsEl) {
+            const color = this.currentCPS >= 10 ? '#f39c12' : (this.currentCPS >= 5 ? '#2ecc71' : '#fff');
+            clickCpsEl.textContent = this.currentCPS;
+            clickCpsEl.style.color = color;
         }
         
-        const color = this.currentCPS >= 10 ? '#f39c12' : (this.currentCPS >= 5 ? '#2ecc71' : '#fff');
-        cpsIndicator.innerHTML = `
-            <div style="color: ${color};">${this.currentCPS} CPS</div>
-            <div style="color: #888; font-size: 0.8em;">${this.clickMultiplier.toFixed(1)}x</div>
-        `;
+        if (multiplierEl) {
+            multiplierEl.textContent = `(${this.clickMultiplier.toFixed(1)}x)`;
+            multiplierEl.style.color = this.clickMultiplier > 1 ? '#f39c12' : '#888';
+        }
     }
     
     handleCookieClick(e) {
