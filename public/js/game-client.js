@@ -246,15 +246,38 @@ class MultiplayerGame {
         }
         
         // Track mouse movement for cursor sharing (throttled to ~20fps)
-        // Send as percentages for cross-resolution compatibility
+        // Send as percentages RELATIVE TO GAME WRAPPER for cross-resolution accuracy
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             if (now - this.lastCursorUpdate > 50) {
                 this.lastCursorUpdate = now;
-                // Normalize to percentages (0-100) of viewport
-                const xPercent = (e.clientX / window.innerWidth) * 100;
-                const yPercent = (e.clientY / window.innerHeight) * 100;
-                this.socket.emit('game:cursor', { x: xPercent, y: yPercent });
+                // Get game wrapper position (fixed 1600x900, but scaled via CSS zoom)
+                const wrapper = document.getElementById('game-wrapper');
+                if (wrapper) {
+                    const rect = wrapper.getBoundingClientRect();
+                    const zoom = parseFloat(wrapper.style.zoom) || 1;
+                    
+                    // With CSS zoom, getBoundingClientRect returns screen coordinates
+                    // but the actual element is 1600x900 * zoom on screen
+                    // We need to convert mouse position to percentage of the 1600x900 design
+                    
+                    // Get position relative to wrapper's top-left corner (in screen coords)
+                    const relativeX = e.clientX - rect.left;
+                    const relativeY = e.clientY - rect.top;
+                    
+                    // The wrapper appears as (1600*zoom) x (900*zoom) on screen
+                    // So to get percentage of the 1600x900 design:
+                    // percent = (relativeScreenPos / (designSize * zoom)) * 100
+                    // which is the same as: (relativeScreenPos / zoom) / designSize * 100
+                    const xPercent = (relativeX / zoom / 1600) * 100;
+                    const yPercent = (relativeY / zoom / 900) * 100;
+                    
+                    // Clamp to 0-100 to avoid sending out-of-bounds cursor
+                    const clampedX = Math.max(0, Math.min(100, xPercent));
+                    const clampedY = Math.max(0, Math.min(100, yPercent));
+                    
+                    this.socket.emit('game:cursor', { x: clampedX, y: clampedY });
+                }
             }
         });
         
@@ -1804,16 +1827,22 @@ class MultiplayerGame {
         // Don't show our own cursor
         if (playerName === this.playerName) return;
         
-        // Convert percentages back to local viewport pixels
-        const x = (xPercent / 100) * window.innerWidth;
-        const y = (yPercent / 100) * window.innerHeight;
+        // Get game wrapper for positioning - cursor will be INSIDE this element
+        const wrapper = document.getElementById('game-wrapper');
+        if (!wrapper) return;
+        
+        // Convert percentage to pixels based on FIXED design size (1600x900)
+        // The wrapper is always 1600x900 internally, just scaled via CSS zoom
+        const x = (xPercent / 100) * 1600;
+        const y = (yPercent / 100) * 900;
         
         let cursor = this.otherCursors[playerName];
         
         if (!cursor) {
-            // Create new cursor element
+            // Create new cursor element INSIDE the wrapper
             cursor = document.createElement('div');
             cursor.className = 'remote-cursor';
+            // The SVG cursor tip starts at point (4,4) in the path, so offset the container
             cursor.innerHTML = `
                 <svg width="24" height="24" viewBox="0 0 24 24" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
                     <path d="M4 4 L4 20 L9 15 L14 22 L16 21 L11 14 L18 14 Z" fill="${color}" fill-opacity="0.8" stroke="#fff" stroke-width="1.5"/>
@@ -1821,17 +1850,20 @@ class MultiplayerGame {
                 <span class="cursor-label" style="background: ${color}; opacity: 0.9;">${playerName}</span>
             `;
             cursor.style.cssText = `
-                position: fixed;
+                position: absolute;
                 pointer-events: none;
                 z-index: 99999;
                 transition: left 0.05s linear, top 0.05s linear;
                 opacity: 0.85;
+                transform: translate(-8px, -8px);
             `;
-            document.body.appendChild(cursor);
+            // Append to wrapper, not body - cursor inherits the zoom scale
+            wrapper.appendChild(cursor);
             this.otherCursors[playerName] = cursor;
             console.log('Created cursor for', playerName, 'with color', color);
         }
         
+        // Use pixel positioning based on fixed 1600x900 design
         cursor.style.left = x + 'px';
         cursor.style.top = y + 'px';
         

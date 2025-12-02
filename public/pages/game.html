@@ -10,16 +10,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
     
     <style>
-        /* BASE STYLES */
+        /* BASE STYLES - FIXED SIZE GAME SCALED TO FIT */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
-        body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; }
-        .game-container { display: flex; flex-direction: column; height: 100vh; max-height: 100vh; overflow: hidden; }
+        body { font-family: 'Nunito', sans-serif; background: #0a0a14; color: #fff; display: flex; justify-content: center; align-items: center; }
+        
+        /* Game wrapper - FIXED 1600x900 design, scaled with CSS transform to fit screen */
+        .game-wrapper { 
+            position: relative; 
+            width: 1600px; 
+            height: 900px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); 
+            overflow: hidden;
+            /* Scale will be set by JavaScript on load/resize */
+            transform-origin: center center;
+        }
+        
+        .game-container { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-        .game-main { display: grid; grid-template-columns: minmax(220px, 280px) 1fr minmax(220px, 280px); gap: 10px; padding: 10px; flex: 1; overflow: hidden; min-height: 0; }
+        .game-main { display: grid; grid-template-columns: 280px 1fr 280px; gap: 10px; padding: 10px; flex: 1; overflow: hidden; min-height: 0; }
         .game-panel { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; overflow-y: auto; min-height: 0; }
-        .panel-left, .panel-right { width: 100%; }
-        .panel-center { display: flex; flex-direction: column; overflow: hidden; }
+        .panel-left { width: 100%; display: flex; flex-direction: column; }
+        .panel-right { width: 100%; }
+        .panel-center { display: flex; flex-direction: row; overflow: hidden; gap: 10px; background: transparent; align-items: center; }
+        .panel-center .players-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; height: 100%; }
+        .panel-center .positions-section { width: 200px; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; flex-shrink: 0; align-self: center; }
+        .panel-center .positions-section .positions-panel { display: flex; flex-direction: column; }
+        .panel-center .positions-section .positions-list { display: flex; flex-direction: column; gap: 4px; }
         .match-code { font-weight: 700; color: #f39c12; }
         .header-center { display: flex; align-items: center; gap: 15px; }
         .goal-bar { width: 200px; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; }
@@ -116,77 +133,80 @@
         /* CHART SYSTEM - DEX Screener Style */
         .scoreboard-with-charts { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
         .scoreboard-title { flex-shrink: 0; }
-        .player-stocks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 5px; flex: 1; overflow-y: auto; min-height: 0; align-content: start; }
-        .player-stock-card { background: linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%); border: 1px solid #2a2a4a; border-radius: 10px; padding: 0; overflow: hidden; max-height: calc(50vh - 120px); }
+        .players-column { display: flex; flex-direction: column; overflow: hidden; min-height: 0; flex: 1; }
+        .player-stocks-grid { display: flex; flex-direction: column; gap: 6px; padding: 5px; flex: 1; overflow: hidden; min-height: 0; }
+        .player-stock-card { background: linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%); border: 1px solid #2a2a4a; border-radius: 10px; padding: 0; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .chart-container { flex: 1; min-height: 60px; }
         .player-stock-card.you { border-color: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.15); }
         .player-stock-card.tradeable:hover { border-color: #f39c12; box-shadow: 0 0 20px rgba(243, 156, 18, 0.2); }
         
-        .stock-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid #1a1a2e; }
-        .stock-header-left { display: flex; align-items: center; gap: 8px; }
-        .player-rank { background: linear-gradient(135deg, #f39c12, #e67e22); color: #000; font-size: 0.65em; font-weight: 800; padding: 3px 8px; border-radius: 4px; }
-        .player-name { font-weight: 700; font-size: 0.95em; }
-        .click-indicator { font-size: 0.9em; animation: clickPulse 0.5s ease-out; }
+        .stock-header { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(0,0,0,0.3); border-bottom: 1px solid #1a1a2e; flex-shrink: 0; }
+        .stock-header-left { display: flex; align-items: center; gap: 4px; }
+        .player-rank { background: linear-gradient(135deg, #f39c12, #e67e22); color: #000; font-size: 0.55em; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
+        .player-name { font-weight: 700; font-size: 0.75em; }
+        .click-indicator { font-size: 0.8em; animation: clickPulse 0.5s ease-out; }
         @keyframes clickPulse { 0% { transform: scale(1.5); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
-        .stock-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-        .stat-total { font-size: 1.1em; font-weight: 800; color: #f39c12; }
-        .stat-velocity { font-size: 0.75em; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+        .stock-stats { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+        .stat-total { font-size: 0.7em; font-weight: 800; color: #f39c12; }
+        .stat-networth-small { font-size: 0.65em; color: #9b59b6; }
+        .stat-velocity { font-size: 0.6em; padding: 1px 3px; border-radius: 3px; font-weight: 600; }
         .stat-velocity.up { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
         .stat-velocity.down { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
         .stat-velocity.flat { background: rgba(150, 150, 150, 0.2); color: #888; }
-        .stat-locked { font-size: 0.7em; padding: 2px 5px; border-radius: 3px; font-weight: 600; background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
+        .stat-locked { font-size: 0.55em; padding: 1px 3px; border-radius: 3px; font-weight: 600; background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
         
-        /* Chart */
-        .chart-container { position: relative; width: 100%; height: 120px; background: #050508; cursor: crosshair; overflow: hidden; }
+        /* Chart - flex to fill available space in player card */
+        .chart-container { position: relative; width: 100%; flex: 1; min-height: 40px; background: #050508; cursor: crosshair; overflow: hidden; }
         .chart-canvas { display: block; width: 100% !important; height: 100% !important; }
         .chart-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5,5,8,0.8) 0%, transparent 15%, transparent 85%, rgba(5,5,8,0.8) 100%); }
-        .chart-price { position: absolute; bottom: 8px; right: 10px; font-size: 1.3em; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 5; pointer-events: none; }
-        .chart-change { position: absolute; bottom: 8px; left: 10px; font-size: 0.8em; font-weight: 700; padding: 3px 8px; border-radius: 4px; z-index: 5; pointer-events: none; }
+        .chart-price { position: absolute; bottom: 4px; right: 6px; font-size: 1em; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 5; pointer-events: none; }
+        .chart-change { position: absolute; bottom: 4px; left: 6px; font-size: 0.65em; font-weight: 700; padding: 2px 5px; border-radius: 4px; z-index: 5; pointer-events: none; }
         .chart-change.up { background: #2ecc71; color: #000; }
         .chart-change.down { background: #e74c3c; color: #fff; }
         .chart-change.flat { background: #555; color: #fff; }
         
-        /* Trade controls */
-        .card-actions { padding: 6px 8px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; }
-        .trade-controls { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; }
+        /* Trade controls - compact */
+        .card-actions { padding: 4px 6px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; flex-shrink: 0; }
+        .trade-controls { display: flex; gap: 3px; align-items: center; margin-bottom: 4px; }
         .leverage-select { display: flex; gap: 2px; flex-wrap: wrap; }
-        .lev-btn { padding: 4px 5px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.6em; font-weight: bold; cursor: pointer; transition: all 0.1s; }
+        .lev-btn { padding: 2px 4px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.55em; font-weight: bold; cursor: pointer; transition: all 0.1s; }
         .lev-btn:hover { background: #252540; border-color: #555; }
         .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
-        .stake-row { display: flex; gap: 3px; align-items: center; flex: 1; }
-        .stake-input { padding: 4px 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.7em; width: 50px; text-align: center; flex: 1; min-width: 40px; }
-        .max-stake-btn { padding: 4px 6px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border: none; border-radius: 3px; color: white; font-size: 0.6em; font-weight: bold; cursor: pointer; }
+        .stake-row { display: flex; gap: 2px; align-items: center; flex: 1; }
+        .stake-input { padding: 2px 4px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.65em; width: 45px; text-align: center; flex: 1; min-width: 35px; }
+        .max-stake-btn { padding: 2px 4px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border: none; border-radius: 3px; color: white; font-size: 0.55em; font-weight: bold; cursor: pointer; }
         .max-stake-btn:hover { filter: brightness(1.2); }
         .quick-trade-btns { display: flex; gap: 4px; }
-        .quick-trade-btn { flex: 1; padding: 8px 4px; border: none; border-radius: 5px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .quick-trade-btn { flex: 1; padding: 6px 4px; border: none; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 50px; }
         .quick-trade-btn.long { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
         .quick-trade-btn.short { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
         .quick-trade-btn:hover { filter: brightness(1.15); transform: scale(1.02); }
         .quick-trade-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-        .quick-trade-btn .btn-label { font-size: 0.9em; }
-        .quick-trade-btn .btn-leverage { font-size: 0.7em; opacity: 0.8; }
+        .quick-trade-btn .btn-label { font-size: 0.9em; font-weight: 800; }
+        .quick-trade-btn .btn-leverage { font-size: 0.65em; opacity: 0.8; }
         
-        /* Active position on card */
-        .active-position { margin-top: 6px; padding: 6px 8px; background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2)); border-radius: 5px; border-left: 3px solid #f39c12; display: none; }
+        /* Active position on card - compact */
+        .active-position { margin-top: 4px; padding: 4px 6px; background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2)); border-radius: 4px; border-left: 3px solid #f39c12; display: none; flex-shrink: 0; }
         .active-position.show { display: block; }
         .active-position.long { border-left-color: #2ecc71; }
         .active-position.short { border-left-color: #e74c3c; }
-        .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .pos-type { font-size: 0.7em; font-weight: bold; padding: 2px 6px; border-radius: 3px; }
+        .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+        .pos-type { font-size: 0.6em; font-weight: bold; padding: 1px 4px; border-radius: 3px; }
         .pos-type.long { background: #2ecc71; color: #000; }
         .pos-type.short { background: #e74c3c; color: #fff; }
-        .pos-pnl { font-size: 0.8em; font-weight: bold; }
+        .pos-pnl { font-size: 0.7em; font-weight: bold; }
         .pos-pnl.profit { color: #2ecc71; }
         .pos-pnl.loss { color: #e74c3c; }
-        .pos-details { display: flex; justify-content: space-between; font-size: 0.65em; color: #888; margin-bottom: 4px; }
-        .pos-close-btn { width: 100%; padding: 4px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+        .pos-details { display: flex; justify-content: space-between; font-size: 0.55em; color: #888; margin-bottom: 2px; }
+        .pos-close-btn { width: 100%; padding: 3px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.55em; font-weight: bold; cursor: pointer; }
         .pos-close-btn:hover { filter: brightness(1.2); }
         
-        /* Positions on me section */
-        .positions-on-me-section { margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; }
-        .positions-on-me-header { font-size: 0.75em; font-weight: bold; color: #f39c12; margin-bottom: 6px; }
-        .positions-on-me-list { max-height: 100px; overflow-y: auto; }
-        .no-positions-on-me { font-size: 0.7em; color: #666; text-align: center; padding: 8px; }
-        .position-on-me-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin-bottom: 3px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.7em; border-left: 2px solid #888; }
+        /* Positions on me section - compact */
+        .positions-on-me-section { margin-top: 4px; padding: 4px 6px; background: rgba(0,0,0,0.3); border-radius: 4px; flex-shrink: 0; }
+        .positions-on-me-header { font-size: 0.65em; font-weight: bold; color: #f39c12; margin-bottom: 3px; }
+        .positions-on-me-list { max-height: 60px; overflow-y: auto; }
+        .no-positions-on-me { font-size: 0.6em; color: #666; text-align: center; padding: 4px; }
+        .position-on-me-item { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; margin-bottom: 2px; background: rgba(0,0,0,0.2); border-radius: 3px; font-size: 0.6em; border-left: 2px solid #888; }
         .position-on-me-item.long { border-left-color: #2ecc71; }
         .position-on-me-item.short { border-left-color: #e74c3c; }
         .pom-trader { font-weight: bold; color: #e74c3c; }
@@ -261,15 +281,27 @@
         .positions-panel-content { padding: 0; }
         .positions-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; }
         .positions-title { font-size: 0.9em; font-weight: bold; color: #f39c12; }
-        .positions-list { max-height: 400px; overflow-y: auto; }
+        .positions-list { }
         .position-row { display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #f39c12; }
         .position-row.long { border-left-color: #2ecc71; }\n        .position-row.short { border-left-color: #e74c3c; }
         
         /* Positions panel in CENTER (like tutorial) */
-        .positions-panel { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 10px; padding: 8px; margin-top: 8px; flex-shrink: 0; max-height: 120px; overflow: hidden; }
+        .positions-panel { background: transparent; border: none; border-radius: 10px; padding: 0; margin-top: 0; flex-shrink: 0; }
         .positions-panel .positions-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #2a2a4a; }
         .positions-panel .positions-title { font-size: 0.85em; font-weight: bold; color: #f39c12; }
-        .positions-panel .positions-list { max-height: 70px; overflow-y: auto; }
+        .positions-panel .positions-list { }
+        /* Compact position rows for center panel */
+        .positions-section .position-row { flex-wrap: wrap; padding: 6px 8px; gap: 4px; margin-bottom: 6px; }
+        .positions-section .pos-icon { font-size: 0.9em; }
+        .positions-section .pos-info { flex: 1; min-width: 100px; }
+        .positions-section .pos-name { font-size: 0.75em; }
+        .positions-section .pos-meta { font-size: 0.55em; white-space: nowrap; }
+        .positions-section .pos-liq { font-size: 0.55em; }
+        .positions-section .pos-values { text-align: right; min-width: 50px; }
+        .positions-section .pos-current-pnl { font-size: 0.75em; }
+        .positions-section .pos-stake { font-size: 0.55em; }
+        .positions-section .pos-actions { width: 100%; margin-top: 4px; margin-left: 0; }
+        .positions-section .close-position-btn { width: 100%; padding: 4px 6px; font-size: 0.65em; }
         
         /* Chart controls */
         .chart-controls { display: flex; gap: 3px; justify-content: center; padding: 4px 0; opacity: 0.8; }
@@ -295,23 +327,7 @@
         .stake-input-group label { font-size: 0.7em; color: #888; }
         .trade-buttons { display: flex; gap: 6px; }
         
-        @media (max-width: 1400px) {
-            .game-main { grid-template-columns: minmax(200px, 240px) 1fr minmax(200px, 240px); gap: 8px; padding: 8px; }
-            .player-stocks-grid { gap: 6px; }
-            .player-stock-card { max-height: calc(50vh - 100px); }
-        }
-        
-        @media (max-width: 1100px) {
-            .game-main { grid-template-columns: minmax(180px, 220px) 1fr minmax(180px, 220px); }
-            .cookie-stats { padding: 10px; }
-            .stat-main .stat-value { font-size: 1.6em; }
-        }
-        
-        @media (max-width: 900px) {
-            .game-main { grid-template-columns: 1fr; gap: 5px; padding: 5px; }
-            .panel-left, .panel-right { display: none; }
-            .player-stocks-grid { grid-template-columns: 1fr 1fr; }
-        }
+        /* No media queries - fixed size for everyone */
         
         /* Remote cursors */
         .remote-cursor { display: flex; align-items: flex-start; gap: 2px; }
@@ -333,6 +349,7 @@
         </div>
     </div>
 
+    <div id="game-wrapper" class="game-wrapper">
     <div id="game-container" class="game-container">
         <header class="game-header">
             <div class="header-left">
@@ -401,43 +418,50 @@
                     <h4 class="notif-feed-title">📢 Activity Feed</h4>
                     <div class="notif-feed-list" id="notif-feed"></div>
                 </div>
+                
+                <button class="leave-btn" id="give-up-btn" style="margin-top: auto;">🏳️ GIVE UP</button>
             </section>
 
-            <!-- Center Panel -->
+            <!-- Center Panel - Players + Positions -->
             <section class="game-panel panel-center">
-                <div class="scoreboard-with-charts" id="scoreboard">
-                    <h3 class="scoreboard-title" style="justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
-                                <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
-                            </svg>
-                            Cookie Stock Market
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #f39c12; font-size: 0.85em;">🏆 Goal: 100M</span>
-                            <div class="goal-bar" style="width: 120px;">
-                                <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
+                <!-- Players Section (left side of center) -->
+                <div class="players-section">
+                    <div class="scoreboard-with-charts" id="scoreboard">
+                        <div class="players-column">
+                            <h3 class="scoreboard-title" style="justify-content: space-between; display: flex; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
+                                        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+                                    </svg>
+                                    Stock Market
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="color: #f39c12; font-size: 0.85em;">🏆 100M</span>
+                                    <div class="goal-bar" style="width: 80px;">
+                                        <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
+                                    </div>
+                                    <span style="color: #888; font-size: 0.8em;" id="goal-percent">0%</span>
+                                </div>
+                            </h3>
+                            
+                            <div class="player-stocks-grid" id="players-grid">
+                                <!-- Player cards rendered dynamically -->
                             </div>
-                            <span style="color: #888; font-size: 0.8em;" id="goal-percent">0%</span>
                         </div>
-                    </h3>
-                    
-                    <div class="player-stocks-grid" id="players-grid">
-                        <!-- Player cards rendered dynamically -->
                     </div>
-                    
-                    <!-- POSITIONS PANEL - Same as tutorial -->
-                    <div class="positions-panel" id="positions-panel-main" style="position: relative; z-index: 100;">
+                </div>
+                
+                <!-- Positions Section (right side of center - middle of screen) -->
+                <div class="positions-section">
+                    <div class="positions-panel" id="positions-panel-main" style="position: relative; z-index: 100; height: 100%;">
                         <div class="positions-header">
-                            <span class="positions-title">📊 Open Positions</span>
+                            <span class="positions-title">📊 Positions</span>
                             <span class="positions-pnl neutral" id="main-positions-pnl">PNL: 0🍪</span>
                         </div>
                         <div class="positions-list" id="main-positions-list">
                             <div class="no-positions">No open positions</div>
                         </div>
                     </div>
-                    
-                    <button class="leave-btn" id="give-up-btn">🏳️ GIVE UP</button>
                 </div>
             </section>
 
@@ -634,7 +658,6 @@
                                 <span class="cost-value click-power-cost">50</span>
                             </div>
                         </button>
-                        <div class="click-upgrade-warning">⚠️ Spent cookies are lost forever!</div>
                     </div>
                 </div>
 
@@ -658,7 +681,31 @@
             </section>
         </main>
     </div>
+    </div>
 
+    <script>
+        // Scale the fixed-size game wrapper to fit the screen
+        function scaleGameWrapper() {
+            const wrapper = document.getElementById('game-wrapper');
+            if (!wrapper) return;
+            
+            const designWidth = 1600;
+            const designHeight = 900;
+            
+            const scaleX = window.innerWidth / designWidth;
+            const scaleY = window.innerHeight / designHeight;
+            const scale = Math.min(scaleX, scaleY);
+            
+            // Use zoom instead of transform for better scroll handling
+            wrapper.style.zoom = scale;
+            wrapper.style.transform = 'none';
+        }
+        
+        // Scale on load and resize
+        window.addEventListener('load', scaleGameWrapper);
+        window.addEventListener('resize', scaleGameWrapper);
+        scaleGameWrapper();
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/game-client.js"></script>
 </body>
