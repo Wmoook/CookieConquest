@@ -194,12 +194,25 @@ function initGameState(lobby) {
 function calculateGeneratorValue(player) {
     if (!player || !player.generators) return 0;
     
-    const basePrices = { grandma: 15, bakery: 100, factory: 500, mine: 2000, bank: 10000, temple: 50000 };
+    const basePrices = { 
+        grandma: 15, 
+        bakery: 100, 
+        factory: 500, 
+        mine: 2000, 
+        bank: 10000, 
+        temple: 50000, 
+        wizard: 200000, 
+        portal: 1000000, 
+        prism: 5000000, 
+        universe: 25000000 
+    };
     let totalValue = 0;
     
     for (const [genType, count] of Object.entries(player.generators)) {
+        const basePrice = basePrices[genType];
+        if (!basePrice) continue; // Skip unknown generator types
         for (let i = 0; i < count; i++) {
-            totalValue += Math.floor(basePrices[genType] * Math.pow(1.15, i) * 0.9);
+            totalValue += Math.floor(basePrice * Math.pow(1.15, i) * 0.9);
         }
     }
     
@@ -379,7 +392,6 @@ io.on('connection', (socket) => {
         if (!player) return;
         
         // Broadcast cursor to other players in the room
-        console.log('Broadcasting cursor from', player.name, 'to room', code);
         socket.to(code).emit('game:cursor', {
             playerName: player.name,
             color: player.color || '#ffffff',
