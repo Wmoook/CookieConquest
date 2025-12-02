@@ -113,14 +113,14 @@ function joinLobby(socket, code, playerName) {
         return { success: true, lobby };
     }
     
-    const colors = ['#2ecc71', '#e74c3c', '#3498db', '#f39c12'];
+    const colors = ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#00bcd4', '#ff5722'];
     const player = {
         id: socket.id,
         name: playerName,
         ready: false,
         cookies: 0,
         cps: 0,
-        color: colors[lobby.players.length]
+        color: colors[lobby.players.length % colors.length]
     };
     
     lobby.players.push(player);
@@ -618,6 +618,12 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // Check if player is frozen
+        if (player.frozenUntil > Date.now()) {
+            socket.emit('game:error', { message: 'You cannot trade while frozen!' });
+            return;
+        }
+        
         // Validation
         const available = player.cookies - player.positions.reduce((sum, p) => sum + p.stake, 0);
         if (stake > available) {
@@ -739,6 +745,12 @@ io.on('connection', (socket) => {
         if (!player) {
             console.log('closePosition: player not found for socket.id:', socket.id);
             console.log('Players:', lobby.gameState.players.map(p => ({id: p.id, name: p.name})));
+            return;
+        }
+        
+        // Check if player is frozen
+        if (player.frozenUntil > Date.now()) {
+            socket.emit('game:error', { message: 'You cannot trade while frozen!' });
             return;
         }
         

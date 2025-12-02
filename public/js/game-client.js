@@ -462,6 +462,8 @@ class MultiplayerGame {
         sortedPlayers.forEach((player, index) => {
             const isMe = this.isMe(player);
             const chartId = isMe ? 'you' : player.name; // Use name for chart ID
+            // Use green for self, player's assigned color for others
+            const displayColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
             
             // Create a row container for card + positions sidebar
             const row = document.createElement('div');
@@ -472,12 +474,15 @@ class MultiplayerGame {
             const card = document.createElement('div');
             card.className = `player-stock-card ${isMe ? 'you' : 'tradeable'}`;
             card.id = `card-${player.name}`;
+            card.dataset.playerColor = displayColor; // Store for chart rendering
             
             card.innerHTML = `
-                <div class="stock-header">
+                <div class="stock-header" style="border-left: 4px solid ${displayColor};">
                     <div class="stock-header-left">
                         <div class="player-rank" id="rank-${chartId}">#${index + 1}</div>
-                        <span class="player-name" style="color:${isMe ? '#2ecc71' : '#e74c3c'}">${isMe ? 'YOU' : player.name}</span>
+                        <span class="player-color-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${displayColor}; margin-right: 5px;"></span>
+                        <span class="player-name" style="color:${displayColor}">${isMe ? 'YOU' : player.name}</span>
+                        <span class="frozen-badge" id="frozen-badge-${player.name}" style="display:none; background: #00bfff; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px; animation: frozenPulse 1s infinite;">🥶 FROZEN</span>
                         ${!isMe ? `<span class="click-indicator" id="click-ind-${player.name}" style="display:none;">🖱️</span>` : ''}
                     </div>
                     <div class="stock-stats">
@@ -922,8 +927,8 @@ class MultiplayerGame {
                 const history = this.playerHistory[player.name];
                 const velocityData = history ? history.velocity : [];
                 
-                // Always use green for "you", red for opponents
-                const chartColor = isMe ? '#2ecc71' : '#e74c3c';
+                // Use green for self, player's assigned color for others
+                const chartColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
                 this.renderSmoothChart(`chart-${chartId}`, this.chartState[chartId]?.smoothData || [], chartColor, chartId, smoothCookies, velocityData, player, viewport);
             });
         }
@@ -1717,6 +1722,9 @@ class MultiplayerGame {
             history.velocity.push(player.cps || 0);
             if (history.velocity.length > 1000) history.velocity.shift();
             history.fullVelocity.push(player.cps || 0);
+            
+            // Update frozen badge for all players
+            this.updateFrozenBadge(player);
         });
         
         // Update stake slider max values
@@ -1724,6 +1732,20 @@ class MultiplayerGame {
         
         // Update King of the Hill display
         this.updateKothDisplay();
+    }
+    
+    updateFrozenBadge(player) {
+        const badge = document.getElementById(`frozen-badge-${player.name}`);
+        if (!badge) return;
+        
+        const now = Date.now();
+        if (player.frozenUntil && player.frozenUntil > now) {
+            const remaining = Math.ceil((player.frozenUntil - now) / 1000);
+            badge.textContent = `🥶 FROZEN (${remaining}s)`;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
     }
     
     updateKothDisplay() {
@@ -1750,6 +1772,9 @@ class MultiplayerGame {
         const yourTimeEl = document.getElementById('koth-your-time');
         const myTime = (me.cookieZoneTime || 0) / 1000;
         if (yourTimeEl) yourTimeEl.textContent = `${myTime.toFixed(1)}s`;
+        
+        // Update KotH leaderboard
+        this.updateKothLeaderboard();
         
         // Update buff display
         const buffEl = document.getElementById('koth-buff-display');
@@ -1782,6 +1807,42 @@ class MultiplayerGame {
                 frozenOverlay.style.display = 'none';
             }
         }
+    }
+    
+    updateKothLeaderboard() {
+        const listEl = document.getElementById('koth-leaderboard-list');
+        if (!listEl || !this.gameState) return;
+        
+        const now = Date.now();
+        
+        // Sort players by cookie zone time (descending)
+        const sorted = [...this.gameState.players].sort((a, b) => 
+            (b.cookieZoneTime || 0) - (a.cookieZoneTime || 0)
+        );
+        
+        let html = '';
+        sorted.forEach((player, index) => {
+            const isMe = this.isMe(player);
+            const displayColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
+            const time = (player.cookieZoneTime || 0) / 1000;
+            
+            // Check if player is invisible - hide their time from others
+            const isInvisible = player.invisibleUntil && player.invisibleUntil > now;
+            const showTime = isMe || !isInvisible; // Always show your own time
+            
+            const displayTime = showTime ? `${time.toFixed(1)}s` : '👻 ???';
+            const displayName = isMe ? 'YOU' : player.name;
+            
+            // Show crown for leader
+            const crown = index === 0 && time > 0 ? '👑 ' : '';
+            
+            html += `<div style="display: flex; justify-content: space-between; padding: 2px 4px; background: ${index === 0 ? 'rgba(241,196,15,0.2)' : 'rgba(0,0,0,0.2)'}; border-radius: 3px; margin-bottom: 2px;">
+                <span style="color: ${displayColor};">${crown}${displayName}</span>
+                <span style="color: ${showTime ? '#f1c40f' : '#9b59b6'};">${displayTime}</span>
+            </div>`;
+        });
+        
+        listEl.innerHTML = html || '<div style="color: #555; text-align: center;">No activity yet</div>';
     }
     
     startCPSTracking() {
@@ -2143,13 +2204,36 @@ class MultiplayerGame {
         if (!overlay) return;
         
         overlay.style.display = 'flex';
+        
+        // Also show a big frozen notification at the top
+        let frozenNotif = document.getElementById('frozen-notification');
+        if (!frozenNotif) {
+            frozenNotif = document.createElement('div');
+            frozenNotif.id = 'frozen-notification';
+            frozenNotif.style.cssText = `
+                position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+                background: linear-gradient(135deg, #00bfff, #0080ff); 
+                padding: 15px 30px; border-radius: 15px; color: #fff; 
+                font-size: 1.5em; font-weight: bold; z-index: 10001;
+                box-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
+                animation: frozenPulse 0.5s infinite;
+                text-align: center;
+            `;
+            document.body.appendChild(frozenNotif);
+        }
+        
         let remaining = duration;
         
         const updateTimer = () => {
-            if (timer) timer.textContent = `${Math.ceil(remaining / 1000)}s`;
+            const secs = Math.ceil(remaining / 1000);
+            if (timer) timer.textContent = `${secs}s`;
+            frozenNotif.innerHTML = `🥶 FROZEN! 🥶<br><span style="font-size: 0.7em;">Cannot click, trade, or earn CPS</span><br><span style="font-size: 1.2em;">${secs}s</span>`;
             remaining -= 100;
             if (remaining <= 0) {
                 overlay.style.display = 'none';
+                frozenNotif.remove();
+                this.showNotification('❄️ You are unfrozen! Resume playing!', 'profit');
+                this.screenTint('green', 300);
             } else {
                 setTimeout(updateTimer, 100);
             }
