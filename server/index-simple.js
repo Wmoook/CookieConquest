@@ -755,6 +755,9 @@ setInterval(() => {
         
         const gs = lobby.gameState;
         
+        // Don't process if game already has a winner
+        if (gs.winner) return;
+        
         // Apply CPS to all players
         gs.players.forEach(player => {
             if (player.cps > 0) {

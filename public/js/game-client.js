@@ -1754,15 +1754,22 @@ class MultiplayerGame {
     }
     
     showVictoryScreen(winnerName, cookies, isPlayer) {
+        // Stop any ongoing updates
+        this.isGameActive = false;
+        
+        const cookieDisplay = typeof cookies === 'number' ? cookies.toLocaleString() : '100,000,000';
+        const goalReached = '100 MILLION';
+        
         const overlay = document.createElement('div');
         overlay.className = 'victory-overlay';
+        overlay.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; justify-content: center; align-items: center;';
         overlay.innerHTML = `
-            <div class="victory-modal">
-                <div class="victory-icon">${isPlayer ? '🏆' : '😢'}</div>
-                <h1 class="victory-title">${isPlayer ? 'VICTORY!' : 'DEFEAT!'}</h1>
-                <div class="victory-winner">${winnerName} reached 1 MILLION cookies!</div>
-                <div class="victory-cookies">🍪 ${cookies.toLocaleString()} 🍪</div>
-                <button class="victory-btn" id="play-again-btn">Play Again</button>
+            <div class="victory-modal" style="background: linear-gradient(135deg, #1a1a2e, #0a0a14); padding: 40px 60px; border-radius: 20px; border: 2px solid #f39c12; text-align: center; max-width: 90vw;">
+                <div class="victory-icon" style="font-size: 5rem; margin-bottom: 20px;">${isPlayer ? '🏆' : '😢'}</div>
+                <h1 class="victory-title" style="font-size: 2.5rem; font-weight: 800; color: #f39c12; margin-bottom: 10px;">${isPlayer ? 'VICTORY!' : 'DEFEAT!'}</h1>
+                <div class="victory-winner" style="font-size: 1.2rem; color: #888; margin-bottom: 20px;">${winnerName} reached ${goalReached} cookies!</div>
+                <div class="victory-cookies" style="font-size: 2rem; color: #F6D49B; margin-bottom: 30px;">🍪 ${cookieDisplay} 🍪</div>
+                <button class="victory-btn" id="play-again-btn" style="padding: 15px 40px; background: linear-gradient(135deg, #f39c12, #e67e22); border: none; border-radius: 10px; color: #000; font-size: 1.2rem; font-weight: 700; cursor: pointer;">Play Again</button>
             </div>
         `;
         document.body.appendChild(overlay);

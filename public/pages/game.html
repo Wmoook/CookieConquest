@@ -16,9 +16,9 @@
         body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; }
         .game-container { display: flex; flex-direction: column; height: 100vh; max-height: 100vh; overflow: hidden; }
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-        .game-main { display: grid; grid-template-columns: 280px 1fr 280px; gap: 10px; padding: 10px; flex: 1; overflow: hidden; min-height: 0; }
+        .game-main { display: grid; grid-template-columns: minmax(220px, 280px) 1fr minmax(220px, 280px); gap: 10px; padding: 10px; flex: 1; overflow: hidden; min-height: 0; }
         .game-panel { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; overflow-y: auto; min-height: 0; }
-        .panel-left, .panel-right { max-width: 280px; }
+        .panel-left, .panel-right { width: 100%; }
         .panel-center { display: flex; flex-direction: column; overflow: hidden; }
         .match-code { font-weight: 700; color: #f39c12; }
         .header-center { display: flex; align-items: center; gap: 15px; }
@@ -295,10 +295,22 @@
         .stake-input-group label { font-size: 0.7em; color: #888; }
         .trade-buttons { display: flex; gap: 6px; }
         
-        @media (max-width: 1000px) {
-            .game-main { grid-template-columns: 1fr; }
-            .panel-left, .panel-right { max-width: 100%; display: none; }
-            .player-stocks-grid { grid-template-columns: 1fr; }
+        @media (max-width: 1400px) {
+            .game-main { grid-template-columns: minmax(200px, 240px) 1fr minmax(200px, 240px); gap: 8px; padding: 8px; }
+            .player-stocks-grid { gap: 6px; }
+            .player-stock-card { max-height: calc(50vh - 100px); }
+        }
+        
+        @media (max-width: 1100px) {
+            .game-main { grid-template-columns: minmax(180px, 220px) 1fr minmax(180px, 220px); }
+            .cookie-stats { padding: 10px; }
+            .stat-main .stat-value { font-size: 1.6em; }
+        }
+        
+        @media (max-width: 900px) {
+            .game-main { grid-template-columns: 1fr; gap: 5px; padding: 5px; }
+            .panel-left, .panel-right { display: none; }
+            .player-stocks-grid { grid-template-columns: 1fr 1fr; }
         }
         
         /* Remote cursors */
