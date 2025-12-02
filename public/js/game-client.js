@@ -1812,7 +1812,7 @@ class MultiplayerGame {
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
+            toastContainer.style.cssText = 'position: fixed; top: 8px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;';
             document.body.appendChild(toastContainer);
         }
         
