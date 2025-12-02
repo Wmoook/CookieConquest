@@ -327,14 +327,10 @@
                 <span class="match-code" id="lobby-code">LOBBY: ----</span>
             </div>
             <div class="header-center">
-                <span class="goal-text">🏆 Goal: 100,000,000</span>
-                <div class="goal-bar">
-                    <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
-                </div>
-                <span class="goal-text" id="goal-percent">0%</span>
+                <span class="pot-amount" style="color: #2ecc71;">COOKIE CONQUEST</span>
             </div>
             <div class="header-right">
-                <span class="pot-amount" style="color: #2ecc71;">MULTIPLAYER</span>
+                <span class="pot-amount" style="color: #888;">MULTIPLAYER</span>
             </div>
         </header>
 
@@ -398,11 +394,20 @@
             <!-- Center Panel -->
             <section class="game-panel panel-center">
                 <div class="scoreboard-with-charts" id="scoreboard">
-                    <h3 class="scoreboard-title">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
-                            <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
-                        </svg>
-                        Cookie Stock Market
+                    <h3 class="scoreboard-title" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
+                                <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+                            </svg>
+                            Cookie Stock Market
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #f39c12; font-size: 0.85em;">🏆 Goal: 100M</span>
+                            <div class="goal-bar" style="width: 120px;">
+                                <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
+                            </div>
+                            <span style="color: #888; font-size: 0.8em;" id="goal-percent">0%</span>
+                        </div>
                     </h3>
                     
                     <div class="player-stocks-grid" id="players-grid">
