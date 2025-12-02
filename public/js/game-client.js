@@ -221,17 +221,14 @@ class MultiplayerGame {
     }
     
     bindUIEvents() {
-        // Global click handler for close buttons (using document-level delegation)
+        // VERY FIRST: Debug handler to catch ALL clicks at earliest possible point
+        document.addEventListener('mousedown', (e) => {
+            console.log('MOUSEDOWN on:', e.target.tagName, e.target.className, e.target);
+        }, true);
+        
         document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.close-position-btn');
-            if (btn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const positionId = btn.getAttribute('data-close-main-position');
-                console.log('GLOBAL: Close button clicked, positionId:', positionId);
-                this.closePosition(positionId);
-            }
-        });
+            console.log('CLICK on:', e.target.tagName, e.target.className);
+        }, true);
         
         // Cookie click
         const cookie = document.getElementById('big-cookie');
@@ -362,6 +359,12 @@ class MultiplayerGame {
             const isMe = this.isMe(player);
             const chartId = isMe ? 'you' : player.name; // Use name for chart ID
             
+            // Create a row container for card + positions sidebar
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            row.id = `row-${player.name}`;
+            
+            // Create the card
             const card = document.createElement('div');
             card.className = `player-stock-card ${isMe ? 'you' : 'tradeable'}`;
             card.id = `card-${player.name}`;
@@ -399,10 +402,11 @@ class MultiplayerGame {
                                     `<button class="lev-btn ${lev === 2 ? 'active' : ''}" data-lev="${lev}" data-target="${player.name}">${lev}x</button>`
                                 ).join('')}
                             </div>
-                            <div class="stake-row">
-                                <input type="number" class="stake-input" id="stake-${player.name}" value="10" min="1">
-                                <button class="max-stake-btn" data-target="${player.name}">MAX</button>
-                            </div>
+                        </div>
+                        <div class="stake-slider-row">
+                            <span class="stake-label">Stake:</span>
+                            <input type="range" class="stake-slider" id="slider-${player.name}" min="1" max="100" value="10" data-target="${player.name}">
+                            <span class="stake-value" id="stake-display-${player.name}">10🍪</span>
                         </div>
                         <div class="quick-trade-btns">
                             <button class="quick-trade-btn long" data-target="${player.name}" data-action="long">
@@ -414,17 +418,27 @@ class MultiplayerGame {
                                 <span class="btn-leverage">2x</span>
                             </button>
                         </div>
-                        <div class="active-position" id="pos-${player.name}"></div>
                     </div>
-                ` : `
-                    <div class="positions-on-me-section">
-                        <div class="positions-on-me-header">📊 Positions on YOU</div>
-                        <div class="positions-on-me-list" id="positions-on-me-list"></div>
-                    </div>
-                `}
+                ` : ''}
             `;
             
-            playersGrid.appendChild(card);
+            // Create the positions sidebar for this player
+            const sidebar = document.createElement('div');
+            sidebar.className = 'player-positions-sidebar';
+            sidebar.id = `positions-sidebar-${player.name}`;
+            sidebar.innerHTML = `
+                <div class="player-positions-header">
+                    <span>📊 On ${isMe ? 'YOU' : player.name}</span>
+                    <span class="player-positions-pnl neutral" id="pnl-sidebar-${player.name}">0🍪</span>
+                </div>
+                <div class="player-positions-list" id="positions-list-${player.name}">
+                    <div class="no-positions-small">No positions</div>
+                </div>
+            `;
+            
+            row.appendChild(card);
+            row.appendChild(sidebar);
+            playersGrid.appendChild(row);
         });
         
         // Bind trading controls
@@ -452,21 +466,20 @@ class MultiplayerGame {
                 card.querySelectorAll('.btn-leverage').forEach(el => {
                     el.textContent = lev + 'x';
                 });
+                
+                // Update slider max when leverage changes
+                this.updateSliderMax(targetId);
             });
         });
         
-        // MAX stake buttons
-        document.querySelectorAll('.max-stake-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.dataset.target;
-                const leverage = this.targetLeverage[targetId] || 2;
-                const maxStake = this.calculateMaxStake(targetId, leverage);
-                const stakeInput = document.getElementById(`stake-${targetId}`);
-                if (stakeInput && maxStake > 0) {
-                    stakeInput.value = maxStake;
-                    this.showNotification(`Max stake: ${maxStake}🍪 @ ${leverage}x`, 'info');
-                } else if (maxStake <= 0) {
-                    this.showNotification(`Can't trade on this player yet!`, 'error');
+        // Stake sliders
+        document.querySelectorAll('.stake-slider').forEach(slider => {
+            slider.addEventListener('input', () => {
+                const targetId = slider.dataset.target;
+                const value = parseInt(slider.value);
+                const display = document.getElementById(`stake-display-${targetId}`);
+                if (display) {
+                    display.textContent = `${value}🍪`;
                 }
             });
         });
@@ -478,6 +491,47 @@ class MultiplayerGame {
                 const action = btn.dataset.action;
                 this.executeQuickTrade(targetId, action);
             });
+        });
+        
+        // Initial slider max update
+        this.updateAllSliderMaxes();
+    }
+    
+    updateSliderMax(targetId) {
+        const leverage = this.targetLeverage[targetId] || 2;
+        const maxStake = this.calculateMaxStake(targetId, leverage);
+        const slider = document.getElementById(`slider-${targetId}`);
+        const display = document.getElementById(`stake-display-${targetId}`);
+        
+        if (slider) {
+            // Always update the max value
+            const newMax = Math.max(1, maxStake); // Minimum 1 to keep slider functional
+            slider.max = newMax;
+            
+            // If current value exceeds new max, adjust it down
+            const currentValue = parseInt(slider.value);
+            if (currentValue > newMax) {
+                slider.value = newMax;
+                if (display) display.textContent = `${newMax}🍪`;
+            }
+            
+            // Disable slider if max stake is 0 or less
+            if (maxStake <= 0) {
+                slider.disabled = true;
+                slider.value = 1;
+                if (display) display.textContent = `0🍪`;
+            } else {
+                slider.disabled = false;
+            }
+        }
+    }
+    
+    updateAllSliderMaxes() {
+        // Update all sliders with current max stakes
+        this.gameState.players.forEach(player => {
+            if (!this.isMe(player)) {
+                this.updateSliderMax(player.name);
+            }
         });
     }
     
@@ -660,8 +714,8 @@ class MultiplayerGame {
     executeQuickTrade(targetName, action) {
         if (!this.gameState) return;
         
-        const stakeInput = document.getElementById(`stake-${targetName}`);
-        const stake = parseInt(stakeInput?.value) || 10;
+        const slider = document.getElementById(`slider-${targetName}`);
+        const stake = parseInt(slider?.value) || 10;
         const leverage = this.targetLeverage[targetName] || 2;
         
         const me = this.getMe();
@@ -773,7 +827,18 @@ class MultiplayerGame {
         // Update displays
         this.updateSmoothDisplays();
         this.updateScoreboard();
-        this.updatePositionsPanel();
+        
+        // Throttle positions panel updates to prevent button destruction during click
+        if (!this.lastPositionsUpdate || now - this.lastPositionsUpdate > 500) {
+            this.lastPositionsUpdate = now;
+            this.updatePositionsPanel();
+        }
+        
+        // Update slider max values every 200ms for accuracy
+        if (!this.lastSliderUpdate || now - this.lastSliderUpdate > 200) {
+            this.lastSliderUpdate = now;
+            this.updateAllSliderMaxes();
+        }
         
         requestAnimationFrame(() => this.animateCharts());
     }
@@ -1213,13 +1278,28 @@ class MultiplayerGame {
         }
         
         const realBalance = me.cookies - opponentsPotentialProfit;
+        const realNetWorth = netWorth - opponentsPotentialProfit; // Net worth if positions closed
         const realBalanceContainer = document.getElementById('real-balance-container');
         const realBalanceValue = document.getElementById('real-balance-value');
+        const realNetworthValue = document.getElementById('real-networth-value');
         
         if (realBalanceContainer && realBalanceValue) {
             if (opponentsPotentialProfit > 0) {
                 realBalanceContainer.style.display = 'block';
                 realBalanceValue.textContent = Math.floor(realBalance).toLocaleString();
+                
+                // Update real net worth
+                if (realNetworthValue) {
+                    realNetworthValue.textContent = Math.floor(realNetWorth).toLocaleString();
+                    // Color based on how low it is
+                    if (realNetWorth <= 0) {
+                        realNetworthValue.style.color = '#e74c3c';
+                    } else if (realNetWorth < netWorth * 0.3) {
+                        realNetworthValue.style.color = '#f39c12';
+                    } else {
+                        realNetworthValue.style.color = '#e74c3c';
+                    }
+                }
                 
                 // Color code: red if would go negative, orange if low, white if still good
                 if (realBalance < 0) {
@@ -1320,46 +1400,103 @@ class MultiplayerGame {
         console.log('updatePositionsPanel - me:', me?.name, 'positions count:', me?.positions?.length);
         if (!me) return;
         
-        // Update positions on me (under my chart)
-        this.updatePositionsOnMeDisplay(me);
+        // Update per-player position sidebars
+        this.updatePlayerPositionsSidebars(me);
         
         // Update Live Positions in left panel (who has position on whom)
         this.updateLivePositionsDisplay();
-        
-        // Update MAIN positions panel in center (with close buttons)
-        this.updateMainPositionsPanel(me);
     }
     
-    updatePositionsOnMeDisplay(me) {
-        const container = document.getElementById('positions-on-me-list');
-        if (!container) return;
-        
-        const positionsOnMe = me.positionsOnMe || [];
-        
-        if (positionsOnMe.length === 0) {
-            container.innerHTML = '<div class="no-positions-on-me">No one is trading on you yet</div>';
-            return;
-        }
-        
-        container.innerHTML = positionsOnMe.map(pos => {
-            const currentPrice = me.cookies;
-            const priceChange = currentPrice - pos.entryPrice;
-            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
-            const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+    // Update sidebar for each player showing positions ON that player
+    updatePlayerPositionsSidebars(me) {
+        // For each player, show all positions targeting them
+        this.gameState.players.forEach(targetPlayer => {
+            const listEl = document.getElementById(`positions-list-${targetPlayer.name}`);
+            const pnlEl = document.getElementById(`pnl-sidebar-${targetPlayer.name}`);
+            if (!listEl) return;
             
-            // Show their PNL with standard colors: green if up, red if down
-            const theirPnlClass = pnl >= 0 ? 'positive' : 'negative';
-            const theirPnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
+            // Collect all positions targeting this player
+            const positionsOnTarget = [];
             
-            return `
-                <div class="position-on-me-item ${pos.type}">
-                    <span class="pom-trader">${pos.ownerName}</span>
-                    <span class="pom-type ${pos.type}">${pos.type.toUpperCase()} ${pos.leverage}x</span>
-                    <span class="pom-stake">${pos.stake}🍪</span>
-                    <span class="pom-pnl ${theirPnlClass}">${theirPnlText}</span>
-                </div>
-            `;
-        }).join('');
+            // Check each player's positions
+            this.gameState.players.forEach(owner => {
+                (owner.positions || []).forEach(pos => {
+                    if (pos.targetName === targetPlayer.name) {
+                        const currentPrice = targetPlayer.cookies;
+                        const priceChange = currentPrice - pos.entryPrice;
+                        const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+                        const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+                        
+                        positionsOnTarget.push({
+                            id: pos.id,
+                            ownerName: owner.name,
+                            isMyPosition: this.isMe(owner),
+                            type: pos.type,
+                            leverage: pos.leverage,
+                            stake: pos.stake,
+                            entryPrice: pos.entryPrice,
+                            liquidationPrice: pos.liquidationPrice,
+                            currentPrice: currentPrice,
+                            pnl: pnl
+                        });
+                    }
+                });
+            });
+            
+            if (positionsOnTarget.length === 0) {
+                listEl.innerHTML = '<div class="no-positions-small">No positions</div>';
+                if (pnlEl) {
+                    pnlEl.textContent = '0🍪';
+                    pnlEl.className = 'player-positions-pnl neutral';
+                }
+                return;
+            }
+            
+            // Calculate total PNL for MY positions on this target
+            let myTotalPnl = 0;
+            positionsOnTarget.forEach(pos => {
+                if (pos.isMyPosition) myTotalPnl += pos.pnl;
+            });
+            
+            // Update PNL display
+            if (pnlEl) {
+                const pnlClass = myTotalPnl > 0 ? 'profit' : myTotalPnl < 0 ? 'loss' : 'neutral';
+                const pnlText = myTotalPnl >= 0 ? `+${myTotalPnl}` : `${myTotalPnl}`;
+                pnlEl.textContent = `${pnlText}🍪`;
+                pnlEl.className = `player-positions-pnl ${pnlClass}`;
+            }
+            
+            // Render positions
+            listEl.innerHTML = positionsOnTarget.map(pos => {
+                const pnlClass = pos.pnl >= 0 ? 'profit' : 'loss';
+                const pnlText = pos.pnl >= 0 ? `+${pos.pnl}` : `${pos.pnl}`;
+                const ownerDisplay = pos.isMyPosition ? 'YOU' : pos.ownerName;
+                const ownerColor = pos.isMyPosition ? '#2ecc71' : '#e74c3c';
+                
+                // Distance to liquidation
+                const distToLiq = pos.type === 'long' 
+                    ? ((pos.currentPrice - pos.liquidationPrice) / pos.currentPrice * 100).toFixed(0)
+                    : ((pos.liquidationPrice - pos.currentPrice) / pos.currentPrice * 100).toFixed(0);
+                
+                return `
+                    <div class="player-pos-item ${pos.type}">
+                        <div>
+                            <span class="pos-trader" style="color:${ownerColor}">${ownerDisplay}</span>
+                            <span class="pos-type-badge ${pos.type}">${pos.type.toUpperCase()} ${pos.leverage}x</span>
+                        </div>
+                        <div class="pos-details-row">
+                            <span>🔒${pos.stake}</span>
+                            <span class="pos-pnl-small ${pnlClass}">${pnlText}🍪</span>
+                        </div>
+                        <div class="pos-details-row" style="font-size:0.85em">
+                            <span>💀${distToLiq}%</span>
+                            <span style="color:#888">E:${Math.floor(pos.entryPrice)}</span>
+                        </div>
+                        ${pos.isMyPosition ? `<button class="close-btn-small" onmousedown="closePosition('${pos.id}')">CLOSE</button>` : ''}
+                    </div>
+                `;
+            }).join('');
+        });
     }
     
     // Update the live positions section showing who's targeting who
@@ -1454,111 +1591,6 @@ class MultiplayerGame {
         }).join('');
     }
     
-    updateMainPositionsPanel(me) {
-        const list = document.getElementById('main-positions-list');
-        const totalPnlEl = document.getElementById('main-positions-pnl');
-        if (!list) return;
-        
-        if (!me || me.positions.length === 0) {
-            // Only update if needed
-            if (!list.querySelector('.no-positions')) {
-                list.innerHTML = '<div class="no-positions">No open positions - Trade on opponent charts!</div>';
-            }
-            if (totalPnlEl) {
-                totalPnlEl.textContent = 'PNL: 0🍪';
-                totalPnlEl.className = 'positions-pnl neutral';
-            }
-            this._lastPositionIds = [];
-            return;
-        }
-        
-        // Check if positions changed (different IDs) - only rebuild HTML then
-        const currentIds = me.positions.map(p => p.id).sort().join(',');
-        const needsRebuild = this._lastPositionIds !== currentIds;
-        
-        if (needsRebuild) {
-            this._lastPositionIds = currentIds;
-            
-            // Build HTML with buttons
-            list.innerHTML = me.positions.map(pos => {
-                const target = this.gameState.players.find(p => p.name === pos.targetName);
-                if (!target) return '';
-                
-                return `
-                    <div class="position-row ${pos.type}" data-pos-id="${pos.id}">
-                        <div class="pos-icon ${pos.type}">${pos.type === 'long' ? '📈' : '📉'}</div>
-                        <div class="pos-info">
-                            <div class="pos-name" style="color:#e74c3c">${target.name}</div>
-                            <div class="pos-meta">${pos.type.toUpperCase()} ${pos.leverage}x | Entry: ${Math.floor(pos.entryPrice)}</div>
-                            <div class="pos-liq">💀 LIQ: <span class="liq-value">${Math.floor(pos.liquidationPrice)}</span> (<span class="liq-dist">0</span>%)</div>
-                        </div>
-                        <div class="pos-values">
-                            <div class="pos-current-pnl">0🍪</div>
-                            <div class="pos-stake">🔒 ${pos.stake}</div>
-                        </div>
-                        <div class="pos-actions">
-                            <button class="close-position-btn" data-position-id="${pos.id}">CLOSE</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Bind click handlers to buttons ONCE after creating them
-            list.querySelectorAll('.close-position-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const posId = btn.getAttribute('data-position-id');
-                    console.log('Close button clicked! Position ID:', posId);
-                    this.closePosition(posId);
-                });
-            });
-        }
-        
-        // Now just update the PNL values (not the whole HTML)
-        let totalPnl = 0;
-        me.positions.forEach(pos => {
-            const row = list.querySelector(`[data-pos-id="${pos.id}"]`);
-            if (!row) return;
-            
-            const target = this.gameState.players.find(p => p.name === pos.targetName);
-            if (!target) return;
-            
-            const currentPrice = target.cookies;
-            const priceChange = currentPrice - pos.entryPrice;
-            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
-            const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
-            totalPnl += pnl;
-            
-            const pnlClass = pnl >= 0 ? 'profit' : 'loss';
-            const pnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
-            
-            const distToLiq = pos.type === 'long' 
-                ? ((currentPrice - pos.liquidationPrice) / currentPrice * 100).toFixed(1)
-                : ((pos.liquidationPrice - currentPrice) / currentPrice * 100).toFixed(1);
-            const liqDanger = parseFloat(distToLiq) < 10 ? 'danger' : parseFloat(distToLiq) < 25 ? 'warning' : 'safe';
-            
-            // Update just the text content, not the HTML structure
-            const pnlEl = row.querySelector('.pos-current-pnl');
-            if (pnlEl) {
-                pnlEl.textContent = pnlText + '🍪';
-                pnlEl.className = 'pos-current-pnl ' + pnlClass;
-            }
-            
-            const liqEl = row.querySelector('.pos-liq');
-            if (liqEl) {
-                liqEl.className = 'pos-liq ' + liqDanger;
-                const liqDistEl = row.querySelector('.liq-dist');
-                if (liqDistEl) liqDistEl.textContent = distToLiq;
-            }
-        });
-        
-        if (totalPnlEl) {
-            totalPnlEl.textContent = 'PNL: ' + (totalPnl >= 0 ? '+' : '') + totalPnl + '🍪';
-            totalPnlEl.className = 'positions-pnl ' + (totalPnl > 0 ? 'profit' : totalPnl < 0 ? 'loss' : 'neutral');
-        }
-    }
-    
     updateFromServerState() {
         if (!this.gameState) return;
         
@@ -1582,6 +1614,9 @@ class MultiplayerGame {
             if (history.velocity.length > 1000) history.velocity.shift();
             history.fullVelocity.push(player.cps || 0);
         });
+        
+        // Update stake slider max values
+        this.updateAllSliderMaxes();
     }
     
     startCPSTracking() {
@@ -1893,4 +1928,15 @@ document.head.appendChild(style);
 // Initialize game when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new MultiplayerGame();
+    window.gameClient = window.game; // Expose for onclick handlers
+    
+    // Global close function for onclick handlers
+    window.closePosition = function(positionId) {
+        console.log('window.closePosition called with:', positionId);
+        if (window.game && window.game.closePosition) {
+            window.game.closePosition(positionId);
+        } else {
+            console.error('Game not initialized!');
+        }
+    };
 });

@@ -32,11 +32,7 @@
         .game-panel { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; overflow-y: auto; min-height: 0; }
         .panel-left { width: 100%; display: flex; flex-direction: column; }
         .panel-right { width: 100%; }
-        .panel-center { display: flex; flex-direction: row; overflow: hidden; gap: 10px; background: transparent; align-items: center; }
-        .panel-center .players-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; height: 100%; }
-        .panel-center .positions-section { width: 200px; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; flex-shrink: 0; align-self: center; }
-        .panel-center .positions-section .positions-panel { display: flex; flex-direction: column; }
-        .panel-center .positions-section .positions-list { display: flex; flex-direction: column; gap: 4px; }
+        .panel-center { display: flex; flex-direction: column; overflow: hidden; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 12px; }
         .match-code { font-weight: 700; color: #f39c12; }
         .header-center { display: flex; align-items: center; gap: 15px; }
         .goal-bar { width: 200px; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; }
@@ -135,10 +131,36 @@
         .scoreboard-title { flex-shrink: 0; }
         .players-column { display: flex; flex-direction: column; overflow: hidden; min-height: 0; flex: 1; }
         .player-stocks-grid { display: flex; flex-direction: column; gap: 6px; padding: 5px; flex: 1; overflow: hidden; min-height: 0; }
+        
+        /* Player row: chart on left, positions on right */
+        .player-row { display: flex; gap: 8px; flex: 1; min-height: 0; }
         .player-stock-card { background: linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%); border: 1px solid #2a2a4a; border-radius: 10px; padding: 0; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
         .chart-container { flex: 1; min-height: 60px; }
         .player-stock-card.you { border-color: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.15); }
         .player-stock-card.tradeable:hover { border-color: #f39c12; box-shadow: 0 0 20px rgba(243, 156, 18, 0.2); }
+        
+        /* Positions sidebar for each player */
+        .player-positions-sidebar { width: 150px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+        .player-positions-header { font-size: 0.65em; font-weight: bold; color: #f39c12; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+        .player-positions-pnl { font-size: 0.9em; }
+        .player-positions-pnl.profit { color: #2ecc71; }
+        .player-positions-pnl.loss { color: #e74c3c; }
+        .player-positions-pnl.neutral { color: #888; }
+        .player-positions-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+        .player-pos-item { padding: 4px 5px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 2px solid #888; font-size: 0.6em; }
+        .player-pos-item.long { border-left-color: #2ecc71; }
+        .player-pos-item.short { border-left-color: #e74c3c; }
+        .player-pos-item .pos-trader { font-weight: bold; color: #fff; }
+        .player-pos-item .pos-type-badge { font-size: 0.85em; padding: 1px 3px; border-radius: 2px; margin-left: 3px; }
+        .player-pos-item .pos-type-badge.long { background: rgba(46,204,113,0.3); color: #2ecc71; }
+        .player-pos-item .pos-type-badge.short { background: rgba(231,76,60,0.3); color: #e74c3c; }
+        .player-pos-item .pos-details-row { display: flex; justify-content: space-between; margin-top: 2px; color: #888; }
+        .player-pos-item .pos-pnl-small { font-weight: bold; }
+        .player-pos-item .pos-pnl-small.profit { color: #2ecc71; }
+        .player-pos-item .pos-pnl-small.loss { color: #e74c3c; }
+        .player-pos-item .close-btn-small { margin-top: 3px; width: 100%; padding: 2px; background: #e74c3c; border: none; border-radius: 3px; color: #fff; font-size: 0.9em; font-weight: bold; cursor: pointer; position: relative; z-index: 100; pointer-events: auto !important; }
+        .player-pos-item .close-btn-small:hover { filter: brightness(1.2); }
+        .no-positions-small { color: #555; font-size: 0.6em; text-align: center; padding: 8px 4px; }
         
         .stock-header { display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(0,0,0,0.3); border-bottom: 1px solid #1a1a2e; flex-shrink: 0; }
         .stock-header-left { display: flex; align-items: center; gap: 4px; }
@@ -168,14 +190,21 @@
         /* Trade controls - compact */
         .card-actions { padding: 4px 6px; background: rgba(0,0,0,0.2); border-top: 1px solid #1a1a2e; flex-shrink: 0; }
         .trade-controls { display: flex; gap: 3px; align-items: center; margin-bottom: 4px; }
-        .leverage-select { display: flex; gap: 2px; flex-wrap: wrap; }
+        .leverage-select { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; }
         .lev-btn { padding: 2px 4px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #888; font-size: 0.55em; font-weight: bold; cursor: pointer; transition: all 0.1s; }
         .lev-btn:hover { background: #252540; border-color: #555; }
         .lev-btn.active { background: #f39c12; color: #000; border-color: #f39c12; }
-        .stake-row { display: flex; gap: 2px; align-items: center; flex: 1; }
-        .stake-input { padding: 2px 4px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; color: #fff; font-size: 0.65em; width: 45px; text-align: center; flex: 1; min-width: 35px; }
-        .max-stake-btn { padding: 2px 4px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border: none; border-radius: 3px; color: white; font-size: 0.55em; font-weight: bold; cursor: pointer; }
-        .max-stake-btn:hover { filter: brightness(1.2); }
+        
+        /* Stake slider row */
+        .stake-slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 0; }
+        .stake-label { font-size: 0.6em; color: #888; font-weight: 600; }
+        .stake-slider { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: linear-gradient(90deg, #1a1a2e, #2a2a4a); border-radius: 3px; outline: none; cursor: pointer; }
+        .stake-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.1s; }
+        .stake-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .stake-slider::-moz-range-thumb { width: 14px; height: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .stake-slider:disabled { opacity: 0.4; cursor: not-allowed; }
+        .stake-slider:disabled::-webkit-slider-thumb { background: #666; cursor: not-allowed; }
+        .stake-value { font-size: 0.65em; color: #f39c12; font-weight: 700; min-width: 40px; text-align: right; }
         .quick-trade-btns { display: flex; gap: 4px; }
         .quick-trade-btn { flex: 1; padding: 6px 4px; border: none; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 50px; }
         .quick-trade-btn.long { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
@@ -395,6 +424,8 @@
                     <div class="stat-real-balance" style="text-align: center; padding: 8px; background: rgba(231,76,60,0.1); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
                         <span class="stat-label" style="color: #e74c3c; font-size: 0.75em;">⚠️ Real Balance (if positions close)</span>
                         <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 1.1em; display: block; font-weight: 700;">0</span>
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.7em; margin-top: 4px; display: block;">💎 Real Net Worth</span>
+                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 1em; display: block; font-weight: 700;">0</span>
                     </div>
                     <div class="stat-networth" style="text-align: center; padding: 8px; background: rgba(155,89,182,0.15); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(155,89,182,0.3);">
                         <span class="stat-label" style="color: #9b59b6; font-size: 0.8em;">💎 Net Worth</span>
@@ -422,44 +453,28 @@
                 <button class="leave-btn" id="give-up-btn" style="margin-top: auto;">🏳️ GIVE UP</button>
             </section>
 
-            <!-- Center Panel - Players + Positions -->
+            <!-- Center Panel - Players with per-player positions -->
             <section class="game-panel panel-center">
-                <!-- Players Section (left side of center) -->
-                <div class="players-section">
-                    <div class="scoreboard-with-charts" id="scoreboard">
-                        <div class="players-column">
-                            <h3 class="scoreboard-title" style="justify-content: space-between; display: flex; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
-                                        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
-                                    </svg>
-                                    Stock Market
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="color: #f39c12; font-size: 0.85em;">🏆 100M</span>
-                                    <div class="goal-bar" style="width: 80px;">
-                                        <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
-                                    </div>
-                                    <span style="color: #888; font-size: 0.8em;" id="goal-percent">0%</span>
-                                </div>
-                            </h3>
-                            
-                            <div class="player-stocks-grid" id="players-grid">
-                                <!-- Player cards rendered dynamically -->
+                <div class="scoreboard-with-charts" id="scoreboard">
+                    <div class="players-column">
+                        <h3 class="scoreboard-title" style="justify-content: space-between; display: flex; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="#F6D49B">
+                                    <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+                                </svg>
+                                Stock Market
                             </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Positions Section (right side of center - middle of screen) -->
-                <div class="positions-section">
-                    <div class="positions-panel" id="positions-panel-main" style="position: relative; z-index: 100; height: 100%;">
-                        <div class="positions-header">
-                            <span class="positions-title">📊 Positions</span>
-                            <span class="positions-pnl neutral" id="main-positions-pnl">PNL: 0🍪</span>
-                        </div>
-                        <div class="positions-list" id="main-positions-list">
-                            <div class="no-positions">No open positions</div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="color: #f39c12; font-size: 0.85em;">🏆 100M</span>
+                                <div class="goal-bar" style="width: 80px;">
+                                    <div class="goal-fill" id="goal-fill" style="width: 0%"></div>
+                                </div>
+                                <span style="color: #888; font-size: 0.8em;" id="goal-percent">0%</span>
+                            </div>
+                        </h3>
+                        
+                        <div class="player-stocks-grid" id="players-grid">
+                            <!-- Player rows rendered dynamically (card + positions sidebar) -->
                         </div>
                     </div>
                 </div>
