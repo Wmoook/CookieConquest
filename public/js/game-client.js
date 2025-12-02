@@ -123,6 +123,33 @@ class MultiplayerGame {
         });
         
         this.socket.on('game:state', (gameState) => {
+            // Log significant changes to help debug
+            if (this.gameState) {
+                for (const player of gameState.players) {
+                    const oldPlayer = this.gameState.players.find(p => p.name === player.name);
+                    if (oldPlayer) {
+                        // Log cookie changes
+                        if (Math.abs(player.cookies - oldPlayer.cookies) > 1) {
+                            const diff = player.cookies - oldPlayer.cookies;
+                            console.log(`[COOKIE_CHANGE] ${player.name}: ${oldPlayer.cookies.toFixed(0)} → ${player.cookies.toFixed(0)} (${diff > 0 ? '+' : ''}${diff.toFixed(0)})`);
+                        }
+                        // Log CPS changes
+                        if (player.cps !== oldPlayer.cps) {
+                            console.log(`[CPS_CHANGE] ${player.name}: ${oldPlayer.cps} → ${player.cps}`);
+                        }
+                        // Log generator changes
+                        for (const gen of Object.keys(player.generators || {})) {
+                            if (player.generators[gen] !== (oldPlayer.generators || {})[gen]) {
+                                console.log(`[GENERATOR_CHANGE] ${player.name}: ${gen} ${(oldPlayer.generators || {})[gen] || 0} → ${player.generators[gen]}`);
+                            }
+                        }
+                    }
+                }
+                // Log position changes
+                if (gameState.positions.length !== this.gameState.positions.length) {
+                    console.log(`[POSITIONS_CHANGE] ${this.gameState.positions.length} → ${gameState.positions.length} positions`);
+                }
+            }
             this.gameState = gameState;
             this.updateFromServerState();
         });
@@ -175,13 +202,10 @@ class MultiplayerGame {
             }
         });
         
-        // Remote cursor updates (coordinates are percentages, convert to local pixels)
+        // Remote cursor updates
         this.socket.on('game:cursor', ({ playerName, color, x, y }) => {
-            // Convert percentage to local pixel coordinates
-            const localX = x * window.innerWidth;
-            const localY = y * window.innerHeight;
-            console.log('Received cursor from', playerName, 'at', localX, localY);
-            this.updateRemoteCursor(playerName, color, localX, localY);
+            console.log('Received cursor from', playerName, 'at', x, y);
+            this.updateRemoteCursor(playerName, color, x, y);
         });
         
         this.socket.on('game:winner', (winner) => {
@@ -222,15 +246,11 @@ class MultiplayerGame {
         }
         
         // Track mouse movement for cursor sharing (throttled to ~20fps)
-        // Use percentage-based coordinates for cross-resolution compatibility
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             if (now - this.lastCursorUpdate > 50) {
                 this.lastCursorUpdate = now;
-                // Convert to percentage of viewport
-                const xPercent = e.clientX / window.innerWidth;
-                const yPercent = e.clientY / window.innerHeight;
-                this.socket.emit('game:cursor', { x: xPercent, y: yPercent });
+                this.socket.emit('game:cursor', { x: e.clientX, y: e.clientY });
             }
         });
         
@@ -1537,20 +1557,19 @@ class MultiplayerGame {
     }
     
     updateCPSIndicator() {
-        // Update click CPS display under cookie
-        const clickCpsEl = document.getElementById('click-cps');
-        const multiplierEl = document.getElementById('click-multiplier');
-        
-        if (clickCpsEl) {
-            const color = this.currentCPS >= 10 ? '#f39c12' : (this.currentCPS >= 5 ? '#2ecc71' : '#fff');
-            clickCpsEl.textContent = this.currentCPS;
-            clickCpsEl.style.color = color;
+        let cpsIndicator = document.getElementById('cps-indicator');
+        if (!cpsIndicator) {
+            cpsIndicator = document.createElement('div');
+            cpsIndicator.id = 'cps-indicator';
+            cpsIndicator.style.cssText = 'position: fixed; top: 60px; right: 10px; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 5px; z-index: 80; font-size: 0.8em; pointer-events: none;';
+            document.body.appendChild(cpsIndicator);
         }
         
-        if (multiplierEl) {
-            multiplierEl.textContent = `(${this.clickMultiplier.toFixed(1)}x)`;
-            multiplierEl.style.color = this.clickMultiplier > 1 ? '#f39c12' : '#888';
-        }
+        const color = this.currentCPS >= 10 ? '#f39c12' : (this.currentCPS >= 5 ? '#2ecc71' : '#fff');
+        cpsIndicator.innerHTML = `
+            <div style="color: ${color};">${this.currentCPS} CPS</div>
+            <div style="color: #888; font-size: 0.8em;">${this.clickMultiplier.toFixed(1)}x</div>
+        `;
     }
     
     handleCookieClick(e) {
@@ -1788,12 +1807,12 @@ class MultiplayerGame {
     }
     
     showToast(message, type = 'info') {
-        // Create floating toast container if it doesn't exist - bottom right to avoid UI
+        // Create floating toast container if it doesn't exist
         let toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 10px; align-items: flex-end;';
+            toastContainer.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center;';
             document.body.appendChild(toastContainer);
         }
         
@@ -1805,13 +1824,13 @@ class MultiplayerGame {
         toast.style.cssText = `
             background: ${bgColor};
             color: white;
-            padding: 12px 20px;
+            padding: 15px 25px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 0.9em;
+            font-size: 1em;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             animation: toastSlideIn 0.3s ease;
-            max-width: 300px;
+            max-width: 350px;
         `;
         toast.textContent = message;
         

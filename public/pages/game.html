@@ -357,15 +357,8 @@
                         </svg>
                     </button>
                     <div class="cookie-cps-display" style="margin-top: 10px; text-align: center;">
-                        <div style="margin-bottom: 5px;">
-                            <span style="font-size: 1em; font-weight: 700; color: #fff;" id="click-cps">0</span>
-                            <span style="font-size: 0.8em; color: #888;"> clicks/sec</span>
-                            <span style="font-size: 0.85em; font-weight: 700; color: #f39c12; margin-left: 5px;" id="click-multiplier">(1.0x)</span>
-                        </div>
-                        <div>
-                            <span style="font-size: 1.2em; font-weight: 700; color: #2ecc71;" id="cookie-cps">+0</span>
-                            <span style="font-size: 0.8em; color: #888;"> CPS</span>
-                        </div>
+                        <span style="font-size: 1.2em; font-weight: 700; color: #2ecc71;" id="cookie-cps">+0</span>
+                        <span style="font-size: 0.8em; color: #888;"> per second</span>
                     </div>
                 </div>
 
@@ -385,6 +378,16 @@
                     <div class="stat-locked-main" id="locked-display">
                         <span class="stat-label" style="color: #f1c40f;">🔒 Locked</span>
                         <span class="stat-value" id="locked-value" style="color: #f1c40f;">0</span>
+                    </div>
+                    <div class="stat-secondary">
+                        <div class="stat-item">
+                            <span class="stat-label">Per Second</span>
+                            <span class="stat-value" id="cps-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Available</span>
+                            <span class="stat-value" id="available-value">0</span>
+                        </div>
                     </div>
                 </div>
                 

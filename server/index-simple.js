@@ -207,8 +207,10 @@ function calculateGeneratorValue(player) {
 }
 
 // Force a player to pay an amount - can go into debt up to generator value, then sells all
-function forcePayment(player, amount) {
+function forcePayment(player, amount, reason = 'unknown') {
     if (amount <= 0) return;
+    
+    console.log(`[FORCE_PAYMENT] ${player.name}: amount=${amount}, reason=${reason}, cookies_before=${player.cookies}`);
     
     // Calculate how much generator value (debt limit) they have
     const generatorValue = calculateGeneratorValue(player);
@@ -219,13 +221,19 @@ function forcePayment(player, amount) {
     // After paying, what would net worth be?
     const newNetWorth = currentNetWorth - amount;
     
+    console.log(`[FORCE_PAYMENT] ${player.name}: generatorValue=${generatorValue}, currentNetWorth=${currentNetWorth}, newNetWorth=${newNetWorth}`);
+    
     if (newNetWorth >= 0) {
         // Can pay without going bankrupt - just deduct from cookies (can go negative)
         player.cookies -= amount;
+        console.log(`[FORCE_PAYMENT] ${player.name}: paid ${amount}, cookies_after=${player.cookies}`);
         return;
     }
     
     // Would go below 0 net worth - FULL BANKRUPTCY!
+    console.log(`[BANKRUPTCY] ${player.name}: FULL BANKRUPTCY! Selling all generators.`);
+    console.log(`[BANKRUPTCY] ${player.name}: generators_before=`, JSON.stringify(player.generators));
+    
     // Sell ALL generators and set cookies to 0
     const generatorOrder = ['grandma', 'bakery', 'factory', 'mine', 'bank', 'temple', 'wizard', 'portal', 'prism', 'universe'];
     
@@ -239,6 +247,8 @@ function forcePayment(player, amount) {
     // Set cookies to 0 (full bankruptcy)
     player.cookies = 0;
     player.isBankrupt = true;
+    
+    console.log(`[BANKRUPTCY] ${player.name}: generators_after=`, JSON.stringify(player.generators), 'cps=0, cookies=0');
 }
 
 // ==================== SOCKET HANDLERS ====================
@@ -643,13 +653,14 @@ io.on('connection', (socket) => {
                 targetPaid: pnl 
             });
         } else if (pnl < 0) {
-            // Player is in loss - their stake was already locked, just transfer loss to target
-            // DON'T call forcePayment on player - stake is already locked
+            // Player is in loss - use forcePayment to allow debt before bankruptcy
             const loss = Math.min(Math.abs(pnl), position.stake);
+            forcePayment(player, loss);
             target.cookies += loss;
             console.log('closePosition: LOSS', { 
                 pnlLoss: pnl, 
                 actualLoss: loss, 
+                playerLost: loss, 
                 targetGot: loss 
             });
         } else {
@@ -735,7 +746,12 @@ setInterval(() => {
         // Apply CPS to all players
         gs.players.forEach(player => {
             if (player.cps > 0) {
-                player.cookies += player.cps * 0.5; // 500ms tick
+                const gain = player.cps * 0.5; // 500ms tick
+                player.cookies += gain;
+                // Log occasionally (every 10 seconds = 20 ticks)
+                if (Math.random() < 0.05) {
+                    console.log(`[CPS_TICK] ${player.name}: +${gain} (cps=${player.cps}), cookies=${player.cookies}`);
+                }
             }
         });
         
@@ -762,10 +778,15 @@ setInterval(() => {
         for (const { pos, owner, target, currentPrice, pnl, index } of positionsToCheck) {
             if ((pos.type === 'long' && currentPrice <= pos.liquidationPrice) ||
                 (pos.type === 'short' && currentPrice >= pos.liquidationPrice)) {
-                // Owner loses stake - stake was already locked (not deducted), so just transfer to target
-                // DON'T call forcePayment - the stake is already "removed" from available balance
+                console.log(`[LIQUIDATION] Position ${pos.id}: ${owner.name}'s ${pos.type} on ${target.name}`);
+                console.log(`[LIQUIDATION] currentPrice=${currentPrice}, liqPrice=${pos.liquidationPrice}, stake=${pos.stake}`);
+                console.log(`[LIQUIDATION] owner cookies_before=${owner.cookies}, target cookies_before=${target.cookies}`);
+                
+                // Owner loses stake - use forcePayment to allow debt before bankruptcy
+                forcePayment(owner, pos.stake, `liquidation_${pos.type}_on_${target.name}`);
                 target.cookies += pos.stake;
                 console.log(`Position liquidated: ${owner.name} loses stake ${pos.stake} to ${target.name}`);
+                console.log(`[LIQUIDATION] owner cookies_after=${owner.cookies}, target cookies_after=${target.cookies}`);
                 
                 // Remove position
                 const posIdx = gs.positions.findIndex(p => p.id === pos.id);
@@ -808,14 +829,21 @@ setInterval(() => {
             
             // Only force close if paying would exceed debt limit (net worth goes negative)
             if (netWorthAfterPaying < 0) {
+                console.log(`[MAX_PAYOUT] Target ${target.name}: totalOwed=${totalOwed}, generatorValue=${generatorValue}, netWorthAfterPaying=${netWorthAfterPaying}`);
+                
                 // Force close all positions - target can't recover
                 for (const { pos, owner, pnl } of positions) {
+                    console.log(`[MAX_PAYOUT] Closing position ${pos.id}: ${owner.name}'s ${pos.type} on ${target.name}, pnl=${pnl}`);
+                    console.log(`[MAX_PAYOUT] target cookies_before=${target.cookies}, owner cookies_before=${owner.cookies}`);
+                    
                     // Force the target to pay (will trigger bankruptcy)
-                    forcePayment(target, pnl);
+                    forcePayment(target, pnl, `max_payout_to_${owner.name}`);
                     // NOTE: Stake was never deducted (locked margin), don't add it back
                     owner.cookies += pnl;
                     
                     console.log(`Auto-close: ${owner.name} gets pnl ${pnl} from ${target.name}`);
+                    console.log(`[MAX_PAYOUT] target cookies_after=${target.cookies}, owner cookies_after=${owner.cookies}`);
+                    console.log(`[MAX_PAYOUT] target generators=`, JSON.stringify(target.generators), 'cps=', target.cps);
                     
                     // Remove position
                     const posIdx = gs.positions.findIndex(p => p.id === pos.id);
