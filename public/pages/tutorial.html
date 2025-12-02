@@ -13,6 +13,17 @@
     <link rel="stylesheet" href="/css/game-shared.css">
     
     <style>
+        /* Prevent text selection and cursor throughout game */
+        .game-wrapper, .game-wrapper * {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .game-wrapper { cursor: default; }
+        .game-wrapper button { cursor: pointer; }
+        .game-wrapper input[type="range"] { cursor: pointer; }
+        
         /* Tutorial-specific styles */
         .tutorial-overlay {
             position: fixed;
@@ -164,7 +175,7 @@
     
     <!-- Tutorial progress -->
     <div class="tutorial-progress" id="tutorial-progress">
-        <span class="step-counter" id="step-counter">1 / 18</span>
+        <span class="step-counter" id="step-counter">1 / 20</span>
         <div class="step-dots">
             <span class="step" data-step="1"></span>
             <span class="step" data-step="2"></span>
@@ -184,6 +195,8 @@
             <span class="step" data-step="16"></span>
             <span class="step" data-step="17"></span>
             <span class="step" data-step="18"></span>
+            <span class="step" data-step="19"></span>
+            <span class="step" data-step="20"></span>
         </div>
     </div>
     
@@ -232,9 +245,19 @@
                             <circle cx="48" cy="50" r="4" fill="#5D3A1A"/>
                         </svg>
                     </button>
-                    <div class="cookie-cps-display" style="margin-top: 10px; text-align: center;" id="cookie-cps">
-                        <div style="font-size: 0.85em; color: #2ecc71;">🖱️ 0 clicks/sec</div>
-                        <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +0 from generators</div>
+                    <div class="cookie-cps-display" style="margin-top: 4px; text-align: center;" id="cookie-cps">
+                        <div style="font-size: 0.7em; color: #2ecc71;">🖱️ 0 cookies/sec</div>
+                        <div style="font-size: 0.7em; color: #f39c12;">🏭 +0 from generators</div>
+                    </div>
+                    
+                    <!-- King of the Hill Display (Tutorial Version - explains the feature) -->
+                    <div class="koth-display" id="koth-display" style="background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.3); border-radius: 8px; padding: 6px; margin-top: 8px; font-size: 0.65em;">
+                        <div class="koth-title" style="color: #f1c40f; font-weight: bold; margin-bottom: 4px;">👑 King of the Hill</div>
+                        <div style="color: #888; font-size: 0.9em; line-height: 1.3;">
+                            <p style="margin-bottom: 4px;">In multiplayer, keep your cursor on the cookie to earn time!</p>
+                            <p style="margin-bottom: 4px;">🏆 Win each round to get <span style="color: #f1c40f;">+5% buffs</span></p>
+                            <p>⚡ Use buffs for abilities: <span style="color: #00bfff;">Freeze</span>, <span style="color: #9b59b6;">Invisible</span>, <span style="color: #e74c3c;">Crash</span></p>
+                        </div>
                     </div>
                 </div>
 
@@ -243,19 +266,19 @@
                         <span class="stat-label">Your Cookies</span>
                         <span class="stat-value" id="cookie-count">0</span>
                     </div>
-                    <div class="stat-real-balance" style="text-align: center; padding: 8px; background: rgba(231,76,60,0.1); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.75em;">⚠️ Real Balance (if positions close)</span>
-                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 1.1em; display: block; font-weight: 700;">0</span>
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.7em; margin-top: 4px; display: block;">💎 Real Net Worth</span>
-                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 1em; display: block; font-weight: 700;">0</span>
+                    <div class="stat-real-balance" style="text-align: center; padding: 5px; background: rgba(231,76,60,0.1); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.65em;">⚠️ Real Balance</span>
+                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 0.9em; display: block; font-weight: 700;">0</span>
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.6em; display: inline;">💎 Real NW: </span>
+                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 0.85em; display: inline; font-weight: 700;">0</span>
                     </div>
-                    <div class="stat-networth" style="text-align: center; padding: 8px; background: rgba(155,89,182,0.15); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(155,89,182,0.3);">
-                        <span class="stat-label" style="color: #9b59b6; font-size: 0.8em;">💎 Net Worth</span>
-                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1.2em; display: block;">0</span>
+                    <div class="stat-networth" style="text-align: center; padding: 5px; background: rgba(155,89,182,0.15); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(155,89,182,0.3);">
+                        <span class="stat-label" style="color: #9b59b6; font-size: 0.7em;">💎 Net Worth</span>
+                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1em; display: block;">0</span>
                     </div>
                     <div class="stat-locked-main" id="locked-display">
-                        <span class="stat-label" style="color: #f1c40f;">🔒 Locked</span>
-                        <span class="stat-value" id="locked-value" style="color: #f1c40f;">0</span>
+                        <span class="stat-label" style="color: #f1c40f; font-size: 0.7em;">🔒 Locked</span>
+                        <span class="stat-value" id="locked-value" style="color: #f1c40f; font-size: 0.9em;">0</span>
                     </div>
                 </div>
                 

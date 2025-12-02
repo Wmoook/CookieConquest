@@ -137,9 +137,23 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
+            // KING OF THE HILL
+            {
+                title: "Step 15: King of the Hill! 👑",
+                text: "In multiplayer, there's a <span class='highlight'>King of the Hill</span> mini-game!<br><br>• Keep your cursor on the big cookie to earn time<br>• Every 60 seconds, whoever has the most time wins a <span class='highlight'>+5% buff</span>!<br>• Buffs boost EVERYTHING: clicks, CPS, and trading profits!<br><br>Stack buffs to dominate the game!",
+                action: null,
+                highlight: '#koth-display'
+            },
+            // ABILITIES
+            {
+                title: "Step 16: Abilities! ⚡",
+                text: "Spend your KotH buffs on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 buff) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 buff) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 buffs) - Target loses 10% cookies!<br><br>Use abilities strategically to sabotage opponents!",
+                action: null,
+                highlight: null
+            },
             // ZOOM CONTROLS
             {
-                title: "Step 15: Chart Controls 🔍",
+                title: "Step 17: Chart Controls 🔍",
                 text: "Each chart has zoom controls:<br><br>• <span class='highlight'>+/-</span> = Zoom in/out on recent data<br>• <span class='highlight'>ALL</span> = See entire game history<br>• <span class='highlight'>LIVE</span> = Follow the latest data<br><br>Use these to analyze trends and time your trades!",
                 action: null,
                 highlight: null
@@ -147,14 +161,14 @@ class TutorialGame {
             // WINNING
             {
                 title: "Winning the Game! 🏆",
-                text: "First player to <span class='highlight'>100 MILLION net worth</span> wins!<br><br>Winning strategies:<br>• Build a strong generator economy<br>• <span class='highlight'>Long</span> players who are growing fast<br>• <span class='warning'>Short</span> players who are struggling<br>• Don't get liquidated by others shorting you!",
+                text: "First player to <span class='highlight'>100 MILLION net worth</span> wins!<br><br>Winning strategies:<br>• Build a strong generator economy<br>• <span class='highlight'>Long</span> players who are growing fast<br>• <span class='warning'>Short</span> players who are struggling<br>• Win KotH rounds for powerful buffs<br>• Don't get liquidated!",
                 action: null,
                 highlight: null
             },
             // FINAL
             {
                 title: "You're Ready to Conquer! 🎮",
-                text: "You now know everything about Cookie Conquest!<br><br>Remember:<br>• 🍪 Click and buy generators<br>• 📈 Long = bet on growth<br>• 📉 Short = bet on decline<br>• 💀 Watch your liquidation price<br>• 🏆 First to 100M wins!<br><br><span class='highlight'>Good luck, and may the best trader win!</span>",
+                text: "You now know everything about Cookie Conquest!<br><br>Remember:<br>• 🍪 Click and buy generators<br>• 📈 Long = bet on growth<br>• 📉 Short = bet on decline<br>• 💀 Watch your liquidation price<br>• 👑 Win KotH for buffs & abilities<br>• 🏆 First to 100M wins!<br><br><span class='highlight'>Good luck, and may the best trader win!</span>",
                 action: null,
                 highlight: null,
                 final: true
@@ -501,6 +515,13 @@ class TutorialGame {
         // Return stake + PNL
         const totalReturn = pos.stake + pnl;
         this.cookies += Math.max(0, totalReturn);
+        
+        // If we profited, take from the bot. If we lost, give to the bot.
+        if (pnl > 0) {
+            bot.cookies = Math.max(0, bot.cookies - pnl);
+        } else if (pnl < 0) {
+            bot.cookies += Math.abs(pnl);
+        }
         
         // Remove position
         this.positions.splice(posIndex, 1);
