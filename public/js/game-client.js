@@ -252,6 +252,45 @@ class MultiplayerGame {
             this.updateRemoteCursor(playerName, color, x, y);
         });
         
+        // King of the Hill winner notification
+        this.socket.on('game:kothWinner', ({ winnerName, winnerColor, timeOnCookie, totalBuffs }) => {
+            const isMe = winnerName === this.playerName;
+            const timeSeconds = (timeOnCookie / 1000).toFixed(1);
+            const buffPercent = totalBuffs * 5;
+            
+            if (isMe) {
+                this.showNotification(`👑 YOU are the Cookie King! +5% buff (now +${buffPercent}% total)`, 'profit');
+                this.screenTint('gold', 500);
+            } else {
+                this.showNotification(`👑 ${winnerName} is the Cookie King! (${timeSeconds}s on cookie, now +${buffPercent}%)`, 'info');
+            }
+        });
+        
+        // Freeze ability events
+        this.socket.on('game:playerFrozen', ({ frozenBy, frozenPlayer, duration }) => {
+            const isMe = frozenPlayer === this.playerName;
+            if (isMe) {
+                this.showNotification(`🥶 You were FROZEN by ${frozenBy}! (${duration/1000}s)`, 'error');
+                this.screenTint('cyan', 500);
+                this.showFrozenOverlay(duration);
+            } else if (frozenBy === this.playerName) {
+                this.showNotification(`🥶 You froze ${frozenPlayer}!`, 'profit');
+            } else {
+                this.showNotification(`🥶 ${frozenBy} froze ${frozenPlayer}!`, 'info');
+            }
+        });
+        
+        // Invisibility events
+        this.socket.on('game:youAreInvisible', ({ duration }) => {
+            this.showNotification(`👻 You are now INVISIBLE! (${duration/1000}s)`, 'profit');
+            this.showInvisibleIndicator(duration);
+        });
+        
+        this.socket.on('game:playerInvisible', ({ playerName, duration }) => {
+            this.showNotification(`👻 ${playerName} went invisible!`, 'info');
+            this.hideRemoteCursor(playerName, duration);
+        });
+        
         this.socket.on('game:winner', (winner) => {
             this.isGameActive = false;
             const isMe = winner.id === this.playerId;
@@ -282,8 +321,29 @@ class MultiplayerGame {
                 console.log('Cookie clicked!');
                 this.handleCookieClick(e);
             });
+            
+            // King of the Hill - track cursor on cookie
+            cookie.addEventListener('mouseenter', () => {
+                this.cursorOnCookie = true;
+                this.socket.emit('game:cursorOnCookie', { onCookie: true });
+            });
+            cookie.addEventListener('mouseleave', () => {
+                this.cursorOnCookie = false;
+                this.socket.emit('game:cursorOnCookie', { onCookie: false });
+            });
         } else {
             console.error('Cookie button not found!');
+        }
+        
+        // Ability buttons
+        const freezeBtn = document.getElementById('ability-freeze');
+        if (freezeBtn) {
+            freezeBtn.addEventListener('click', () => this.showFreezeTargetPicker());
+        }
+        
+        const invisBtn = document.getElementById('ability-invisible');
+        if (invisBtn) {
+            invisBtn.addEventListener('click', () => this.useInvisibility());
         }
         
         // Track mouse movement for cursor sharing (throttled to ~20fps)
@@ -1661,6 +1721,67 @@ class MultiplayerGame {
         
         // Update stake slider max values
         this.updateAllSliderMaxes();
+        
+        // Update King of the Hill display
+        this.updateKothDisplay();
+    }
+    
+    updateKothDisplay() {
+        if (!this.gameState) return;
+        
+        const me = this.getMe();
+        if (!me) return;
+        
+        // Calculate time remaining in round
+        const roundDuration = this.gameState.kothRoundDuration || 60000;
+        const roundStart = this.gameState.kothRoundStart || Date.now();
+        const elapsed = Date.now() - roundStart;
+        const remaining = Math.max(0, roundDuration - elapsed);
+        const remainingSeconds = Math.ceil(remaining / 1000);
+        const progress = (remaining / roundDuration) * 100;
+        
+        // Update timer
+        const timeLeftEl = document.getElementById('koth-time-left');
+        const timerFillEl = document.getElementById('koth-timer-fill');
+        if (timeLeftEl) timeLeftEl.textContent = `${remainingSeconds}s`;
+        if (timerFillEl) timerFillEl.style.width = `${progress}%`;
+        
+        // Update your time on cookie
+        const yourTimeEl = document.getElementById('koth-your-time');
+        const myTime = (me.cookieZoneTime || 0) / 1000;
+        if (yourTimeEl) yourTimeEl.textContent = `${myTime.toFixed(1)}s`;
+        
+        // Update buff display
+        const buffEl = document.getElementById('koth-buff-display');
+        const abilitiesEl = document.getElementById('koth-abilities');
+        if (buffEl) {
+            const buffs = me.powerBuffs || 0;
+            if (buffs > 0) {
+                buffEl.textContent = `👑 ${buffs} buff${buffs > 1 ? 's' : ''} (+${buffs * 5}% to everything)`;
+                buffEl.style.color = '#f1c40f';
+                // Show abilities if player has buffs
+                if (abilitiesEl) abilitiesEl.style.display = 'block';
+            } else {
+                buffEl.textContent = 'Keep cursor on cookie to win!';
+                buffEl.style.color = '#888';
+                // Hide abilities if no buffs
+                if (abilitiesEl) abilitiesEl.style.display = 'none';
+            }
+        }
+        
+        // Update frozen state display
+        const frozenOverlay = document.getElementById('frozen-overlay');
+        if (frozenOverlay && me.frozenUntil) {
+            const now = Date.now();
+            if (me.frozenUntil > now) {
+                frozenOverlay.style.display = 'flex';
+                const remaining = Math.ceil((me.frozenUntil - now) / 1000);
+                const timerEl = document.getElementById('frozen-timer');
+                if (timerEl) timerEl.textContent = `${remaining}s`;
+            } else {
+                frozenOverlay.style.display = 'none';
+            }
+        }
     }
     
     startCPSTracking() {
@@ -1952,6 +2073,122 @@ class MultiplayerGame {
             cursor.remove();
             delete this.otherCursors[playerName];
         }, 3000);
+    }
+    
+    // ==================== ABILITIES ====================
+    
+    showFreezeTargetPicker() {
+        // Create a modal to pick target player
+        const me = this.getMe();
+        if (!me || (me.powerBuffs || 0) < 1) {
+            this.showNotification('You need at least 1 buff to use Freeze!', 'error');
+            return;
+        }
+        
+        const otherPlayers = this.gameState.players.filter(p => p.name !== this.playerName);
+        if (otherPlayers.length === 0) {
+            this.showNotification('No other players to freeze!', 'error');
+            return;
+        }
+        
+        // Create picker modal
+        let existingPicker = document.getElementById('freeze-picker');
+        if (existingPicker) existingPicker.remove();
+        
+        const picker = document.createElement('div');
+        picker.id = 'freeze-picker';
+        picker.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(20, 20, 40, 0.95); padding: 20px; border-radius: 10px;
+            border: 2px solid #00bfff; z-index: 10000; min-width: 200px; text-align: center;
+        `;
+        picker.innerHTML = `
+            <div style="color: #00bfff; font-weight: bold; margin-bottom: 15px;">🥶 Select Target to Freeze</div>
+            <div id="freeze-targets" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 16px; background: #333; border: 1px solid #555; color: #fff; border-radius: 5px; cursor: pointer;">Cancel</button>
+        `;
+        
+        const targetsDiv = picker.querySelector('#freeze-targets');
+        otherPlayers.forEach(p => {
+            const btn = document.createElement('button');
+            btn.style.cssText = `
+                padding: 10px; background: linear-gradient(135deg, #1a3a5a, #0a2a4a);
+                border: 1px solid #00bfff; border-radius: 5px; color: #fff; cursor: pointer;
+                font-weight: bold;
+            `;
+            btn.textContent = `❄️ ${p.name}`;
+            btn.onclick = () => {
+                this.socket.emit('game:useFreeze', { targetName: p.name });
+                picker.remove();
+            };
+            targetsDiv.appendChild(btn);
+        });
+        
+        document.body.appendChild(picker);
+    }
+    
+    useInvisibility() {
+        const me = this.getMe();
+        if (!me || (me.powerBuffs || 0) < 1) {
+            this.showNotification('You need at least 1 buff to use Invisibility!', 'error');
+            return;
+        }
+        
+        this.socket.emit('game:useInvisible');
+    }
+    
+    showFrozenOverlay(duration) {
+        const overlay = document.getElementById('frozen-overlay');
+        const timer = document.getElementById('frozen-timer');
+        if (!overlay) return;
+        
+        overlay.style.display = 'flex';
+        let remaining = duration;
+        
+        const updateTimer = () => {
+            if (timer) timer.textContent = `${Math.ceil(remaining / 1000)}s`;
+            remaining -= 100;
+            if (remaining <= 0) {
+                overlay.style.display = 'none';
+            } else {
+                setTimeout(updateTimer, 100);
+            }
+        };
+        updateTimer();
+    }
+    
+    showInvisibleIndicator(duration) {
+        let indicator = document.getElementById('invisible-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'invisible-indicator';
+            indicator.className = 'invisible-indicator';
+            document.body.appendChild(indicator);
+        }
+        
+        let remaining = duration;
+        const updateIndicator = () => {
+            indicator.textContent = `👻 INVISIBLE (${Math.ceil(remaining / 1000)}s)`;
+            remaining -= 100;
+            if (remaining <= 0) {
+                indicator.remove();
+            } else {
+                setTimeout(updateIndicator, 100);
+            }
+        };
+        updateIndicator();
+    }
+    
+    hideRemoteCursor(playerName, duration) {
+        const cursor = this.otherCursors[playerName];
+        if (cursor) {
+            cursor.style.display = 'none';
+            setTimeout(() => {
+                if (this.otherCursors[playerName]) {
+                    this.otherCursors[playerName].style.display = 'block';
+                }
+            }, duration);
+        }
     }
 }
 

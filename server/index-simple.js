@@ -177,15 +177,27 @@ function initGameState(lobby) {
             color: p.color,
             cookies: 0,
             cps: 0,
+            baseCps: 0, // CPS before buffs
             clickPower: 1, // Base click power (level 1)
             lastClickTime: 0, // Track last click for activity indicator
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
             positions: [], // Positions this player has on others
-            positionsOnMe: [] // Positions others have on this player
+            positionsOnMe: [], // Positions others have on this player
+            // King of the Hill
+            powerBuffs: 0, // Number of KotH wins (+5% everything per win)
+            cookieZoneTime: 0, // Milliseconds spent on cookie this round
+            // Abilities
+            frozenUntil: 0, // Timestamp when freeze ends (0 = not frozen)
+            invisibleUntil: 0, // Timestamp when invisibility ends (0 = visible)
+            lastFreezeUse: 0, // Cooldown tracking for freeze ability
+            lastInvisUse: 0 // Cooldown tracking for invisibility ability
         })),
         positions: [], // All active positions: { owner, target, type, stake, leverage, entryPrice, liquidationPrice }
         winner: null,
-        winGoal: 100000000
+        winGoal: 100000000,
+        // King of the Hill state
+        kothRoundStart: Date.now(),
+        kothRoundDuration: 60000 // 60 seconds per round
     };
     return gameState;
 }
@@ -366,12 +378,19 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // Check if player is frozen
+        if (player.frozenUntil > Date.now()) {
+            return; // Can't click while frozen
+        }
+        
         // Support multiplier from client (validated to reasonable range), multiplied by click power
         const multiplier = Math.min(20, Math.max(1, data?.multiplier || 1));
         const clickLevel = player.clickPower || 1;
         // Exponential click power: level 1 = 1, level 2 = 2, level 3 = 4, level 4 = 8, etc.
         const clickPower = Math.pow(2, clickLevel - 1);
-        player.cookies += Math.floor(multiplier * clickPower);
+        // Apply power buff (+5% per buff)
+        const buffMultiplier = 1 + (player.powerBuffs || 0) * 0.05;
+        player.cookies += Math.floor(multiplier * clickPower * buffMultiplier);
         player.lastClickTime = Date.now();
         
         // Broadcast click activity to other players
@@ -391,6 +410,9 @@ io.on('connection', (socket) => {
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
         
+        // Don't broadcast cursor if player is invisible
+        if (player.invisibleUntil > Date.now()) return;
+        
         // Broadcast cursor to other players in the room
         socket.to(code).emit('game:cursor', {
             playerName: player.name,
@@ -398,6 +420,108 @@ io.on('connection', (socket) => {
             x,
             y
         });
+    });
+    
+    // King of the Hill - track cursor on cookie
+    socket.on('game:cursorOnCookie', ({ onCookie }) => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Store whether player's cursor is on cookie (used by tick to accumulate time)
+        player.cursorOnCookie = onCookie;
+    });
+    
+    // Ability: Freeze a player for 15 seconds
+    socket.on('game:useFreeze', ({ targetName }) => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Check if player has buffs to use
+        if ((player.powerBuffs || 0) < 1) {
+            socket.emit('game:error', { message: 'You need at least 1 KotH buff to use Freeze!' });
+            return;
+        }
+        
+        // Find target player
+        const target = lobby.gameState.players.find(p => p.name === targetName);
+        if (!target || target.id === socket.id) {
+            socket.emit('game:error', { message: 'Invalid target!' });
+            return;
+        }
+        
+        // Can't freeze someone who's already frozen
+        if (target.frozenUntil > Date.now()) {
+            socket.emit('game:error', { message: `${targetName} is already frozen!` });
+            return;
+        }
+        
+        // Consume 1 buff and freeze target for 15 seconds
+        player.powerBuffs--;
+        target.frozenUntil = Date.now() + 15000;
+        
+        console.log(`[FREEZE] ${player.name} froze ${target.name} for 15 seconds (buffs remaining: ${player.powerBuffs})`);
+        
+        // Notify everyone
+        io.to(code).emit('game:playerFrozen', {
+            frozenBy: player.name,
+            frozenPlayer: target.name,
+            duration: 15000
+        });
+        
+        io.to(code).emit('game:state', lobby.gameState);
+    });
+    
+    // Ability: Go invisible for 15 seconds
+    socket.on('game:useInvisible', () => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || !lobby.gameState) return;
+        
+        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Check if player has buffs to use
+        if ((player.powerBuffs || 0) < 1) {
+            socket.emit('game:error', { message: 'You need at least 1 KotH buff to use Invisibility!' });
+            return;
+        }
+        
+        // Can't use if already invisible
+        if (player.invisibleUntil > Date.now()) {
+            socket.emit('game:error', { message: 'You are already invisible!' });
+            return;
+        }
+        
+        // Consume 1 buff and go invisible for 15 seconds
+        player.powerBuffs--;
+        player.invisibleUntil = Date.now() + 15000;
+        
+        console.log(`[INVISIBLE] ${player.name} went invisible for 15 seconds (buffs remaining: ${player.powerBuffs})`);
+        
+        // Notify the player who went invisible
+        socket.emit('game:youAreInvisible', { duration: 15000 });
+        
+        // Notify others that this player disappeared
+        socket.to(code).emit('game:playerInvisible', {
+            playerName: player.name,
+            duration: 15000
+        });
+        
+        io.to(code).emit('game:state', lobby.gameState);
     });
     
     // Buy generator
@@ -758,14 +882,62 @@ setInterval(() => {
         // Don't process if game already has a winner
         if (gs.winner) return;
         
-        // Apply CPS to all players
+        // ==================== KING OF THE HILL ====================
+        // Accumulate time for players whose cursor is on the cookie (not frozen)
+        const now = Date.now();
         gs.players.forEach(player => {
+            // Only count time if cursor on cookie AND not frozen
+            if (player.cursorOnCookie && !(player.frozenUntil > now)) {
+                player.cookieZoneTime = (player.cookieZoneTime || 0) + 500; // 500ms per tick
+            }
+        });
+        
+        // Check if KotH round is over (60 seconds)
+        if (now - gs.kothRoundStart >= gs.kothRoundDuration) {
+            // Find the winner (most time on cookie)
+            let winner = null;
+            let maxTime = 0;
+            gs.players.forEach(player => {
+                if ((player.cookieZoneTime || 0) > maxTime) {
+                    maxTime = player.cookieZoneTime || 0;
+                    winner = player;
+                }
+            });
+            
+            if (winner && maxTime > 0) {
+                winner.powerBuffs = (winner.powerBuffs || 0) + 1;
+                console.log(`[KOTH] ${winner.name} wins the round with ${maxTime}ms! Now has ${winner.powerBuffs} buff(s)`);
+                
+                // Emit KotH winner event
+                io.to(code).emit('game:kothWinner', {
+                    winnerName: winner.name,
+                    winnerColor: winner.color,
+                    timeOnCookie: maxTime,
+                    totalBuffs: winner.powerBuffs
+                });
+            }
+            
+            // Reset for next round
+            gs.kothRoundStart = now;
+            gs.players.forEach(player => {
+                player.cookieZoneTime = 0;
+            });
+        }
+        
+        // ==================== CPS APPLICATION ====================
+        // Apply CPS to all players (with power buff multiplier, unless frozen)
+        gs.players.forEach(player => {
+            // Skip CPS if player is frozen
+            if (player.frozenUntil > now) return;
+            
             if (player.cps > 0) {
-                const gain = player.cps * 0.5; // 500ms tick
+                // Power buff: +5% per buff to everything
+                const buffMultiplier = 1 + (player.powerBuffs || 0) * 0.05;
+                const gain = player.cps * 0.5 * buffMultiplier; // 500ms tick
                 player.cookies += gain;
                 // Log occasionally (every 10 seconds = 20 ticks)
                 if (Math.random() < 0.05) {
-                    console.log(`[CPS_TICK] ${player.name}: +${gain} (cps=${player.cps}), cookies=${player.cookies}`);
+                    console.log(`[CPS_TICK] ${player.name}: +${gain.toFixed(1)} (cps=${player.cps}, buff=${buffMultiplier.toFixed(2)}x), cookies=${player.cookies.toFixed(1)}`);
                 }
             }
         });

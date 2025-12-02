@@ -48,6 +48,33 @@
         .cookie-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 20px rgba(246, 212, 155, 0.5)); }
         .click-indicator { position: absolute; color: #2ecc71; font-weight: bold; font-size: 1.5rem; pointer-events: none; opacity: 0; }
         
+        /* KING OF THE HILL */
+        .koth-display { padding: 10px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-top: 10px; border: 1px solid rgba(241,196,15,0.3); text-align: center; }
+        .koth-title { font-size: 0.75em; color: #f1c40f; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .koth-timer-bar { height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden; margin: 5px 0; }
+        .koth-timer-fill { height: 100%; background: linear-gradient(90deg, #f1c40f, #e67e22); transition: width 0.5s linear; }
+        .koth-stats { display: flex; justify-content: space-between; font-size: 0.7em; gap: 5px; }
+        .koth-stat { flex: 1; padding: 4px; background: rgba(0,0,0,0.2); border-radius: 4px; }
+        .koth-stat-label { color: #888; font-size: 0.9em; }
+        .koth-stat-value { color: #f1c40f; font-weight: 700; }
+        .koth-buff { font-size: 0.65em; color: #2ecc71; margin-top: 4px; }
+        
+        /* KOTH ABILITIES */
+        .ability-btn { flex: 1; padding: 6px 8px; background: linear-gradient(135deg, #2a4a2a, #1a2e1a); border: 1px solid #3a5a3a; border-radius: 6px; cursor: pointer; color: #fff; font-size: 0.7em; transition: all 0.2s; }
+        .ability-btn:hover:not(:disabled) { border-color: #2ecc71; transform: scale(1.05); }
+        .ability-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ability-btn.on-cooldown { background: linear-gradient(135deg, #4a2a2a, #2e1a1a); border-color: #5a3a3a; }
+        
+        /* FROZEN OVERLAY */
+        .frozen-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(100, 200, 255, 0.3); display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none; border-radius: 10px; animation: frozenPulse 1s ease-in-out infinite; }
+        .frozen-content { text-align: center; color: #fff; font-size: 2em; font-weight: bold; text-shadow: 0 0 20px #00bfff, 0 0 40px #00bfff; }
+        .frozen-timer { font-size: 0.6em; margin-top: 10px; }
+        @keyframes frozenPulse { 0%, 100% { background: rgba(100, 200, 255, 0.3); } 50% { background: rgba(100, 200, 255, 0.5); } }
+        
+        /* INVISIBLE INDICATOR */
+        .invisible-indicator { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(155,89,182,0.9); padding: 8px 16px; border-radius: 20px; color: #fff; font-weight: bold; z-index: 1000; animation: invisPulse 1s ease-in-out infinite; }
+        @keyframes invisPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
         /* STATS */
         .cookie-stats { padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 15px; }
         .stat-main { text-align: center; margin-bottom: 15px; }
@@ -440,6 +467,46 @@
                     <div class="cookie-cps-display" style="margin-top: 10px; text-align: center;" id="cookie-cps">
                         <div style="font-size: 0.85em; color: #2ecc71;">🖱️ 0 clicks/sec</div>
                         <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +0 from generators</div>
+                    </div>
+                    
+                    <!-- King of the Hill Display -->
+                    <div class="koth-display" id="koth-display">
+                        <div class="koth-title">👑 Cookie King of the Hill</div>
+                        <div class="koth-timer-bar">
+                            <div class="koth-timer-fill" id="koth-timer-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="koth-stats">
+                            <div class="koth-stat">
+                                <div class="koth-stat-label">⏱️ Time Left</div>
+                                <div class="koth-stat-value" id="koth-time-left">60s</div>
+                            </div>
+                            <div class="koth-stat">
+                                <div class="koth-stat-label">🏆 Your Time</div>
+                                <div class="koth-stat-value" id="koth-your-time">0s</div>
+                            </div>
+                        </div>
+                        <div class="koth-buff" id="koth-buff-display">No buffs yet</div>
+                        
+                        <!-- Abilities -->
+                        <div class="koth-abilities" id="koth-abilities" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(241,196,15,0.3);">
+                            <div style="font-size: 0.7em; color: #f1c40f; margin-bottom: 5px;">⚡ Use Buffs (costs 1 buff each):</div>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="ability-btn" id="ability-freeze" title="Freeze a player for 15s">
+                                    🥶 Freeze
+                                </button>
+                                <button class="ability-btn" id="ability-invisible" title="Go invisible for 15s">
+                                    👻 Invisible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Frozen overlay -->
+                    <div class="frozen-overlay" id="frozen-overlay" style="display: none;">
+                        <div class="frozen-content">
+                            🥶 FROZEN!
+                            <div class="frozen-timer" id="frozen-timer">15s</div>
+                        </div>
                     </div>
                 </div>
 
