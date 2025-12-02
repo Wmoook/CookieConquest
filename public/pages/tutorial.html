@@ -136,6 +136,25 @@
             50% { transform: scale(1.3); }
         }
         
+        /* Glowing highlight for tutorial elements */
+        .glow-highlight {
+            animation: glowPulse 1s ease-in-out infinite !important;
+            box-shadow: 0 0 15px 5px #f39c12 !important;
+            border-color: #f39c12 !important;
+            position: relative;
+            z-index: 100;
+        }
+        @keyframes glowPulse {
+            0%, 100% { 
+                box-shadow: 0 0 10px 3px #f39c12;
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 25px 10px #f39c12;
+                transform: scale(1.05);
+            }
+        }
+        
         /* Skip tutorial button */
         .skip-tutorial-btn {
             position: fixed;
@@ -156,9 +175,101 @@
             border-color: #e74c3c;
             color: #e74c3c;
         }
+        
+        /* MAX stake button styles */
+        .max-stake-btn { 
+            padding: 2px 5px; 
+            background: #1a1a2e; 
+            border: 1px solid #555; 
+            border-radius: 3px; 
+            color: #888; 
+            font-size: 0.5em; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: all 0.15s; 
+        }
+        .max-stake-btn:hover { 
+            background: #252540; 
+            border-color: #f39c12; 
+            color: #f39c12; 
+        }
+        .max-stake-btn.active { 
+            background: #f39c12; 
+            color: #000; 
+            border-color: #f39c12; 
+        }
+        
+        /* Header ability buttons */
+        .header-ability-btn {
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #1a1a2e;
+            color: #666;
+            font-size: 0.7em;
+            font-weight: bold;
+            cursor: not-allowed;
+            transition: all 0.2s;
+            margin-right: 3px;
+        }
+        .header-ability-btn.locked {
+            opacity: 0.6;
+        }
+        .header-ability-btn:not(.locked) {
+            cursor: pointer;
+        }
+        .header-freeze-btn:not(.locked) {
+            border-color: #00bfff;
+            color: #00bfff;
+            background: rgba(0, 191, 255, 0.1);
+        }
+        .header-freeze-btn:not(.locked):hover {
+            background: rgba(0, 191, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+        }
+        .header-crash-btn:not(.locked) {
+            border-color: #e74c3c;
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        .header-crash-btn:not(.locked):hover {
+            background: rgba(231, 76, 60, 0.3);
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+        .ability-cost {
+            font-weight: normal;
+            opacity: 0.8;
+        }
+        
+        /* Screen tint overlay for money gain/loss */
+        .screen-tint {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+        }
+        .screen-tint.green {
+            background: radial-gradient(ellipse at center, rgba(46, 204, 113, 0.4) 0%, rgba(46, 204, 113, 0.2) 50%, transparent 80%);
+            box-shadow: inset 0 0 100px rgba(46, 204, 113, 0.5);
+        }
+        .screen-tint.red {
+            background: radial-gradient(ellipse at center, rgba(231, 76, 60, 0.4) 0%, rgba(231, 76, 60, 0.2) 50%, transparent 80%);
+            box-shadow: inset 0 0 100px rgba(231, 76, 60, 0.5);
+        }
+        .screen-tint.active {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
+    <!-- Screen tint overlay -->
+    <div class="screen-tint" id="screen-tint"></div>
+    
     <!-- Tutorial overlay -->
     <div class="tutorial-overlay" id="tutorial-overlay">
         <div class="tutorial-dialog" id="tutorial-dialog">
@@ -175,7 +286,7 @@
     
     <!-- Tutorial progress -->
     <div class="tutorial-progress" id="tutorial-progress">
-        <span class="step-counter" id="step-counter">1 / 20</span>
+        <span class="step-counter" id="step-counter">1 / 29</span>
         <div class="step-dots">
             <span class="step" data-step="1"></span>
             <span class="step" data-step="2"></span>
@@ -197,6 +308,15 @@
             <span class="step" data-step="18"></span>
             <span class="step" data-step="19"></span>
             <span class="step" data-step="20"></span>
+            <span class="step" data-step="21"></span>
+            <span class="step" data-step="22"></span>
+            <span class="step" data-step="23"></span>
+            <span class="step" data-step="24"></span>
+            <span class="step" data-step="25"></span>
+            <span class="step" data-step="26"></span>
+            <span class="step" data-step="27"></span>
+            <span class="step" data-step="28"></span>
+            <span class="step" data-step="29"></span>
         </div>
     </div>
     
@@ -246,56 +366,55 @@
                         </svg>
                     </button>
                     <div class="cookie-cps-display" style="margin-top: 4px; text-align: center;" id="cookie-cps">
-                        <div style="font-size: 0.7em; color: #2ecc71;">🖱️ 0 cookies/sec</div>
-                        <div style="font-size: 0.7em; color: #f39c12;">🏭 +0 from generators</div>
+                        <div style="font-size: 0.65em; color: #2ecc71;">🖱️ 0 cookies/sec</div>
+                        <div style="font-size: 0.65em; color: #f39c12;">🏭 +0 from generators</div>
                     </div>
                     
-                    <!-- King of the Hill Display (Tutorial Version - explains the feature) -->
-                    <div class="koth-display" id="koth-display" style="background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.3); border-radius: 8px; padding: 6px; margin-top: 8px; font-size: 0.65em;">
-                        <div class="koth-title" style="color: #f1c40f; font-weight: bold; margin-bottom: 4px;">👑 King of the Hill</div>
-                        <div style="color: #888; font-size: 0.9em; line-height: 1.3;">
-                            <p style="margin-bottom: 4px;">In multiplayer, keep your cursor on the cookie to earn time!</p>
-                            <p style="margin-bottom: 4px;">🏆 Win each round to get <span style="color: #f1c40f;">+5% buffs</span></p>
-                            <p>⚡ Use buffs for abilities: <span style="color: #00bfff;">Freeze</span>, <span style="color: #9b59b6;">Invisible</span>, <span style="color: #e74c3c;">Crash</span></p>
+                    <!-- King of the Hill Display (Tutorial Version - compact like main game) -->
+                    <div class="koth-display" id="koth-display" style="background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.3); border-radius: 6px; padding: 4px 6px; margin-top: 6px; font-size: 0.6em;">
+                        <div class="koth-title" style="color: #f1c40f; font-weight: bold; margin-bottom: 2px; font-size: 0.9em;">👑 King of the Hill</div>
+                        <div style="color: #888; font-size: 0.85em; line-height: 1.2;">
+                            <p style="margin-bottom: 2px;">Keep cursor on cookie → earn time → win rounds!</p>
+                            <p style="margin-bottom: 2px;">🏆 Winners get <span style="color: #f1c40f;">+5% buff</span> + <span style="color: #2ecc71;">ability point</span></p>
                         </div>
                     </div>
                 </div>
 
                 <div class="cookie-stats">
                     <div class="stat-main">
-                        <span class="stat-label">Your Cookies</span>
-                        <span class="stat-value" id="cookie-count">0</span>
+                        <span class="stat-label" style="font-size: 0.75em;">Your Cookies</span>
+                        <span class="stat-value" id="cookie-count" style="font-size: 1.8em;">0</span>
                     </div>
-                    <div class="stat-real-balance" style="text-align: center; padding: 5px; background: rgba(231,76,60,0.1); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.65em;">⚠️ Real Balance</span>
-                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 0.9em; display: block; font-weight: 700;">0</span>
-                        <span class="stat-label" style="color: #e74c3c; font-size: 0.6em; display: inline;">💎 Real NW: </span>
-                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 0.85em; display: inline; font-weight: 700;">0</span>
+                    <div class="stat-real-balance" style="text-align: center; padding: 4px; background: rgba(231,76,60,0.1); border-radius: 6px; margin-bottom: 4px; border: 1px solid rgba(231,76,60,0.3); display: none;" id="real-balance-container">
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.6em;">⚠️ Real Balance</span>
+                        <span class="stat-value" id="real-balance-value" style="color: #e74c3c; font-size: 0.85em; display: block; font-weight: 700;">0</span>
+                        <span class="stat-label" style="color: #e74c3c; font-size: 0.55em; display: inline;">💎 Real NW: </span>
+                        <span class="stat-value" id="real-networth-value" style="color: #e74c3c; font-size: 0.8em; display: inline; font-weight: 700;">0</span>
                     </div>
-                    <div class="stat-networth" style="text-align: center; padding: 5px; background: rgba(155,89,182,0.15); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(155,89,182,0.3);">
-                        <span class="stat-label" style="color: #9b59b6; font-size: 0.7em;">💎 Net Worth</span>
-                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 1em; display: block;">0</span>
+                    <div class="stat-networth" style="text-align: center; padding: 4px; background: rgba(155,89,182,0.15); border-radius: 6px; margin-bottom: 4px; border: 1px solid rgba(155,89,182,0.3);">
+                        <span class="stat-label" style="color: #9b59b6; font-size: 0.65em;">💎 Net Worth</span>
+                        <span class="stat-value" id="networth-value" style="color: #9b59b6; font-size: 0.9em; display: block;">0</span>
                     </div>
-                    <div class="stat-locked-main" id="locked-display">
-                        <span class="stat-label" style="color: #f1c40f; font-size: 0.7em;">🔒 Locked</span>
-                        <span class="stat-value" id="locked-value" style="color: #f1c40f; font-size: 0.9em;">0</span>
+                    <div class="stat-locked-main" id="locked-display" style="padding: 4px;">
+                        <span class="stat-label" style="color: #f1c40f; font-size: 0.65em;">🔒 Locked</span>
+                        <span class="stat-value" id="locked-value" style="color: #f1c40f; font-size: 0.85em;">0</span>
                     </div>
                 </div>
                 
                 <!-- Live Positions -->
-                <div class="live-positions">
-                    <h4 class="positions-title">📊 Live Positions</h4>
+                <div class="live-positions" style="margin-top: 8px; padding: 6px;">
+                    <h4 class="positions-title" style="font-size: 0.75em; margin-bottom: 4px;">📊 Live Positions</h4>
                     <div class="positions-list" id="live-positions-list">
-                        <div class="no-positions">No open positions</div>
+                        <div class="no-positions" style="font-size: 0.7em;">No open positions</div>
                     </div>
                 </div>
                 
-                <div class="notification-feed">
-                    <h4 class="notif-feed-title">📢 Activity Feed</h4>
-                    <div class="notif-feed-list" id="notif-feed"></div>
+                <div class="notification-feed" style="margin-top: 6px;">
+                    <h4 class="notif-feed-title" style="font-size: 0.75em; margin-bottom: 4px;">📢 Activity Feed</h4>
+                    <div class="notif-feed-list" id="notif-feed" style="max-height: 100px;"></div>
                 </div>
                 
-                <button class="leave-btn" id="give-up-btn" style="margin-top: auto;" onclick="window.location.href='/'">🏠 BACK TO MENU</button>
+                <button class="leave-btn" id="give-up-btn" style="margin-top: auto; padding: 8px; font-size: 0.85em;" onclick="window.location.href='/'">🏠 BACK TO MENU</button>
             </section>
 
             <!-- Center Panel - Players with per-player positions -->

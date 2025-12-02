@@ -449,9 +449,9 @@ io.on('connection', (socket) => {
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
         
-        // Check if player has buffs to use
+        // Check if player has ability points to use
         if ((player.powerBuffs || 0) < 1) {
-            socket.emit('game:error', { message: 'You need at least 1 KotH buff to use Freeze!' });
+            socket.emit('game:error', { message: 'You need at least 1 ability point to use Freeze!' });
             return;
         }
         
@@ -495,9 +495,9 @@ io.on('connection', (socket) => {
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
         
-        // Check if player has buffs to use
+        // Check if player has ability points to use
         if ((player.powerBuffs || 0) < 1) {
-            socket.emit('game:error', { message: 'You need at least 1 KotH buff to use Invisibility!' });
+            socket.emit('game:error', { message: 'You need at least 1 ability point to use Invisibility!' });
             return;
         }
         
@@ -525,7 +525,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('game:state', lobby.gameState);
     });
     
-    // Ability: Market Crash - Target loses 10% of cookies (costs 2 buffs)
+    // Ability: Market Crash - Target loses 10% of cookies (costs 2 ability points)
     socket.on('game:useMarketCrash', ({ targetName }) => {
         const code = playerLobby.get(socket.id);
         if (!code) return;
@@ -536,9 +536,9 @@ io.on('connection', (socket) => {
         const player = lobby.gameState.players.find(p => p.id === socket.id);
         if (!player) return;
         
-        // Check if player has enough buffs (costs 2)
+        // Check if player has enough ability points (costs 2)
         if ((player.powerBuffs || 0) < 2) {
-            socket.emit('game:error', { message: 'You need at least 2 KotH buffs to use Market Crash!' });
+            socket.emit('game:error', { message: 'You need at least 2 ability points to use Market Crash!' });
             return;
         }
         

@@ -3,18 +3,23 @@
 
 class TutorialGame {
     constructor() {
-        // Player state
-        this.cookies = 0;
+        // Player state - start with 500 cookies so trading/crash abilities work
+        this.cookies = 500;
         this.cps = 0; // cookies per second from generators
         this.clickPower = 1;
         this.clickPowerLevel = 1;
+        this.clickMultiplier = 1; // Multiplier based on click speed
         this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0 };
         this.positions = []; // Player's open positions
+        this.playerBuffs = 0; // KotH ability points for abilities
         
-        // Bots - start at 0 like the player
+        // Bot positions on the player (for liquidation tutorial)
+        this.botPositions = []; // Positions bots have opened on the player
+        
+        // Bots - start at 500 so crash ability can be used
         this.bots = [
-            { name: 'CookieBot', cookies: 0, cps: 2, color: '#e74c3c', history: [0] },
-            { name: 'ChipMaster', cookies: 0, cps: 1, color: '#9b59b6', history: [0] }
+            { name: 'CookieBot', cookies: 500, cps: 2, color: '#e74c3c', history: [500] },
+            { name: 'ChipMaster', cookies: 500, cps: 1, color: '#9b59b6', history: [500] }
         ];
         
         // Tutorial state
@@ -115,45 +120,112 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
+            // BOT SHORTS YOU
+            {
+                title: "Step 12: You've Been Shorted! 😱",
+                text: "CookieBot just opened a <span class='warning'>SHORT position</span> on YOU!<br><br>Look at YOUR chart (green) - see the <span class='highlight'>green liquidation line</span> labeled 💀?<br><br>That's THEIR liquidation! If your cookies <span class='highlight'>GO UP</span> past that line, CookieBot gets liquidated and YOU win their stake!",
+                action: 'bot-shorts-you',
+                highlight: null
+            },
+            // LIQUIDATE THE BOT
+            {
+                title: "Step 13: Liquidate Them! 💀",
+                text: "Time for revenge! <span class='highlight'>Click the cookie and grow your cookies</span> to push CookieBot's position past THEIR liquidation price!<br><br>When their position gets liquidated, <span class='highlight'>you WIN their stake!</span><br><br>Keep clicking until CookieBot gets liquidated!",
+                action: 'liquidate-bot',
+                highlight: '#big-cookie'
+            },
             // STRATEGY - SHORTING
             {
-                title: "Step 12: Offensive Strategy - Shorting 🗡️",
-                text: "Want to attack a leading player?<br><br><span class='warning'>SHORT them!</span> If you can make their cookies drop (by growing faster), you profit!<br><br>Try opening a <span class='warning'>SHORT position</span> on ChipMaster!",
+                title: "Step 14: Offensive Strategy - Shorting 🗡️",
+                text: "Now you understand both sides! When someone shorts you:<br><br>• <span class='highlight'>Grow faster</span> to liquidate THEM<br>• <span class='warning'>If you slow down</span>, they profit<br><br>Try opening a <span class='warning'>SHORT position</span> on ChipMaster!",
                 action: 'open-short',
                 target: 'ChipMaster',
                 highlight: null
             },
+            // BOT LONGS YOU
+            {
+                title: "Step 15: You've Been Longed! 📈",
+                text: "ChipMaster just opened a <span class='highlight'>LONG position</span> on YOU!<br><br>They're betting your cookies will <span class='highlight'>GO UP</span>! If they do, ChipMaster profits from YOUR growth!<br><br>Look at YOUR chart - the <span class='warning'>red liquidation line</span> is THEIR liquidation. If your cookies <span class='warning'>DROP</span> to that line, they lose!",
+                action: 'bot-longs-you',
+                highlight: null
+            },
+            // DEFEND AGAINST LONG
+            {
+                title: "Step 16: Defend by Spending! 💸",
+                text: "To liquidate their LONG, you need to <span class='warning'>LOWER your cookie count</span>!<br><br>How? <span class='highlight'>Buy a generator!</span> Spending cookies lowers your count instantly!<br><br>⚠️ Act fast! If you don't, they'll <span class='warning'>close the position</span> and take profit from you!<br><br>Buy any generator NOW to drop your cookies!",
+                action: 'defend-against-long',
+                highlight: '#generator-grandma'
+            },
             // STRATEGY - DEFENSE
             {
-                title: "Step 13: Defensive Strategy 🛡️",
-                text: "If someone shorts YOU, they want your cookies to drop.<br><br>Counter-strategies:<br>• <span class='highlight'>Click faster</span> to raise your cookie count<br>• <span class='highlight'>Buy generators</span> to increase your CPS<br>• <span class='highlight'>Long yourself</span>... wait, you can't bet on yourself!<br><br>The best defense is a strong cookie economy!",
+                title: "Step 17: Defensive Strategy 🛡️",
+                text: "When someone <span class='warning'>trades on YOU</span>, you can fight back!<br><br><span class='highlight'>Against SHORTS</span> (they bet you'll shrink):<br>• <span class='highlight'>Click faster</span> + <span class='highlight'>buy generators</span> to grow!<br><br><span class='highlight'>Against LONGS</span> (they bet you'll grow):<br>• <span class='warning'>Spend cookies</span> on generators to shrink your count!<br>• This can push THEIR position to liquidation!<br><br>⚠️ Careful: spending too much can put you <span class='warning'>into debt!</span>",
                 action: null,
                 highlight: null
             },
-            // NET WORTH
+            // COOKIES GOAL
             {
-                title: "Step 14: Net Worth vs Cookies 💎",
-                text: "Notice the <span class='highlight'>💎 Net Worth</span> display?<br><br>• <span class='highlight'>Cookies</span> = liquid cash you can spend<br>• <span class='highlight'>Net Worth</span> = cookies + value of all your generators<br><br>The goal is <span class='highlight'>100 million NET WORTH</span>, not just cookies!<br>Generators you buy count toward victory!",
+                title: "Step 18: The 100 Million Goal! 🎯",
+                text: "The goal is <span class='highlight'>100 MILLION COOKIES</span>!<br><br>• Your 🍪 count is what matters for victory<br>• Generators help you get there faster<br>• Trading profits add to your cookies<br>• Trading losses subtract from your cookies<br><br>First to 100M cookies wins the game!",
                 action: null,
-                highlight: null
+                highlight: '#cookie-display'
             },
             // KING OF THE HILL
             {
-                title: "Step 15: King of the Hill! 👑",
+                title: "Step 19: King of the Hill! 👑",
                 text: "In multiplayer, there's a <span class='highlight'>King of the Hill</span> mini-game!<br><br>• Keep your cursor on the big cookie to earn time<br>• Every 60 seconds, whoever has the most time wins a <span class='highlight'>+5% buff</span>!<br>• Buffs boost EVERYTHING: clicks, CPS, and trading profits!<br><br>Stack buffs to dominate the game!",
                 action: null,
                 highlight: '#koth-display'
             },
             // ABILITIES
             {
-                title: "Step 16: Abilities! ⚡",
-                text: "Spend your KotH buffs on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 buff) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 buff) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 buffs) - Target loses 10% cookies!<br><br>Use abilities strategically to sabotage opponents!",
+                title: "Step 20: Abilities! ⚡",
+                text: "Spend your <span class='highlight'>ability points</span> on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 pt) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 pt) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 pts) - Target loses 10% cookies!<br><br>Use abilities strategically to sabotage opponents!",
                 action: null,
                 highlight: null
             },
+            // BUFF STRATEGY DEMO - STEP 1: Setup
+            {
+                title: "Step 21: Pro Combo Strategy! 💪",
+                text: "Let's practice a <span class='warning'>devastating combo</span>!<br><br>Here are <span class='highlight'>2 ability points</span> to use. The strategy:<br>1️⃣ Short a player with <span class='highlight'>5x leverage</span><br>2️⃣ Hit them with <span class='warning'>Market Crash</span><br>3️⃣ Close for massive profit!<br><br>⚡ <span class='warning'>BE FAST</span> in multiplayer - others can see your cursor hovering over their card!<br><br>First, click <span class='highlight'>5x</span> on " + this.bots[0].name + "'s card!",
+                action: 'buff-strategy-setup',
+                highlight: null,
+                waitForLeverage: 5
+            },
+            // BUFF STRATEGY DEMO - STEP 2: Set Stake
+            {
+                title: "Step 22: Set a BIG Stake! 💰",
+                text: "Now click <span class='highlight'>MAX</span> to bet ALL your cookies!<br><br>Higher stake = bigger profits from this combo!<br><br>Don't worry, the Market Crash will make this a safe bet!",
+                action: 'buff-strategy-stake',
+                highlight: null
+            },
+            // BUFF STRATEGY DEMO - STEP 3: Short
+            {
+                title: "Step 23: Open the Short! 📉",
+                text: "Great! Now <span class='warning'>SHORT</span> " + this.bots[0].name + "!<br><br>With 5x leverage, when they lose 10% from Market Crash, your position will profit 50%!<br><br>Click the <span class='warning'>SHORT</span> button!",
+                action: 'buff-strategy-short',
+                highlight: null,
+                waitForShort: true
+            },
+            // BUFF STRATEGY DEMO - STEP 4: Market Crash
+            {
+                title: "Step 24: Market Crash! 📉💥",
+                text: "Perfect! Now use <span class='warning'>Market Crash</span> on " + this.bots[0].name + "!<br><br>Click their <span class='warning'>📉 Crash (2)</span> button to make them lose 10% of their cookies!<br><br>Your short position will profit instantly!",
+                action: 'buff-strategy-crash',
+                highlight: null,
+                waitForCrash: true
+            },
+            // BUFF STRATEGY DEMO - STEP 5: Close
+            {
+                title: "Step 25: Take Profits! 💰",
+                text: "BOOM! 💥 Look at that profit!<br><br>Now click <span class='highlight'>CLOSE</span> on your position to lock in the gains!<br><br>This combo is a great way to use your ability points aggressively!",
+                action: 'buff-strategy-close',
+                highlight: '#positions-list',
+                waitForClose: true
+            },
             // ZOOM CONTROLS
             {
-                title: "Step 17: Chart Controls 🔍",
+                title: "Step 26: Chart Controls 🔍",
                 text: "Each chart has zoom controls:<br><br>• <span class='highlight'>+/-</span> = Zoom in/out on recent data<br>• <span class='highlight'>ALL</span> = See entire game history<br>• <span class='highlight'>LIVE</span> = Follow the latest data<br><br>Use these to analyze trends and time your trades!",
                 action: null,
                 highlight: null
@@ -161,14 +233,14 @@ class TutorialGame {
             // WINNING
             {
                 title: "Winning the Game! 🏆",
-                text: "First player to <span class='highlight'>100 MILLION net worth</span> wins!<br><br>Winning strategies:<br>• Build a strong generator economy<br>• <span class='highlight'>Long</span> players who are growing fast<br>• <span class='warning'>Short</span> players who are struggling<br>• Win KotH rounds for powerful buffs<br>• Don't get liquidated!",
+                text: "First player to <span class='highlight'>100 MILLION cookies</span> wins!<br><br>Winning strategies:<br>• Build a strong generator economy<br>• <span class='highlight'>Long</span> players who are growing fast<br>• <span class='warning'>Short</span> players who are struggling<br>• Win KotH rounds for ability points<br>• Don't get liquidated!",
                 action: null,
                 highlight: null
             },
             // FINAL
             {
                 title: "You're Ready to Conquer! 🎮",
-                text: "You now know everything about Cookie Conquest!<br><br>Remember:<br>• 🍪 Click and buy generators<br>• 📈 Long = bet on growth<br>• 📉 Short = bet on decline<br>• 💀 Watch your liquidation price<br>• 👑 Win KotH for buffs & abilities<br>• 🏆 First to 100M wins!<br><br><span class='highlight'>Good luck, and may the best trader win!</span>",
+                text: "You now know everything about Cookie Conquest!<br><br>Remember:<br>• 🍪 Click and buy generators<br>• 📈 Long = bet on growth<br>• 📉 Short = bet on decline<br>• 💀 Watch your liquidation price<br>• 👑 Win KotH for ability points<br>• 🏆 First to 100M cookies wins!<br><br><span class='highlight'>Good luck, and may the best trader win!</span>",
                 action: null,
                 highlight: null,
                 final: true
@@ -195,6 +267,9 @@ class TutorialGame {
         
         // Leverage selection per target
         this.targetLeverage = {};
+        
+        // MAX stake mode per target (tracks which players have MAX locked)
+        this.maxStakeMode = {};
         
         this.init();
     }
@@ -244,6 +319,10 @@ class TutorialGame {
                     <span class="player-name" style="color:${color}">${isMe ? 'YOU' : name}</span>
                 </div>
                 <div class="stock-stats">
+                    ${!isMe ? `
+                        <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${name}" data-target="${name}" title="Freeze: 15s (1 buff)">🥶 Freeze <span class="ability-cost">(1)</span></button>
+                        <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${name}" data-target="${name}" title="Crash: -10% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
+                    ` : ''}
                     <span class="stat-total" id="score-${chartId}">0 🍪</span>
                     ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 0</span>`}
                     <span class="stat-velocity up" id="vel-${chartId}">+0/s</span>
@@ -274,6 +353,7 @@ class TutorialGame {
                         <span class="stake-label">Stake:</span>
                         <input type="range" class="stake-slider" id="slider-${name}" min="1" max="100" value="10" data-target="${name}">
                         <span class="stake-value" id="stake-display-${name}">10🍪</span>
+                        <button class="max-stake-btn" id="max-btn-${name}" data-target="${name}" title="Set to maximum stake">MAX</button>
                     </div>
                     <div class="quick-trade-btns">
                         <button class="quick-trade-btn long" data-target="${name}" data-action="long">
@@ -282,7 +362,7 @@ class TutorialGame {
                         </button>
                         <button class="quick-trade-btn short" data-target="${name}" data-action="short">
                             <span class="btn-label">📉 SHORT</span>
-                            <span class="btn-leverage">2x</span>
+                            <span class="btn-leverage" id="lev-display-short-${name}">2x</span>
                         </button>
                     </div>
                 </div>
@@ -357,9 +437,14 @@ class TutorialGame {
                 // Store leverage
                 this.targetLeverage[target] = lev;
                 
-                // Update display
-                const levDisplay = document.getElementById(`lev-display-${target}`);
-                if (levDisplay) levDisplay.textContent = `${lev}x`;
+                // Update display on both LONG and SHORT buttons
+                const levDisplayLong = document.getElementById(`lev-display-${target}`);
+                const levDisplayShort = document.getElementById(`lev-display-short-${target}`);
+                if (levDisplayLong) levDisplayLong.textContent = `${lev}x`;
+                if (levDisplayShort) levDisplayShort.textContent = `${lev}x`;
+                
+                // Check tutorial progress (for buff strategy steps)
+                this.checkTutorialProgress();
             });
         });
         
@@ -368,7 +453,46 @@ class TutorialGame {
             slider.addEventListener('input', () => {
                 const target = slider.dataset.target;
                 const display = document.getElementById(`stake-display-${target}`);
+                const maxBtn = document.getElementById(`max-btn-${target}`);
                 if (display) display.textContent = `${slider.value}🍪`;
+                // Remove MAX mode if manually changed
+                if (maxBtn) maxBtn.classList.remove('active');
+                this.maxStakeMode[target] = false;
+            });
+        });
+        
+        // MAX stake buttons - toggle mode that continuously updates stake
+        document.querySelectorAll('.max-stake-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.target;
+                const slider = document.getElementById(`slider-${target}`);
+                const display = document.getElementById(`stake-display-${target}`);
+                
+                // Toggle MAX mode
+                const isActive = btn.classList.contains('active');
+                if (isActive) {
+                    // Turn off MAX mode
+                    btn.classList.remove('active');
+                    this.maxStakeMode[target] = false;
+                } else {
+                    // Turn on MAX mode
+                    btn.classList.add('active');
+                    this.maxStakeMode[target] = true;
+                    
+                    // Immediately update to max (capped at 50% of target's cookies)
+                    if (slider && display) {
+                        const bot = this.bots.find(b => b.name === target);
+                        const targetCookies = bot ? bot.cookies : Infinity;
+                        const maxBet = Math.floor(targetCookies * 0.5);
+                        const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                        slider.max = Math.max(1, maxStake);
+                        slider.value = Math.max(1, maxStake);
+                        display.textContent = `${slider.value}🍪`;
+                    }
+                }
+                
+                // Check tutorial progress (for buff strategy stake step)
+                this.checkTutorialProgress();
             });
         });
         
@@ -378,6 +502,22 @@ class TutorialGame {
                 const target = btn.dataset.target;
                 const action = btn.dataset.action;
                 this.openPosition(target, action);
+            });
+        });
+        
+        // Ability buttons - Freeze
+        document.querySelectorAll('.header-freeze-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.target;
+                this.useFreeze(target);
+            });
+        });
+        
+        // Ability buttons - Crash
+        document.querySelectorAll('.header-crash-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.target;
+                this.useCrash(target);
             });
         });
         
@@ -392,7 +532,9 @@ class TutorialGame {
     }
     
     handleCookieClick(e) {
-        this.cookies += this.clickPower;
+        // Calculate total click power with multiplier
+        const clickAmount = Math.floor(this.clickPower * this.clickMultiplier);
+        this.cookies += clickAmount;
         
         // Track click for CPS calculation
         const now = Date.now();
@@ -400,8 +542,23 @@ class TutorialGame {
         this.clickTimes = this.clickTimes.filter(t => now - t < 1000);
         this.currentCPS = this.clickTimes.length;
         
+        // Calculate multiplier based on CPS (same as real game)
+        if (this.currentCPS <= 3) {
+            this.clickMultiplier = 1;
+        } else if (this.currentCPS <= 6) {
+            this.clickMultiplier = 1.5;
+        } else if (this.currentCPS <= 9) {
+            this.clickMultiplier = 2;
+        } else {
+            // Exponential: 10 CPS = 2.5x, 15 CPS = 4x, 20 CPS = 8x
+            this.clickMultiplier = Math.pow(1.15, this.currentCPS - 9) * 2;
+        }
+        
         // Visual feedback
-        this.showClickFeedback(e);
+        this.showClickFeedback(e, clickAmount);
+        
+        // Check if we liquidated any bot positions on us
+        this.checkBotPositionLiquidations();
         
         // Check tutorial progress
         this.checkTutorialProgress();
@@ -410,15 +567,21 @@ class TutorialGame {
         this.updateDisplays();
     }
     
-    showClickFeedback(e) {
+    showClickFeedback(e, amount) {
         const cookie = document.getElementById('big-cookie');
         if (!cookie) return;
         
         const feedback = document.createElement('div');
         feedback.className = 'click-feedback';
-        feedback.textContent = `+${this.clickPower}`;
+        feedback.textContent = `+${amount || this.clickPower}`;
         feedback.style.left = (e.offsetX || 60) + 'px';
         feedback.style.top = (e.offsetY || 60) + 'px';
+        
+        // Make it bigger/different color if multiplier is active
+        if (this.clickMultiplier > 1.5) {
+            feedback.style.color = '#f39c12';
+            feedback.style.fontSize = '1.8em';
+        }
         
         cookie.parentElement.appendChild(feedback);
         setTimeout(() => feedback.remove(), 800);
@@ -436,6 +599,10 @@ class TutorialGame {
         this.cps += data.cps;
         
         this.showNotification(`Bought ${gen}! +${data.cps}/sec`, 'success');
+        
+        // Check if buying lowered cookies enough to liquidate bot positions (e.g. LONG positions)
+        this.checkBotPositionLiquidations();
+        
         this.updateDisplays();
         this.checkTutorialProgress();
     }
@@ -475,8 +642,7 @@ class TutorialGame {
             return;
         }
         
-        // Lock the stake
-        this.cookies -= stake;
+        // Stake is locked (doesn't subtract from cookies, just locked)
         
         // Create position
         const position = {
@@ -528,8 +694,130 @@ class TutorialGame {
         
         const pnlText = pnl >= 0 ? `+${pnl}` : `${pnl}`;
         this.showNotification(`Closed position: ${pnlText}🍪`, pnl >= 0 ? 'success' : 'error');
+        
+        // Screen tint effect
+        this.showScreenTint(pnl >= 0 ? 'green' : 'red');
+        
         this.updateDisplays();
         this.checkTutorialProgress();
+    }
+    
+    // Screen tint effect for money gain/loss
+    showScreenTint(type, duration = 500) {
+        const tint = document.getElementById('screen-tint');
+        if (!tint) return;
+        
+        // Clear any existing timeout
+        if (this.screenTintTimeout) {
+            clearTimeout(this.screenTintTimeout);
+        }
+        
+        tint.classList.remove('green', 'red', 'active');
+        
+        // Add the color class
+        tint.classList.add(type);
+        
+        // Force reflow
+        tint.offsetHeight;
+        
+        // Activate
+        tint.classList.add('active');
+        
+        // Remove after duration
+        this.screenTintTimeout = setTimeout(() => {
+            tint.classList.remove('active');
+            setTimeout(() => {
+                tint.classList.remove('green', 'red');
+            }, 150);
+        }, duration);
+    }
+    
+    useFreeze(targetName) {
+        // Check if player has enough buffs
+        if (this.playerBuffs < 1) {
+            this.showNotification('Need 1 ability point to freeze!', 'error');
+            return;
+        }
+        
+        const bot = this.bots.find(b => b.name === targetName);
+        if (!bot) return;
+        
+        // Use buff
+        this.playerBuffs -= 1;
+        
+        // Freeze the bot for 15 seconds
+        bot.frozen = true;
+        bot.frozenUntil = Date.now() + 15000;
+        
+        this.showNotification(`🥶 Froze ${targetName} for 15 seconds!`, 'success');
+        this.updateUI();
+        this.checkTutorialProgress();
+        
+        // Auto-unfreeze after 15 seconds
+        setTimeout(() => {
+            if (bot.frozen) {
+                bot.frozen = false;
+                this.showNotification(`${targetName} unfroze!`, 'info');
+                this.updateUI();
+            }
+        }, 15000);
+    }
+    
+    useCrash(targetName) {
+        // Check if player has enough buffs
+        if (this.playerBuffs < 2) {
+            this.showNotification('Need 2 ability points to crash!', 'error');
+            return;
+        }
+        
+        const bot = this.bots.find(b => b.name === targetName);
+        if (!bot) return;
+        
+        // Check if bot has at least 500 cookies
+        if (bot.cookies < 500) {
+            this.showNotification(`${targetName} has less than 500🍪 - can't crash!`, 'error');
+            return;
+        }
+        
+        // Use buffs
+        this.playerBuffs -= 2;
+        
+        // Crash the bot - lose 10% cookies
+        const crashAmount = Math.floor(bot.cookies * 0.1);
+        bot.cookies -= crashAmount;
+        
+        // Mark crash used for tutorial
+        this.buffStrategyCrashUsed = true;
+        
+        this.showNotification(`📉💥 Market Crashed ${targetName}! -${crashAmount}🍪`, 'success');
+        this.updateUI();
+        this.updateDisplays();
+        this.checkTutorialProgress();
+    }
+    
+    updateUI() {
+        // Update ability button states based on player buffs
+        document.querySelectorAll('.header-freeze-btn').forEach(btn => {
+            if (this.playerBuffs >= 1) {
+                btn.classList.remove('locked');
+            } else {
+                btn.classList.add('locked');
+            }
+        });
+        
+        document.querySelectorAll('.header-crash-btn').forEach(btn => {
+            if (this.playerBuffs >= 2) {
+                btn.classList.remove('locked');
+            } else {
+                btn.classList.add('locked');
+            }
+        });
+        
+        // Update buff display (if we had one - add to left panel later)
+        const buffDisplay = document.getElementById('buff-count');
+        if (buffDisplay) {
+            buffDisplay.textContent = this.playerBuffs;
+        }
     }
     
     // Game loop
@@ -543,32 +831,38 @@ class TutorialGame {
         const dt = (now - this.lastTick) / 1000;
         this.lastTick = now;
         
-        // Add CPS cookies
-        if (this.cps > 0) {
-            this.cookies += this.cps * dt;
-        }
+        // Check if tutorial dialog is showing - pause game updates
+        const overlay = document.getElementById('tutorial-overlay');
+        const isPaused = overlay && !overlay.classList.contains('hidden');
         
-        // Update bots
-        this.updateBots(dt);
-        
-        // Check liquidations
-        this.checkLiquidations();
-        
-        // Update history - throttle to 10 times per second for smooth charts
-        if (!this.lastHistoryUpdate || now - this.lastHistoryUpdate > 100) {
-            this.lastHistoryUpdate = now;
-            this.playerHistory.push(this.cookies);
-            if (this.playerHistory.length > 1000) this.playerHistory.shift();
+        if (!isPaused) {
+            // Add CPS cookies
+            if (this.cps > 0) {
+                this.cookies += this.cps * dt;
+            }
             
-            this.bots.forEach(bot => {
-                bot.history.push(bot.cookies);
-                if (bot.history.length > 1000) bot.history.shift();
-            });
+            // Update bots
+            this.updateBots(dt);
+            
+            // Check liquidations
+            this.checkLiquidations();
+            
+            // Update history - throttle to 10 times per second for smooth charts
+            if (!this.lastHistoryUpdate || now - this.lastHistoryUpdate > 100) {
+                this.lastHistoryUpdate = now;
+                this.playerHistory.push(this.cookies);
+                if (this.playerHistory.length > 1000) this.playerHistory.shift();
+                
+                this.bots.forEach(bot => {
+                    bot.history.push(bot.cookies);
+                    if (bot.history.length > 1000) bot.history.shift();
+                });
+            }
+            
+            // Update displays
+            this.updateDisplays();
+            this.renderCharts();
         }
-        
-        // Update displays
-        this.updateDisplays();
-        this.renderCharts();
         
         requestAnimationFrame(() => this.gameLoop());
     }
@@ -604,10 +898,84 @@ class TutorialGame {
             
             if (isLiquidated) {
                 this.showNotification(`💀 Position on ${pos.targetName} LIQUIDATED! Lost ${pos.stake}🍪`, 'error');
+                this.showScreenTint('red', 800);
                 return false;
             }
             return true;
         });
+    }
+    
+    // Check if bot positions on the player should be liquidated
+    checkBotPositionLiquidations() {
+        this.botPositions = this.botPositions.filter(pos => {
+            const currentPrice = this.cookies;
+            // Bot has a SHORT on us, so they get liquidated if price goes UP past their liq price
+            const isLiquidated = pos.type === 'short' 
+                ? currentPrice >= pos.liquidationPrice
+                : currentPrice <= pos.liquidationPrice;
+            
+            if (isLiquidated) {
+                // Bot gets liquidated - we win their stake!
+                this.cookies += pos.stake;
+                this.showNotification(`🎉 ${pos.ownerName}'s position LIQUIDATED! You won ${pos.stake}🍪!`, 'success');
+                this.showScreenTint('green', 800);
+                this.checkTutorialProgress();
+                return false;
+            }
+            return true;
+        });
+    }
+    
+    // Bot opens a short position on the player
+    botShortsPlayer(botName, stake, leverage) {
+        const bot = this.bots.find(b => b.name === botName);
+        if (!bot) return;
+        
+        const entryPrice = this.cookies;
+        // For a short, liquidation is when price goes UP by (1/leverage) * 100%
+        const liquidationPrice = Math.floor(entryPrice * (1 + 1 / leverage));
+        
+        const position = {
+            id: Date.now(),
+            ownerName: botName,
+            type: 'short',
+            stake: stake,
+            leverage: leverage,
+            entryPrice: entryPrice,
+            liquidationPrice: liquidationPrice
+        };
+        
+        this.botPositions.push(position);
+        bot.cookies -= stake; // Bot locks their stake
+        
+        this.showNotification(`⚠️ ${botName} opened a SHORT on YOU! ${stake}🍪 @ ${leverage}x`, 'warning');
+        this.updateDisplays();
+    }
+    
+    // Bot opens a long position on the player
+    botLongsPlayer(botName, stake, leverage) {
+        const bot = this.bots.find(b => b.name === botName);
+        if (!bot) return;
+        
+        const entryPrice = this.cookies;
+        // For a long, liquidation is when price goes DOWN by (1/leverage) * 100%
+        const liquidationPrice = Math.floor(entryPrice * (1 - 1 / leverage));
+        
+        const position = {
+            id: Date.now(),
+            ownerName: botName,
+            type: 'long',
+            stake: stake,
+            leverage: leverage,
+            entryPrice: entryPrice,
+            liquidationPrice: liquidationPrice
+        };
+        
+        this.botPositions.push(position);
+        bot.cookies -= stake; // Bot locks their stake
+        
+        this.showNotification(`⚠️ ${botName} opened a LONG on YOU! ${stake}🍪 @ ${leverage}x`, 'warning');
+        this.updateDisplays();
     }
     
     updateDisplays() {
@@ -620,12 +988,14 @@ class TutorialGame {
         const networthEl = document.getElementById('networth-value');
         if (networthEl) networthEl.textContent = Math.floor(netWorth).toLocaleString();
         
-        // CPS display
+        // CPS display - show cookies per second from clicks (like real game)
         const cpsEl = document.getElementById('cookie-cps');
         if (cpsEl) {
+            const clickCPS = Math.floor(this.currentCPS * this.clickPower * this.clickMultiplier);
+            const multiplierText = this.clickMultiplier > 1 ? ` (${this.clickMultiplier.toFixed(1)}x)` : '';
             cpsEl.innerHTML = `
-                <div style="font-size: 0.85em; color: #2ecc71;">🖱️ ${this.currentCPS} clicks/sec</div>
-                <div style="font-size: 0.85em; color: #f39c12; margin-top: 2px;">🏭 +${this.cps} from generators</div>
+                <div style="font-size: 0.7em; color: #2ecc71;">🖱️ ${clickCPS} cookies/sec${multiplierText}</div>
+                <div style="font-size: 0.7em; color: #f39c12;">🏭 +${this.cps} from generators</div>
             `;
         }
         
@@ -658,13 +1028,18 @@ class TutorialGame {
             clickBtn.querySelector('.click-power-desc').textContent = `+${this.clickPower} per click → +${this.clickPower + 1}`;
         }
         
-        // Update slider max values
+        // Update slider max values (capped at 50% of target's cookies)
         this.bots.forEach(bot => {
             const slider = document.getElementById(`slider-${bot.name}`);
             if (slider) {
-                const maxStake = Math.floor(this.cookies);
+                const maxBet = Math.floor(bot.cookies * 0.5); // Can't bet more than 50% of target's cookies
+                const maxStake = Math.min(Math.floor(this.cookies), maxBet);
                 slider.max = Math.max(1, maxStake);
-                if (parseInt(slider.value) > maxStake) {
+                
+                // If MAX mode is locked for this target, update value to max
+                if (this.maxStakeMode[bot.name]) {
+                    slider.value = Math.max(1, maxStake);
+                } else if (parseInt(slider.value) > maxStake) {
                     slider.value = maxStake;
                 }
                 slider.disabled = maxStake < 1;
@@ -1008,6 +1383,49 @@ class TutorialGame {
             }
         }
         
+        // Draw bot positions on player's chart (when bots short the player)
+        if (labelId === 'you' && this.botPositions.length > 0) {
+            this.botPositions.forEach(pos => {
+                const liqY = H - ((pos.liquidationPrice - min) / range) * H;
+                const entryY = H - ((pos.entryPrice - min) / range) * H;
+                
+                // Bot has a SHORT on us - they profit if we go DOWN
+                // Their liquidation is ABOVE our current price
+                // Danger zone (for them) is above liquidation - safe for us!
+                const safeGrad = ctx.createLinearGradient(0, 0, 0, liqY);
+                safeGrad.addColorStop(0, 'rgba(46,204,113,0.3)');
+                safeGrad.addColorStop(1, 'rgba(46,204,113,0.05)');
+                ctx.fillStyle = safeGrad;
+                ctx.fillRect(MARGIN_LEFT, 0, CHART_W, liqY);
+                
+                // Bot's liquidation line (good for us - we want to reach this!)
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_LEFT, liqY);
+                ctx.lineTo(W, liqY);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#2ecc71';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`💀 ${pos.ownerName} LIQ`, MARGIN_LEFT + 5, liqY - 3);
+                
+                // Bot's entry line
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_LEFT, entryY);
+                ctx.lineTo(W, entryY);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillText(`${pos.ownerName} ENTRY`, MARGIN_LEFT + 5, entryY - 3);
+                
+                ctx.setLineDash([]);
+            });
+        }
+        
         // Calculate chart points
         const points = [];
         for (let i = 0; i < data.length; i++) {
@@ -1106,6 +1524,96 @@ class TutorialGame {
         
         overlay?.classList.remove('hidden');
         
+        // Handle special actions when step is shown
+        if (stepData.action === 'bot-shorts-you') {
+            // Mark as completed immediately - this is just an informational step
+            stepData.completed = true;
+            
+            // Bot shorts the player if not already done
+            if (this.botPositions.length === 0) {
+                const stake = Math.min(20, Math.max(10, Math.floor(this.cookies * 0.3)));
+                setTimeout(() => {
+                    this.botShortsPlayer('CookieBot', stake, 2);
+                    this.renderCharts(); // Refresh charts to show liquidation line
+                }, 500);
+            }
+        }
+        
+        // Bot longs the player for defense demonstration
+        if (stepData.action === 'bot-longs-you') {
+            // Mark as completed immediately - this is just an informational step
+            stepData.completed = true;
+            
+            // ChipMaster longs the player
+            const stake = Math.min(50, Math.max(20, Math.floor(this.cookies * 0.2)));
+            setTimeout(() => {
+                this.botLongsPlayer('ChipMaster', stake, 3);
+                this.renderCharts(); // Refresh charts to show liquidation line
+            }, 500);
+        }
+        
+        // Defend against long - initialize tracker
+        if (stepData.action === 'defend-against-long') {
+            this.defendLongInitialGenerators = Object.values(this.generators).reduce((sum, g) => sum + g, 0);
+            // Highlight generator button
+            setTimeout(() => {
+                const genBtn = document.getElementById('generator-grandma');
+                if (genBtn) genBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        
+        // Initialize trackers when action steps are shown
+        if (stepData.action === 'close-position') {
+            this.closePositionInitialCount = this.positions.length;
+        }
+        if (stepData.action === 'liquidate-bot') {
+            this.liquidateBotInitialCount = this.botPositions.length;
+        }
+        if (stepData.action === 'defend-against-long') {
+            this.defendLongInitialCount = this.botPositions.filter(p => p.type === 'long').length;
+        }
+        if (stepData.action === 'buff-strategy-close') {
+            this.buffStrategyCloseInitialCount = this.positions.length;
+        }
+        
+        // Give buffs when buff strategy step is shown and highlight 5x
+        if (stepData.action === 'buff-strategy-setup') {
+            this.playerBuffs = 2;
+            this.updateUI();
+        }
+        
+        // Highlight elements when buff strategy steps are shown
+        if (stepData.action === 'buff-strategy-setup') {
+            setTimeout(() => {
+                const lev5Btn = document.querySelector(`.lev-btn[data-lev="5"][data-target="${this.bots[0].name}"]`);
+                if (lev5Btn) lev5Btn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        if (stepData.action === 'buff-strategy-stake') {
+            setTimeout(() => {
+                const maxBtn = document.getElementById(`max-btn-${this.bots[0].name}`);
+                if (maxBtn) maxBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        if (stepData.action === 'buff-strategy-short') {
+            setTimeout(() => {
+                const shortBtn = document.querySelector(`.quick-trade-btn.short[data-target="${this.bots[0].name}"]`);
+                if (shortBtn) shortBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        if (stepData.action === 'buff-strategy-crash') {
+            setTimeout(() => {
+                const crashBtn = document.getElementById(`crash-btn-${this.bots[0].name}`);
+                if (crashBtn) crashBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        if (stepData.action === 'buff-strategy-close') {
+            setTimeout(() => {
+                const closeBtn = document.querySelector('.close-pos-btn');
+                if (closeBtn) closeBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        
         // Update step counter
         const stepCounter = document.getElementById('step-counter');
         if (stepCounter) {
@@ -1119,9 +1627,9 @@ class TutorialGame {
             if (i === step) dot.classList.add('active');
         });
         
-        // Remove old highlights
-        document.querySelectorAll('.tutorial-highlight').forEach(el => {
-            el.classList.remove('tutorial-highlight');
+        // Remove old highlights and glow
+        document.querySelectorAll('.tutorial-highlight, .glow-highlight').forEach(el => {
+            el.classList.remove('tutorial-highlight', 'glow-highlight');
         });
     }
     
@@ -1169,21 +1677,88 @@ class TutorialGame {
                 completed = this.positions.some(p => p.targetName === stepData.target && p.type === 'short');
                 break;
             case 'close-position':
-                // Track if we had a position and now we don't (or have fewer)
-                if (!this.hadPositionForClose) {
-                    this.hadPositionForClose = this.positions.length;
+                // Complete when ANY position is closed (initial count set when step is shown)
+                // If no positions exist, auto-complete (can't close what doesn't exist)
+                if (this.closePositionInitialCount === 0 || this.positions.length === 0) {
+                    completed = true;
+                } else {
+                    completed = this.positions.length < this.closePositionInitialCount;
                 }
-                completed = this.positions.length < this.hadPositionForClose;
+                break;
+            case 'bot-shorts-you':
+                // This is triggered when the step is shown, auto-complete to move forward
+                // The bot shorting happens in showTutorialStep
+                completed = this.botPositions.length > 0;
+                break;
+            case 'bot-longs-you':
+                // This is triggered when the step is shown, auto-complete to move forward
+                // The bot longing happens in showTutorialStep
+                completed = this.botPositions.some(p => p.type === 'long');
+                break;
+            case 'defend-against-long':
+                // Complete when the bot's LONG position is liquidated (no more long positions on player)
+                // Track the initial long position count when step is shown
+                if (this.defendLongInitialCount === undefined) {
+                    this.defendLongInitialCount = this.botPositions.filter(p => p.type === 'long').length;
+                }
+                const currentLongCount = this.botPositions.filter(p => p.type === 'long').length;
+                completed = currentLongCount < this.defendLongInitialCount || currentLongCount === 0;
+                break;
+            case 'liquidate-bot':
+                // Complete when we liquidate the bot's position (initial count set when step is shown)
+                // If there were bot positions and now there aren't, OR if no bot positions existed
+                if (this.liquidateBotInitialCount === 0 || this.botPositions.length === 0) {
+                    completed = true;
+                } else {
+                    completed = this.botPositions.length < this.liquidateBotInitialCount;
+                }
+                break;
+            case 'buff-strategy-setup':
+                // Check if 5x is selected (buffs given when step is shown)
+                const currentLev = this.targetLeverage[this.bots[0].name] || 2;
+                completed = currentLev === 5;
+                break;
+            case 'buff-strategy-stake':
+                // Check if MAX button was clicked (slider is at max value)
+                const slider = document.getElementById(`slider-${this.bots[0].name}`);
+                const maxBtn = document.getElementById(`max-btn-${this.bots[0].name}`);
+                // Complete if MAX is active or stake is high (over 50% of cookies)
+                if (maxBtn && maxBtn.classList.contains('active')) {
+                    completed = true;
+                } else if (slider && parseInt(slider.value) >= Math.floor(this.cookies * 0.5)) {
+                    completed = true;
+                }
+                break;
+            case 'buff-strategy-short':
+                // Wait for user to open a short position (highlight added in showTutorialStep)
+                completed = this.positions.some(p => p.targetName === this.bots[0].name && p.type === 'short');
+                break;
+            case 'buff-strategy-crash':
+                // Wait for user to use market crash (highlight added in showTutorialStep)
+                // Check if market crash was used (bot lost 10% cookies)
+                completed = this.buffStrategyCrashUsed === true;
+                break;
+            case 'buff-strategy-close':
+                // Wait for user to close the position (highlight added in showTutorialStep)
+                if (this.buffStrategyCloseInitialCount === 0 || this.positions.length === 0) {
+                    completed = true;
+                } else {
+                    completed = this.positions.length < this.buffStrategyCloseInitialCount;
+                }
                 break;
         }
         
         if (completed && !stepData.completed) {
             stepData.completed = true;
-            this.hadPositionForClose = null; // Reset tracker
+            // Reset all trackers for next steps
+            this.closePositionInitialCount = undefined;
+            this.liquidateBotInitialCount = undefined;
+            this.defendLongInitialCount = undefined;
+            this.buffStrategyCloseInitialCount = undefined;
             
-            // Remove highlight
-            document.querySelectorAll('.tutorial-highlight').forEach(el => {
-                el.classList.remove('tutorial-highlight');
+            // Remove highlight and glow
+            document.querySelectorAll('.tutorial-highlight, .glow-highlight').forEach(el => {
+                el.classList.remove('tutorial-highlight', 'glow-highlight');
             });
             
             // Show next step

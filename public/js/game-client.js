@@ -521,8 +521,8 @@ class MultiplayerGame {
                     </div>
                     <div class="stock-stats">
                         ${!isMe ? `
-                            <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${player.name}" data-target="${player.name}" title="Freeze: 15s (1 buff)">🥶 Freeze <span class="ability-cost">(1)</span></button>
-                            <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${player.name}" data-target="${player.name}" title="Crash: -10% cookies (2 buffs)">📉 Crash <span class="ability-cost">(2)</span></button>
+                            <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${player.name}" data-target="${player.name}" title="Freeze: 15s (1 pt)">🥶 Freeze <span class="ability-cost">(1)</span></button>
+                            <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${player.name}" data-target="${player.name}" title="Crash: -10% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
                         ` : ''}
                         <span class="stat-total" id="score-${chartId}">${player.cookies || 0} 🍪</span>
                         ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 ${player.cookies || 0}</span>`}
@@ -675,7 +675,7 @@ class MultiplayerGame {
                 const targetName = btn.dataset.target;
                 const me = this.getMe();
                 if (!me || (me.powerBuffs || 0) < 1) {
-                    this.showNotification('🔒 You need at least 1 buff to use Freeze!', 'error');
+                    this.showNotification('🔒 You need at least 1 ability point to use Freeze!', 'error');
                     return;
                 }
                 this.socket.emit('game:useFreeze', { targetName });
@@ -688,7 +688,7 @@ class MultiplayerGame {
                 const targetName = btn.dataset.target;
                 const me = this.getMe();
                 if (!me || (me.powerBuffs || 0) < 2) {
-                    this.showNotification('🔒 You need at least 2 buffs to use Market Crash!', 'error');
+                    this.showNotification('🔒 You need at least 2 ability points to use Market Crash!', 'error');
                     return;
                 }
                 this.socket.emit('game:useMarketCrash', { targetName });
@@ -1885,24 +1885,24 @@ class MultiplayerGame {
         // Update KotH leaderboard
         this.updateKothLeaderboard();
         
-        // Update buff display
+        // Update buff display (ability points)
         const buffEl = document.getElementById('koth-buff-display');
         const abilitiesEl = document.getElementById('koth-abilities');
         if (buffEl) {
             const buffs = me.powerBuffs || 0;
             if (buffs > 0) {
-                buffEl.textContent = `👑 ${buffs} buff${buffs > 1 ? 's' : ''} (+${buffs * 5}% to everything)`;
+                buffEl.textContent = `⚡ ${buffs} ability pt${buffs > 1 ? 's' : ''} (+${buffs * 5}% buff)`;
                 buffEl.style.color = '#f1c40f';
-                // Show abilities if player has buffs
+                // Show abilities if player has ability points
                 if (abilitiesEl) abilitiesEl.style.display = 'block';
             } else {
                 buffEl.textContent = 'Keep cursor on cookie to win!';
                 buffEl.style.color = '#888';
-                // Hide abilities if no buffs
+                // Hide abilities if no ability points
                 if (abilitiesEl) abilitiesEl.style.display = 'none';
             }
             
-            // Update header ability button states based on buff count
+            // Update header ability button states based on ability point count
             document.querySelectorAll('.header-freeze-btn').forEach(btn => {
                 btn.classList.toggle('locked', buffs < 1);
                 btn.classList.toggle('unlocked', buffs >= 1);
