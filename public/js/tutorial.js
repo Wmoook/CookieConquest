@@ -1133,7 +1133,10 @@ class TutorialGame {
             // Get positions targeting this player
             const positionsOnTarget = this.positions.filter(p => p.targetName === name);
             
-            if (positionsOnTarget.length === 0) {
+            // For the YOU sidebar, also include bot positions on the player
+            const botPositionsOnYou = (name === 'YOU') ? this.botPositions : [];
+            
+            if (positionsOnTarget.length === 0 && botPositionsOnYou.length === 0) {
                 listEl.innerHTML = '<div class="no-positions-small">No positions</div>';
                 if (pnlEl) {
                     pnlEl.textContent = '0🍪';
@@ -1142,7 +1145,7 @@ class TutorialGame {
                 return;
             }
             
-            // Calculate total PNL
+            // Calculate total PNL for player's positions
             let totalPnl = 0;
             const positionsHtml = positionsOnTarget.map(pos => {
                 const bot = this.bots.find(b => b.name === pos.targetName);
@@ -1170,7 +1173,37 @@ class TutorialGame {
                 `;
             }).join('');
             
-            listEl.innerHTML = positionsHtml;
+            // Add bot positions on YOU (these show who is trading against the player)
+            const botPositionsHtml = botPositionsOnYou.map(pos => {
+                const currentPrice = this.cookies;
+                const priceChange = currentPrice - pos.entryPrice;
+                const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+                const botPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
+                
+                // For the player, bot profit is bad (their loss) and bot loss is good
+                const playerImpact = -botPnl;
+                const pnlClass = playerImpact >= 0 ? 'profit' : 'loss';
+                const pnlText = playerImpact >= 0 ? `+${playerImpact}` : `${playerImpact}`;
+                
+                const bot = this.bots.find(b => b.name === pos.ownerName);
+                const botColor = bot ? bot.color : '#e74c3c';
+                
+                return `
+                    <div class="player-pos-item ${pos.type}" style="border-left-color: ${botColor};">
+                        <div>
+                            <span class="pos-trader" style="color:${botColor}">${pos.ownerName}</span>
+                            <span class="pos-type-badge ${pos.type}">${pos.type.toUpperCase()} ${pos.leverage}x</span>
+                        </div>
+                        <div class="pos-details-row">
+                            <span>🔒${pos.stake}</span>
+                            <span class="pos-pnl-small ${pnlClass}">${pnlText}🍪</span>
+                        </div>
+                        <div style="font-size: 0.8em; color: #888; margin-top: 2px;">⚠️ vs YOU</div>
+                    </div>
+                `;
+            }).join('');
+            
+            listEl.innerHTML = positionsHtml + botPositionsHtml;
             
             if (pnlEl) {
                 const pnlClass = totalPnl > 0 ? 'profit' : totalPnl < 0 ? 'loss' : 'neutral';
