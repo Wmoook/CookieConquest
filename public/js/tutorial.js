@@ -1923,6 +1923,9 @@ class TutorialGame {
     
     // Tutorial system
     showTutorialStep(step) {
+        // Don't show steps if tutorial is complete
+        if (this.tutorialComplete) return;
+        
         this.tutorialStep = step;
         const stepData = this.tutorialSteps[step];
         if (!stepData) return;
@@ -2188,7 +2191,11 @@ class TutorialGame {
     }
     
     advanceTutorial() {
+        // Don't advance if tutorial is complete
+        if (this.tutorialComplete) return;
+        
         const stepData = this.tutorialSteps[this.tutorialStep];
+        if (!stepData) return;
         
         // If this step requires an action, check if it's done
         if (stepData.action && !stepData.completed) {
@@ -2291,6 +2298,9 @@ class TutorialGame {
     }
     
     checkTutorialProgress() {
+        // Don't check progress if tutorial is complete
+        if (this.tutorialComplete) return;
+        
         const stepData = this.tutorialSteps[this.tutorialStep];
         if (!stepData || !stepData.action) return;
         
