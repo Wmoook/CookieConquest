@@ -1169,10 +1169,13 @@ class TutorialGame {
             // Bot can open a position on the player
             const hasPositionOnPlayer = this.botPositions.some(p => p.ownerName === bot.name);
             
-            // Aggressive bots start trading immediately
-            const minCookies = aggressive ? 30 : 100;
+            // Aggressive bots need bot to have cookies to stake
+            const minBotCookies = aggressive ? 30 : 100;
             
-            if (!hasPositionOnPlayer && bot.cookies > minCookies) {
+            // When skip tutorial: player must have 500 COOKIES before bots can trade on them
+            const minPlayerCookies = aggressive ? 500 : 0;
+            
+            if (!hasPositionOnPlayer && bot.cookies > minBotCookies && this.cookies >= minPlayerCookies) {
                 // Aggressive bots are SMART - they short when you're growing fast, long when you're slowing
                 let positionType;
                 if (aggressive) {
@@ -1254,8 +1257,10 @@ class TutorialGame {
         
         // If bot profited, player loses. If bot lost, player gains.
         if (actualPnl > 0) {
-            this.cookies -= actualPnl;
-            this.showNotification(`${botName} closed position: +${actualPnl}🍪 profit from you!`, 'warning');
+            // Don't let player cookies go below 0
+            const playerLoss = Math.min(actualPnl, this.cookies);
+            this.cookies -= playerLoss;
+            this.showNotification(`${botName} closed position: +${playerLoss}🍪 profit from you!`, 'warning');
             this.showScreenTint('red', 800); // Red tint when bot takes profit from you!
         } else if (actualPnl < 0) {
             this.cookies += Math.abs(actualPnl);
@@ -1281,12 +1286,13 @@ class TutorialGame {
                 : currentPrice >= pos.liquidationPrice;
             
             if (isLiquidated) {
-                // Player loses their stake - deduct from cookies
-                this.cookies -= pos.stake;
+                // Player loses their stake - deduct from cookies (but not below 0)
+                const actualLoss = Math.min(pos.stake, this.cookies);
+                this.cookies -= actualLoss;
                 // Bot wins the stake
-                bot.cookies += pos.stake;
+                bot.cookies += actualLoss;
                 
-                this.showNotification(`💀 Position on ${pos.targetName} LIQUIDATED! Lost ${pos.stake}🍪`, 'error');
+                this.showNotification(`💀 Position on ${pos.targetName} LIQUIDATED! Lost ${actualLoss}🍪`, 'error');
                 this.showScreenTint('red', 800);
                 // Mark that player was liquidated for tutorial progress
                 this.playerWasLiquidated = true;
