@@ -158,12 +158,37 @@ class TutorialGame {
                 action: 'liquidate-bot',
                 highlight: '#big-cookie'
             },
-            // STRATEGY - SHORTING
+            // STRATEGY - SHORTING - STEP 1: SET STAKE
             {
-                title: "Offensive Strategy - Shorting 🗡️",
-                text: "Now you understand both sides! When someone shorts you:<br><br>• <span class='highlight'>Grow faster</span> to liquidate THEM<br>• <span class='warning'>If you slow down</span>, they profit<br><br>Try opening a <span class='warning'>SHORT position</span> on ChipMaster!",
+                title: "Now Try Shorting! 📉",
+                text: "Great job liquidating CookieBot! Now let's try opening a <span class='warning'>SHORT position</span>.<br><br>First, set your stake on ChipMaster's card.<br><br><span class='warning'>Bet at least 50 cookies!</span>",
+                action: 'set-stake-short',
+                target: 'ChipMaster',
+                minStake: 50,
+                highlight: null
+            },
+            // STRATEGY - SHORTING - STEP 2: CLICK SHORT
+            {
+                title: "Open the Short! 📉",
+                text: "Now click the <span class='warning'>📉 SHORT</span> button on ChipMaster!<br><br>With a SHORT, you profit when ChipMaster's cookies go <span class='warning'>DOWN</span>!<br><br><span class='warning'>Bet at least 50 cookies!</span>",
                 action: 'open-short',
                 target: 'ChipMaster',
+                minStake: 50,
+                highlight: null
+            },
+            // PLAYER GETS LIQUIDATED
+            {
+                title: "Uh Oh... 😰",
+                text: "ChipMaster is growing fast! Your SHORT position is in trouble...<br><br>Watch your position - if ChipMaster's cookies rise past your <span class='warning'>liquidation price</span>, you'll lose your stake!",
+                action: 'player-gets-liquidated',
+                target: 'ChipMaster',
+                highlight: null
+            },
+            // YOU GOT LIQUIDATED
+            {
+                title: "You Got Liquidated! 💀",
+                text: "Ouch! Your SHORT position got <span class='warning'>LIQUIDATED</span>!<br><br>ChipMaster's cookies went UP past your liquidation price, so you <span class='warning'>lost your entire stake</span>!<br><br>This is the risk of trading - especially with high leverage!",
+                action: null,
                 highlight: null
             },
             // BOT LONGS YOU
@@ -839,9 +864,9 @@ class TutorialGame {
         const stake = parseInt(slider?.value || 10);
         const leverage = this.targetLeverage[targetName] || 2;
         
-        // Check minimum stake for tutorial step
+        // Check minimum stake for tutorial step (both open-position and open-short)
         const stepData = this.tutorialSteps[this.tutorialStep];
-        if (stepData && stepData.action === 'open-position' && stepData.minStake && stake < stepData.minStake) {
+        if (stepData && (stepData.action === 'open-position' || stepData.action === 'open-short') && stepData.minStake && stake < stepData.minStake) {
             this.showNotification(`Bet at least ${stepData.minStake} cookies!`, 'error');
             return;
         }
@@ -1113,6 +1138,8 @@ class TutorialGame {
             if (isLiquidated) {
                 this.showNotification(`💀 Position on ${pos.targetName} LIQUIDATED! Lost ${pos.stake}🍪`, 'error');
                 this.showScreenTint('red', 800);
+                // Mark that player was liquidated for tutorial progress
+                this.playerWasLiquidated = true;
                 return false;
             }
             return true;
@@ -1852,6 +1879,31 @@ class TutorialGame {
             }
         }
         
+        // Player gets liquidated - boost the target bot to liquidate player's SHORT position
+        if (stepData.action === 'player-gets-liquidated') {
+            const targetBot = this.bots.find(b => b.name === stepData.target);
+            const playerShortPosition = this.positions.find(p => p.targetName === stepData.target && p.type === 'short');
+            
+            if (targetBot && playerShortPosition) {
+                // Gradually boost the bot to exceed the liquidation price
+                const liquidationPrice = playerShortPosition.liquidationPrice;
+                const boostAmount = Math.ceil(liquidationPrice * 1.1); // Go 10% above liquidation
+                
+                // Boost over time so player can watch it happen
+                setTimeout(() => {
+                    targetBot.cookies = boostAmount;
+                    this.showNotification(`⚠️ ${targetBot.name} is surging!`, 'warning');
+                    this.checkLiquidations();
+                    this.renderCharts();
+                    this.updateDisplays();
+                    
+                    // Mark that player was liquidated
+                    this.playerWasLiquidated = true;
+                    this.checkTutorialProgress();
+                }, 1500);
+            }
+        }
+        
         // Defend against long - initialize tracker
         if (stepData.action === 'defend-against-long') {
             this.defendLongInitialGenerators = Object.values(this.generators).reduce((sum, g) => sum + g, 0);
@@ -1932,6 +1984,11 @@ class TutorialGame {
                 // Spotlight slider with glow, stake display without glow
                 this.setSpotlight([`#slider-${targetBot}`, {selector: `#stake-display-${targetBot}`, noGlow: true}]);
                 break;
+            case 'set-stake-short':
+                const targetBotShort = stepData.target || this.bots[1]?.name;
+                // Spotlight slider with glow, stake display without glow
+                this.setSpotlight([`#slider-${targetBotShort}`, {selector: `#stake-display-${targetBotShort}`, noGlow: true}]);
+                break;
             case 'open-position':
                 const longTarget = stepData.target || this.bots[0]?.name;
                 // Spotlight LONG button with glow, target's card and sidebar without glow
@@ -1947,6 +2004,14 @@ class TutorialGame {
                 this.setSpotlight([
                     `.quick-trade-btn.short[data-target="${shortTarget}"]`,
                     {selector: `#positions-sidebar-${shortTarget}`, noGlow: true}
+                ]);
+                break;
+            case 'player-gets-liquidated':
+                // Spotlight the target bot's chart to watch for liquidation
+                const liqTarget = stepData.target || this.bots[1]?.name;
+                this.setSpotlight([
+                    {selector: `#card-${liqTarget}`, noGlow: true},
+                    {selector: `#positions-sidebar-${liqTarget}`, noGlow: true}
                 ]);
                 break;
             case 'close-position':
@@ -2015,11 +2080,13 @@ class TutorialGame {
             'click': '<span class="action">Click</span> the <span class="target">cookie</span> 10 times',
             'buy-generator': '<span class="action">Buy</span> a <span class="target">generator</span> (Grandma, Farm, or Factory)',
             'buy-click-power': '<span class="action">Buy</span> the <span class="target">Click Power</span> upgrade',
-            'set-stake': `<span class="action">Move</span> the <span class="target">stake slider</span> on ${botName}`,
+            'set-stake': `<span class="action">Move</span> the <span class="target">stake slider</span> on ${botName} - bet at least 50!`,
+            'set-stake-short': `<span class="action">Move</span> the <span class="target">stake slider</span> on ${botName2} - bet at least 50!`,
             'open-position': `<span class="action">LONG</span> <span class="target">${botName}</span> - click the LONG button`,
             'close-position': '<span class="action">Click</span> the <span class="target">Close</span> button on your position',
             'liquidate-bot': '<span class="action">Click the cookie</span> to grow and <span class="target">liquidate CookieBot\'s SHORT</span>',
             'open-short': `<span class="action">SHORT</span> <span class="target">${botName2}</span> - click the SHORT button`,
+            'player-gets-liquidated': `<span class="warning">Watch</span> your position on <span class="target">${botName2}</span>...`,
             'defend-against-long': '<span class="action">Buy</span> a <span class="target">generator</span> to liquidate <span class="target">ChipMaster\'s LONG</span>',
             'buff-strategy-setup': `<span class="action">Click</span> the <span class="target">5x leverage</span> button on ${botName}`,
             'buff-strategy-stake': `<span class="action">Click</span> the <span class="target">MAX</span> button on ${botName}`,
@@ -2079,6 +2146,13 @@ class TutorialGame {
                     completed = parseInt(stakeSlider.value) >= stepData.minStake;
                 }
                 break;
+            case 'set-stake-short':
+                // Check if stake slider for target is at least minStake (for short position)
+                const stakeSliderShort = document.getElementById(`slider-${stepData.target}`);
+                if (stakeSliderShort) {
+                    completed = parseInt(stakeSliderShort.value) >= stepData.minStake;
+                }
+                break;
             case 'open-position':
                 completed = this.positions.some(p => p.targetName === stepData.target && p.type === 'long');
                 // If just completed, boost the bot so player profits
@@ -2093,6 +2167,16 @@ class TutorialGame {
                 break;
             case 'open-short':
                 completed = this.positions.some(p => p.targetName === stepData.target && p.type === 'short');
+                // If just completed, start the liquidation timer
+                if (completed && !this.shortPositionOpened) {
+                    this.shortPositionOpened = true;
+                }
+                break;
+            case 'player-gets-liquidated':
+                // Complete when player's SHORT position on the target is liquidated
+                // The position will be removed from this.positions when liquidated
+                const hasShortOnTarget = this.positions.some(p => p.targetName === stepData.target && p.type === 'short');
+                completed = !hasShortOnTarget && this.playerWasLiquidated;
                 break;
             case 'close-position':
                 // Complete when ANY position is closed (initial count set when step is shown)
