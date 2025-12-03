@@ -1385,9 +1385,9 @@ class TutorialGame {
         // Update positions sidebars
         this.updatePositionsSidebars();
         
-        // Update goal progress
-        const goalTarget = 10000;
-        const progress = Math.min(100, (netWorth / goalTarget) * 100);
+        // Update goal progress (based on cookies, not net worth)
+        const goalTarget = this.freePlayGoal || 10000;
+        const progress = Math.min(100, (this.cookies / goalTarget) * 100);
         const goalFill = document.getElementById('goal-fill');
         const goalPercent = document.getElementById('goal-percent');
         if (goalFill) goalFill.style.width = progress + '%';
