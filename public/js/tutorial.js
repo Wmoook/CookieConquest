@@ -1694,19 +1694,20 @@ class TutorialGame {
         const hintText = document.getElementById('tutorial-hint-text');
         if (!hintBox || !hintText) return;
         
-        // Map actions to clear hint text
+        // Map actions to clear hint text with specific bot names
+        const botName = this.bots[0]?.name || 'CookieBot';
         const hintMessages = {
             'click': '<span class="action">Click</span> the <span class="target">cookie</span> 10 times',
             'buy-generator': '<span class="action">Buy</span> a <span class="target">generator</span> (Grandma, Farm, or Factory)',
-            'open-position': '<span class="action">Open</span> a <span class="target">LONG position</span> against a bot',
+            'open-position': `<span class="action">LONG</span> <span class="target">${botName}</span> - click the LONG button`,
             'close-position': '<span class="action">Click</span> the <span class="target">Close</span> button on your position',
-            'liquidate-bot': '<span class="action">Buy generators</span> to increase your cookies and <span class="target">liquidate the bot\'s SHORT</span>',
-            'open-short': '<span class="action">Open</span> a <span class="target">SHORT position</span> against a bot',
-            'defend-against-long': '<span class="action">Buy</span> a <span class="target">generator</span> to make the bot\'s LONG unprofitable',
-            'buff-strategy-setup': '<span class="action">Click</span> the <span class="target">5x leverage</span> button',
-            'buff-strategy-stake': '<span class="action">Click</span> the <span class="target">MAX</span> button to stake maximum',
-            'buff-strategy-short': '<span class="action">Click</span> the <span class="target">SHORT</span> button to open position',
-            'buff-strategy-crash': '<span class="action">Click</span> the <span class="target">Market Crash</span> ability button',
+            'liquidate-bot': '<span class="action">Buy generators</span> to grow your cookies and <span class="target">liquidate CookieBot\'s SHORT</span>',
+            'open-short': `<span class="action">SHORT</span> <span class="target">${botName}</span> - click the SHORT button`,
+            'defend-against-long': '<span class="action">Buy</span> a <span class="target">generator</span> to liquidate <span class="target">ChipMaster\'s LONG</span>',
+            'buff-strategy-setup': `<span class="action">Click</span> the <span class="target">5x leverage</span> button on ${botName}`,
+            'buff-strategy-stake': `<span class="action">Click</span> the <span class="target">MAX</span> button on ${botName}`,
+            'buff-strategy-short': `<span class="action">SHORT</span> <span class="target">${botName}</span> - click the SHORT button`,
+            'buff-strategy-crash': `<span class="action">Click</span> <span class="target">Market Crash</span> ability on ${botName}`,
             'buff-strategy-close': '<span class="action">Click</span> the <span class="target">Close</span> button on your position'
         };
         
