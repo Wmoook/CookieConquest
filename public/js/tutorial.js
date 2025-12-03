@@ -2548,6 +2548,12 @@ class TutorialGame {
         document.getElementById('skip-tutorial')?.remove();
         document.getElementById('tutorial-hint-box')?.classList.remove('visible');
         
+        // Update goal label in UI
+        const goalLabel = document.getElementById('goal-label');
+        if (goalLabel) {
+            goalLabel.textContent = this.freePlayGoal >= 1000000 ? '🏆 1M Goal' : '🏆 10K Goal';
+        }
+        
         // Show free play goal notification
         const goalText = this.freePlayGoal >= 1000000 ? '1 million' : this.freePlayGoal.toLocaleString();
         this.showNotification(`🎮 Free Play! Race to ${goalText} cookies to win!`, 'success');
@@ -2559,10 +2565,12 @@ class TutorialGame {
     checkFreePlayWin() {
         if (!this.freePlayMode) return;
         
+        const goalText = this.freePlayGoal >= 1000000 ? '1 million' : this.freePlayGoal.toLocaleString();
+        
         // Check if player won
         if (this.cookies >= this.freePlayGoal) {
             this.freePlayMode = false;
-            this.showNotification('🏆 YOU WIN! You reached 10,000 cookies!', 'success');
+            this.showNotification(`🏆 YOU WIN! You reached ${goalText} cookies!`, 'success');
             
             // Show victory screen
             const victory = document.getElementById('victory');
@@ -2584,7 +2592,7 @@ class TutorialGame {
         for (const bot of this.bots) {
             if (bot.cookies >= this.freePlayGoal) {
                 this.freePlayMode = false;
-                this.showNotification(`💀 ${bot.name} reached 10,000 cookies first!`, 'error');
+                this.showNotification(`💀 ${bot.name} reached ${goalText} cookies first!`, 'error');
                 
                 // Show defeat screen
                 const victory = document.getElementById('victory');
