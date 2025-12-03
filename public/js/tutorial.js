@@ -860,6 +860,12 @@ class TutorialGame {
         const bot = this.bots.find(b => b.name === targetName);
         if (!bot) return;
         
+        // In skip tutorial mode, can't trade on bots until they have 500 cookies
+        if (this.skippedTutorial && bot.cookies < 500) {
+            this.showNotification(`${targetName} needs 500🍪 before you can trade on them!`, 'error');
+            return;
+        }
+        
         const slider = document.getElementById(`slider-${targetName}`);
         const stake = parseInt(slider?.value || 10);
         const leverage = this.targetLeverage[targetName] || 2;
