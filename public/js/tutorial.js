@@ -1108,20 +1108,18 @@ class TutorialGame {
     
     updateBots(dt) {
         this.bots.forEach(bot => {
-            // Bots earn cookies from CPS (slower in free play to make it easier for player)
-            const cpsMultiplier = this.freePlayMode ? 0.7 : 1;
-            bot.cookies += bot.cps * dt * cpsMultiplier;
+            // Bots earn cookies from CPS
+            bot.cookies += bot.cps * dt;
             
-            // Add some randomness to make it interesting (less in free play)
+            // Add some randomness to make it interesting
             if (Math.random() < 0.02) {
-                const change = (Math.random() - 0.5) * (this.freePlayMode ? 10 : 20);
+                const change = (Math.random() - 0.5) * 20;
                 bot.cookies = Math.max(10, bot.cookies + change);
             }
             
-            // Occasionally boost their CPS (simulate buying generators) - slower in free play
-            const buyChance = this.freePlayMode ? 0.002 : 0.005;
-            if (Math.random() < buyChance && bot.cookies > 50) {
-                bot.cps += 1;
+            // Occasionally boost their CPS (simulate buying generators)
+            if (Math.random() < 0.008 && bot.cookies > 50) {
+                bot.cps += 2; // Bigger CPS boost
                 bot.cookies -= 15;
             }
         });
@@ -1213,9 +1211,11 @@ class TutorialGame {
         if (actualPnl > 0) {
             this.cookies -= actualPnl;
             this.showNotification(`${botName} closed position: +${actualPnl}🍪 profit from you!`, 'warning');
+            this.showScreenTint('red', 800); // Red tint when bot takes profit from you!
         } else if (actualPnl < 0) {
             this.cookies += Math.abs(actualPnl);
             this.showNotification(`${botName} closed position: lost ${Math.abs(actualPnl)}🍪 to you!`, 'success');
+            this.showScreenTint('green', 800); // Green tint when you gain from bot's loss!
         } else {
             this.showNotification(`${botName} closed position: broke even`, 'info');
         }
