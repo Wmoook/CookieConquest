@@ -1257,8 +1257,11 @@ class TutorialGame {
         
         // If bot profited, player loses. If bot lost, player gains.
         if (actualPnl > 0) {
-            // Don't let player cookies go below 0
-            const playerLoss = Math.min(actualPnl, this.cookies);
+            // Can go into debt, but only up to negative of generator value (net worth >= 0)
+            const generatorValue = this.calculateGeneratorValue();
+            const minCookies = -generatorValue; // Can't go below negative generator value
+            const maxLoss = this.cookies - minCookies; // Max we can lose
+            const playerLoss = Math.min(actualPnl, maxLoss);
             this.cookies -= playerLoss;
             this.showNotification(`${botName} closed position: +${playerLoss}🍪 profit from you!`, 'warning');
             this.showScreenTint('red', 800); // Red tint when bot takes profit from you!
@@ -1286,8 +1289,11 @@ class TutorialGame {
                 : currentPrice >= pos.liquidationPrice;
             
             if (isLiquidated) {
-                // Player loses their stake - deduct from cookies (but not below 0)
-                const actualLoss = Math.min(pos.stake, this.cookies);
+                // Player loses their stake - can go into debt up to generator value
+                const generatorValue = this.calculateGeneratorValue();
+                const minCookies = -generatorValue;
+                const maxLoss = this.cookies - minCookies;
+                const actualLoss = Math.min(pos.stake, maxLoss);
                 this.cookies -= actualLoss;
                 // Bot wins the stake
                 bot.cookies += actualLoss;
