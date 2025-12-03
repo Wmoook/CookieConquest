@@ -16,6 +16,9 @@ class TutorialGame {
         // Bot positions on the player (for liquidation tutorial)
         this.botPositions = []; // Positions bots have opened on the player
         
+        // Bot vs bot positions (for 1v1v1 mode)
+        this.botVsBotPositions = []; // Positions bots have opened on each other
+        
         // Bots - start at 0, will get bonus later along with player
         this.bots = [
             { name: 'CookieBot', cookies: 0, cps: 2, color: '#e74c3c', history: [0] },
@@ -1251,6 +1254,152 @@ class TutorialGame {
                     }
                 }
             }
+        });
+        
+        // In skip tutorial mode, bots also trade on each other (1v1v1)
+        if (aggressive) {
+            this.updateBotVsBotTrading();
+        }
+    }
+    
+    // Bot vs Bot trading for 1v1v1 mode
+    updateBotVsBotTrading() {
+        const now = Date.now();
+        
+        // Check and close existing bot vs bot positions
+        this.botVsBotPositions = this.botVsBotPositions.filter(pos => {
+            const attacker = this.bots.find(b => b.name === pos.ownerName);
+            const target = this.bots.find(b => b.name === pos.targetName);
+            if (!attacker || !target) return false;
+            
+            // Check liquidation first
+            const currentPrice = target.cookies;
+            const isLiquidated = pos.type === 'long' 
+                ? currentPrice <= pos.liquidationPrice
+                : currentPrice >= pos.liquidationPrice;
+            
+            if (isLiquidated) {
+                // Attacker loses stake, target wins it
+                target.cookies += pos.stake;
+                this.showNotification(`💀 ${pos.ownerName}'s ${pos.type.toUpperCase()} on ${pos.targetName} LIQUIDATED!`, 'info');
+                return false;
+            }
+            
+            // Check if should close for profit/loss
+            const holdTime = now - (pos.openedAt || now);
+            if (holdTime < 3000) return true; // Min hold time
+            
+            const priceChange = currentPrice - pos.entryPrice;
+            const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+            const pnl = (priceChange / pos.entryPrice) * pos.stake * pos.leverage * pnlMultiplier;
+            
+            const shouldClose = (pnl > pos.stake * 0.3 && Math.random() < 0.01) || 
+                               (pnl < -pos.stake * 0.2 && Math.random() < 0.005);
+            
+            if (shouldClose) {
+                const actualPnl = Math.max(-pos.stake, Math.floor(pnl));
+                attacker.cookies += pos.stake + actualPnl;
+                if (actualPnl > 0) {
+                    target.cookies -= actualPnl;
+                } else if (actualPnl < 0) {
+                    target.cookies += Math.abs(actualPnl);
+                }
+                const pnlText = actualPnl >= 0 ? `+${actualPnl}` : `${actualPnl}`;
+                this.showNotification(`${pos.ownerName} closed on ${pos.targetName}: ${pnlText}🍪`, 'info');
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Each bot considers trading on the other bot
+        this.bots.forEach(attacker => {
+            const otherBot = this.bots.find(b => b.name !== attacker.name);
+            if (!otherBot) return;
+            
+            // Check if this bot already has a position on the other bot
+            const hasPosition = this.botVsBotPositions.some(p => p.ownerName === attacker.name);
+            if (hasPosition) return;
+            
+            // Low chance to open a position
+            if (Math.random() > 0.002) return;
+            
+            // Need enough cookies
+            if (attacker.cookies < 100 || otherBot.cookies < 500) return;
+            
+            // Decide position type based on relative performance
+            let positionType;
+            if (otherBot.cookies > attacker.cookies * 1.2) {
+                // Other bot is ahead - short them!
+                positionType = Math.random() > 0.2 ? 'short' : 'long';
+            } else if (attacker.cookies > otherBot.cookies * 1.2) {
+                // Attacker is ahead - long the underdog
+                positionType = Math.random() > 0.4 ? 'long' : 'short';
+            } else {
+                positionType = Math.random() > 0.5 ? 'long' : 'short';
+            }
+            
+            // Stake 20-40% of attacker's cookies
+            const stakePercent = 0.2 + Math.random() * 0.2;
+            const maxStake = Math.floor(otherBot.cookies * 0.5);
+            const stake = Math.floor(Math.min(attacker.cookies * stakePercent, maxStake));
+            
+            if (stake < 50) return;
+            
+            // Use 5x-10x leverage
+            const leverage = Math.random() > 0.5 ? 10 : (Math.random() > 0.5 ? 7 : 5);
+            
+            const entryPrice = otherBot.cookies;
+            const liquidationPrice = positionType === 'long'
+                ? Math.floor(entryPrice * (1 - 1 / leverage))
+                : Math.floor(entryPrice * (1 + 1 / leverage));
+            
+            const position = {
+                id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                ownerName: attacker.name,
+                targetName: otherBot.name,
+                type: positionType,
+                stake: stake,
+                leverage: leverage,
+                entryPrice: entryPrice,
+                liquidationPrice: liquidationPrice,
+                openedAt: Date.now()
+            };
+            
+            this.botVsBotPositions.push(position);
+            attacker.cookies -= stake;
+            
+            this.showNotification(`⚔️ ${attacker.name} ${positionType.toUpperCase()}s ${otherBot.name}! ${stake}🍪 @ ${leverage}x`, 'info');
+        });
+        
+        // Bots react to positions on them - try to liquidate attackers!
+        this.bots.forEach(bot => {
+            const positionsOnMe = this.botVsBotPositions.filter(p => p.targetName === bot.name);
+            if (positionsOnMe.length === 0) return;
+            
+            // React to positions - spend cookies on generators to change price
+            positionsOnMe.forEach(pos => {
+                // Small chance each frame to react
+                if (Math.random() > 0.01) return;
+                
+                if (pos.type === 'short') {
+                    // Someone shorted me - I should GROW to liquidate them
+                    // Buy generators (increase CPS)
+                    if (bot.cookies > 100) {
+                        const spend = Math.floor(bot.cookies * 0.1);
+                        bot.cookies -= spend;
+                        bot.cps += Math.max(1, Math.floor(spend / 30));
+                    }
+                } else {
+                    // Someone longed me - I should SHRINK to liquidate them
+                    // Spend cookies aggressively
+                    if (bot.cookies > 200) {
+                        const spend = Math.floor(bot.cookies * 0.15);
+                        bot.cookies -= spend;
+                        bot.cps += Math.max(1, Math.floor(spend / 40));
+                    }
+                }
+            });
         });
     }
     
@@ -2531,6 +2680,7 @@ class TutorialGame {
             this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0 };
             this.positions = [];
             this.botPositions = [];
+            this.botVsBotPositions = []; // Reset bot vs bot positions too
             
             // Give bots HIGH CPS - 40-60 per second to match fast clickers
             this.bots[0].cookies = 0;
