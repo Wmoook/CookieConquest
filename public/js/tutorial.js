@@ -1108,21 +1108,105 @@ class TutorialGame {
     
     updateBots(dt) {
         this.bots.forEach(bot => {
-            // Bots earn cookies from CPS
-            bot.cookies += bot.cps * dt;
+            // Bots earn cookies from CPS (slower in free play to make it easier for player)
+            const cpsMultiplier = this.freePlayMode ? 0.7 : 1;
+            bot.cookies += bot.cps * dt * cpsMultiplier;
             
-            // Add some randomness to make it interesting
+            // Add some randomness to make it interesting (less in free play)
             if (Math.random() < 0.02) {
-                const change = (Math.random() - 0.5) * 20;
+                const change = (Math.random() - 0.5) * (this.freePlayMode ? 10 : 20);
                 bot.cookies = Math.max(10, bot.cookies + change);
             }
             
-            // Occasionally boost their CPS (simulate buying generators)
-            if (Math.random() < 0.005 && bot.cookies > 50) {
+            // Occasionally boost their CPS (simulate buying generators) - slower in free play
+            const buyChance = this.freePlayMode ? 0.002 : 0.005;
+            if (Math.random() < buyChance && bot.cookies > 50) {
                 bot.cps += 1;
                 bot.cookies -= 15;
             }
         });
+        
+        // Free play bot trading AI
+        if (this.freePlayMode) {
+            this.updateBotTrading();
+        }
+    }
+    
+    updateBotTrading() {
+        // Each bot has a chance to make a trade each frame
+        this.bots.forEach(bot => {
+            // Don't trade too often - check every ~3 seconds on average
+            if (Math.random() > 0.01) return;
+            
+            // Bot can open a position on the player
+            const hasPositionOnPlayer = this.botPositions.some(p => p.ownerName === bot.name);
+            
+            if (!hasPositionOnPlayer && bot.cookies > 100) {
+                // Decide to long or short the player
+                // Bots are not very smart - they make random decisions (easy for player)
+                const positionType = Math.random() > 0.5 ? 'long' : 'short';
+                const stake = Math.floor(Math.min(50, bot.cookies * 0.1)); // Small stakes - easy mode
+                const leverage = 2; // Low leverage - easy mode
+                
+                if (stake >= 10) {
+                    if (positionType === 'long') {
+                        this.botLongsPlayer(bot.name, stake, leverage);
+                    } else {
+                        this.botShortsPlayer(bot.name, stake, leverage);
+                    }
+                }
+            }
+            
+            // Bot might close their position if profitable or cut losses
+            const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
+            if (botPosition && Math.random() < 0.05) {
+                // Calculate PnL
+                const currentPrice = this.cookies;
+                const priceChange = currentPrice - botPosition.entryPrice;
+                const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
+                const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
+                
+                // Close if profitable (50% chance) or big loss (30% chance)
+                if ((pnl > botPosition.stake * 0.2 && Math.random() < 0.5) || 
+                    (pnl < -botPosition.stake * 0.3 && Math.random() < 0.3)) {
+                    this.botClosesPosition(bot.name);
+                }
+            }
+        });
+    }
+    
+    botClosesPosition(botName) {
+        const posIndex = this.botPositions.findIndex(p => p.ownerName === botName);
+        if (posIndex === -1) return;
+        
+        const pos = this.botPositions[posIndex];
+        const bot = this.bots.find(b => b.name === botName);
+        if (!bot) return;
+        
+        // Calculate PnL
+        const currentPrice = this.cookies;
+        const priceChange = currentPrice - pos.entryPrice;
+        const pnlMultiplier = pos.type === 'long' ? 1 : -1;
+        const pnl = Math.floor((priceChange / pos.entryPrice) * pos.stake * pos.leverage * pnlMultiplier);
+        
+        // Bot gets back stake + pnl (or stake - loss)
+        const actualPnl = Math.max(-pos.stake, pnl);
+        bot.cookies += pos.stake + actualPnl;
+        
+        // If bot profited, player loses. If bot lost, player gains.
+        if (actualPnl > 0) {
+            this.cookies -= actualPnl;
+            this.showNotification(`${botName} closed position: +${actualPnl}🍪 profit from you!`, 'warning');
+        } else if (actualPnl < 0) {
+            this.cookies += Math.abs(actualPnl);
+            this.showNotification(`${botName} closed position: lost ${Math.abs(actualPnl)}🍪 to you!`, 'success');
+        } else {
+            this.showNotification(`${botName} closed position: broke even`, 'info');
+        }
+        
+        // Remove position
+        this.botPositions.splice(posIndex, 1);
+        this.updateDisplays();
     }
     
     checkLiquidations() {
@@ -1978,19 +2062,16 @@ class TutorialGame {
                 break;
             case 'open-position':
                 const longTarget = stepData.target || this.bots[0]?.name;
-                // Spotlight LONG button with glow, target's card and sidebar without glow
+                // Spotlight ONLY the LONG button with glow
                 this.setSpotlight([
-                    `.quick-trade-btn.long[data-target="${longTarget}"]`,
-                    {selector: `#card-${longTarget}`, noGlow: true},
-                    {selector: `#positions-sidebar-${longTarget}`, noGlow: true}
+                    `.quick-trade-btn.long[data-target="${longTarget}"]`
                 ]);
                 break;
             case 'open-short':
                 const shortTarget = stepData.target || this.bots[1]?.name;
-                // Spotlight SHORT button with glow, sidebar without glow (not the whole card)
+                // Spotlight ONLY the SHORT button with glow
                 this.setSpotlight([
-                    `.quick-trade-btn.short[data-target="${shortTarget}"]`,
-                    {selector: `#positions-sidebar-${shortTarget}`, noGlow: true}
+                    `.quick-trade-btn.short[data-target="${shortTarget}"]`
                 ]);
                 break;
             case 'player-gets-liquidated':
