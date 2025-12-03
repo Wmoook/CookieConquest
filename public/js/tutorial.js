@@ -1340,6 +1340,21 @@ class TutorialGame {
             });
         }
         
+        // For BOT charts, expand bounds to include YOUR liquidation prices on them
+        if (labelId !== 'you' && this.positions && this.positions.length > 0) {
+            // Find bot name from labelId (e.g., 'chipmaster' -> 'ChipMaster')
+            const bot = this.bots.find(b => b.name.toLowerCase().replace(/\s+/g, '') === labelId.toLowerCase());
+            if (bot) {
+                const positionsOnBot = this.positions.filter(p => p.targetName === bot.name);
+                positionsOnBot.forEach(pos => {
+                    if (pos.liquidationPrice) {
+                        if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                        if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                    }
+                });
+            }
+        }
+        
         const padding = (max - min) * 0.1 || 10;
         min = Math.max(0, min - padding);
         max += padding;
