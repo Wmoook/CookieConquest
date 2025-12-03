@@ -1167,11 +1167,18 @@ class TutorialGame {
                 const positionType = Math.random() > 0.5 ? 'long' : 'short';
                 
                 // Stakes based on both bot's cookies and player's cookies (meaningful amounts!)
-                // Use 15-25% of bot's cookies, but cap at 30% of player's cookies
-                const botStakePercent = 0.15 + Math.random() * 0.1; // 15-25%
-                const maxStake = Math.floor(this.cookies * 0.3); // Max 30% of player's cookies
+                // Use 20-35% of bot's cookies, but cap at 40% of player's cookies
+                const botStakePercent = 0.20 + Math.random() * 0.15; // 20-35%
+                const maxStake = Math.floor(this.cookies * 0.4); // Max 40% of player's cookies
                 const stake = Math.floor(Math.min(bot.cookies * botStakePercent, maxStake));
-                const leverage = Math.random() > 0.7 ? 3 : 2; // Sometimes use 3x leverage
+                
+                // Use higher leverage - 3x, 5x, or even 10x!
+                const leverageRoll = Math.random();
+                let leverage;
+                if (leverageRoll < 0.3) leverage = 3;
+                else if (leverageRoll < 0.6) leverage = 5;
+                else if (leverageRoll < 0.85) leverage = 7;
+                else leverage = 10; // 15% chance of 10x leverage!
                 
                 if (stake >= 20) {
                     if (positionType === 'long') {
