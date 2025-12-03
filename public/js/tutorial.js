@@ -636,6 +636,16 @@ class TutorialGame {
         return Math.floor(50 * Math.pow(2, this.clickPowerLevel - 1));
     }
     
+    // Helper to get total locked cookies from open positions
+    getLockedCookies() {
+        return this.positions.reduce((sum, pos) => sum + pos.stake, 0);
+    }
+    
+    // Helper to get available (unlocked) cookies
+    getAvailableCookies() {
+        return this.cookies - this.getLockedCookies();
+    }
+    
     openPosition(targetName, type) {
         const bot = this.bots.find(b => b.name === targetName);
         if (!bot) return;
@@ -644,12 +654,16 @@ class TutorialGame {
         const stake = parseInt(slider?.value || 10);
         const leverage = this.targetLeverage[targetName] || 2;
         
-        if (stake > this.cookies) {
-            this.showNotification('Not enough cookies!', 'error');
+        // Check available (unlocked) cookies
+        const lockedAmount = this.getLockedCookies();
+        const available = this.cookies - lockedAmount;
+        
+        if (stake > available) {
+            this.showNotification('Not enough available cookies!', 'error');
             return;
         }
         
-        // Stake is locked (doesn't subtract from cookies, just locked)
+        // Stake is locked but stays in balance (will be tracked via positions)
         
         // Create position
         const position = {
@@ -685,15 +699,16 @@ class TutorialGame {
         const pnlMultiplier = pos.type === 'long' ? 1 : -1;
         const pnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
         
-        // Return stake + PNL
-        const totalReturn = pos.stake + pnl;
-        this.cookies += Math.max(0, totalReturn);
+        // Only add/subtract PNL (stake was never removed, just locked)
+        // If loss exceeds stake, we lose at most the stake
+        const actualPnl = Math.max(-pos.stake, pnl);
+        this.cookies += actualPnl;
         
         // If we profited, take from the bot. If we lost, give to the bot.
-        if (pnl > 0) {
-            bot.cookies = Math.max(0, bot.cookies - pnl);
-        } else if (pnl < 0) {
-            bot.cookies += Math.abs(pnl);
+        if (actualPnl > 0) {
+            bot.cookies = Math.max(0, bot.cookies - actualPnl);
+        } else if (actualPnl < 0) {
+            bot.cookies += Math.abs(actualPnl);
         }
         
         // Remove position
