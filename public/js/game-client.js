@@ -29,6 +29,8 @@ class MultiplayerGame {
         
         // Max stake mode per target (always set slider to max)
         this.maxStakeMode = {}; // targetId -> boolean
+        // Percentage of max stake when MAX mode is on (0-100)
+        this.maxStakePercent = {}; // targetId -> percentage
         
         // Multiplayer cursor tracking
         this.otherCursors = {}; // playerName -> cursor DOM element
@@ -703,18 +705,22 @@ class MultiplayerGame {
                 const targetId = slider.dataset.target;
                 const value = parseInt(slider.value);
                 const display = document.getElementById(`stake-display-${targetId}`);
-                if (display) {
-                    display.textContent = `${value}🍪`;
-                }
-                // If user manually moves slider, turn off max mode
+                
+                // If MAX mode is on, slider acts as percentage of max stake
                 if (this.maxStakeMode && this.maxStakeMode[targetId]) {
-                    const maxBtn = document.getElementById(`max-btn-${targetId}`);
-                    const maxStake = parseInt(slider.max);
-                    // Only turn off if they moved away from max
-                    if (value < maxStake) {
-                        this.maxStakeMode[targetId] = false;
-                        if (maxBtn) maxBtn.classList.remove('active');
-                    }
+                    // Slider value is 0-100 percentage
+                    const percent = value;
+                    this.maxStakePercent[targetId] = percent;
+                    
+                    // Calculate actual stake based on percentage
+                    const leverage = this.targetLeverage[targetId] || 2;
+                    const maxStake = this.calculateMaxStake(targetId, leverage);
+                    const actualStake = Math.floor(maxStake * (percent / 100));
+                    
+                    if (display) display.textContent = `${actualStake}🍪 (${percent}%)`;
+                } else {
+                    // Normal mode - slider value is raw cookie amount
+                    if (display) display.textContent = `${value}🍪`;
                 }
             });
         });
@@ -724,14 +730,45 @@ class MultiplayerGame {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.target;
                 if (!this.maxStakeMode) this.maxStakeMode = {};
+                if (!this.maxStakePercent) this.maxStakePercent = {};
+                
+                const slider = document.getElementById(`slider-${targetId}`);
+                const display = document.getElementById(`stake-display-${targetId}`);
                 
                 // Toggle max mode
-                this.maxStakeMode[targetId] = !this.maxStakeMode[targetId];
-                btn.classList.toggle('active', this.maxStakeMode[targetId]);
-                
-                if (this.maxStakeMode[targetId]) {
-                    // Set to max immediately
-                    this.updateSliderMax(targetId);
+                const isActive = btn.classList.contains('active');
+                if (isActive) {
+                    // Turn off MAX mode - convert back to raw cookie value
+                    btn.classList.remove('active');
+                    this.maxStakeMode[targetId] = false;
+                    
+                    // Convert percentage to actual cookie value
+                    if (slider && display) {
+                        const leverage = this.targetLeverage[targetId] || 2;
+                        const maxStake = this.calculateMaxStake(targetId, leverage);
+                        const percent = this.maxStakePercent[targetId] || 100;
+                        const actualStake = Math.floor(maxStake * (percent / 100));
+                        
+                        slider.max = Math.max(1, maxStake);
+                        slider.value = Math.max(1, actualStake);
+                        display.textContent = `${slider.value}🍪`;
+                    }
+                } else {
+                    // Turn on MAX mode - slider becomes percentage (0-100)
+                    btn.classList.add('active');
+                    this.maxStakeMode[targetId] = true;
+                    this.maxStakePercent[targetId] = 100; // Start at 100%
+                    
+                    // Set slider to percentage mode (0-100)
+                    if (slider && display) {
+                        const leverage = this.targetLeverage[targetId] || 2;
+                        const maxStake = this.calculateMaxStake(targetId, leverage);
+                        
+                        slider.min = 0;
+                        slider.max = 100;
+                        slider.value = 100;
+                        display.textContent = `${maxStake}🍪 (100%)`;
+                    }
                 }
             });
         });
@@ -783,15 +820,20 @@ class MultiplayerGame {
         const display = document.getElementById(`stake-display-${targetId}`);
         
         if (slider) {
-            // Always update the max value
-            const newMax = Math.max(1, maxStake); // Minimum 1 to keep slider functional
-            slider.max = newMax;
-            
-            // If MAX mode is active, always set to max
+            // If MAX mode is active, slider is percentage-based (0-100)
             if (this.maxStakeMode && this.maxStakeMode[targetId]) {
-                slider.value = newMax;
-                if (display) display.textContent = `${newMax}🍪`;
+                slider.min = 0;
+                slider.max = 100;
+                // Keep the percentage value, just update the display
+                const percent = this.maxStakePercent[targetId] || 100;
+                const actualStake = Math.floor(maxStake * (percent / 100));
+                if (display) display.textContent = `${actualStake}🍪 (${percent}%)`;
             } else {
+                // Normal mode - slider max is actual cookie amount
+                const newMax = Math.max(1, maxStake);
+                slider.min = 0;
+                slider.max = newMax;
+                
                 // If current value exceeds new max, adjust it down
                 const currentValue = parseInt(slider.value);
                 if (currentValue > newMax) {
@@ -803,7 +845,9 @@ class MultiplayerGame {
             // Disable slider if max stake is 0 or less
             if (maxStake <= 0) {
                 slider.disabled = true;
-                slider.value = 1;
+                if (!this.maxStakeMode || !this.maxStakeMode[targetId]) {
+                    slider.value = 1;
+                }
                 if (display) display.textContent = `0🍪`;
             } else {
                 slider.disabled = false;
@@ -1014,8 +1058,17 @@ class MultiplayerGame {
         if (!this.gameState) return;
         
         const slider = document.getElementById(`slider-${targetName}`);
-        const stake = parseInt(slider?.value) || 10;
         const leverage = this.targetLeverage[targetName] || 2;
+        
+        // If MAX mode is on, calculate stake from percentage
+        let stake;
+        if (this.maxStakeMode && this.maxStakeMode[targetName]) {
+            const percent = this.maxStakePercent[targetName] || 100;
+            const maxStake = this.calculateMaxStake(targetName, leverage);
+            stake = Math.floor(maxStake * (percent / 100));
+        } else {
+            stake = parseInt(slider?.value) || 10;
+        }
         
         const me = this.getMe();
         const target = this.gameState.players.find(p => p.name === targetName);

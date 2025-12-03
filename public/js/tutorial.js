@@ -322,7 +322,9 @@ class TutorialGame {
         
         // MAX stake mode per target (tracks which players have MAX locked)
         this.maxStakeMode = {};
-        
+        // Percentage of max stake when MAX mode is on (0-100)
+        this.maxStakePercent = {};
+
         this.init();
     }
     
@@ -505,11 +507,25 @@ class TutorialGame {
             slider.addEventListener('input', () => {
                 const target = slider.dataset.target;
                 const display = document.getElementById(`stake-display-${target}`);
-                const maxBtn = document.getElementById(`max-btn-${target}`);
-                if (display) display.textContent = `${slider.value}🍪`;
-                // Remove MAX mode if manually changed
-                if (maxBtn) maxBtn.classList.remove('active');
-                this.maxStakeMode[target] = false;
+                
+                // If MAX mode is on, slider acts as percentage of max stake
+                if (this.maxStakeMode[target]) {
+                    // Slider value is 0-100 percentage
+                    const percent = parseInt(slider.value);
+                    this.maxStakePercent[target] = percent;
+                    
+                    // Calculate actual stake based on percentage
+                    const bot = this.bots.find(b => b.name === target);
+                    const maxBet = bot ? Math.floor(bot.cookies * 0.5) : 0;
+                    const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                    const actualStake = Math.floor(maxStake * (percent / 100));
+                    
+                    if (display) display.textContent = `${actualStake}🍪 (${percent}%)`;
+                } else {
+                    // Normal mode - slider value is raw cookie amount
+                    if (display) display.textContent = `${slider.value}🍪`;
+                }
+                
                 // Check tutorial progress for set-stake step
                 this.checkTutorialProgress();
             });
@@ -525,23 +541,38 @@ class TutorialGame {
                 // Toggle MAX mode
                 const isActive = btn.classList.contains('active');
                 if (isActive) {
-                    // Turn off MAX mode
+                    // Turn off MAX mode - convert back to raw cookie value
                     btn.classList.remove('active');
                     this.maxStakeMode[target] = false;
-                } else {
-                    // Turn on MAX mode
-                    btn.classList.add('active');
-                    this.maxStakeMode[target] = true;
                     
-                    // Immediately update to max (capped at 50% of target's cookies)
+                    // Convert percentage to actual cookie value
                     if (slider && display) {
                         const bot = this.bots.find(b => b.name === target);
-                        const targetCookies = bot ? bot.cookies : Infinity;
-                        const maxBet = Math.floor(targetCookies * 0.5);
+                        const maxBet = bot ? Math.floor(bot.cookies * 0.5) : 0;
                         const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                        const percent = this.maxStakePercent[target] || 100;
+                        const actualStake = Math.floor(maxStake * (percent / 100));
+                        
                         slider.max = Math.max(1, maxStake);
-                        slider.value = Math.max(1, maxStake);
+                        slider.value = Math.max(1, actualStake);
                         display.textContent = `${slider.value}🍪`;
+                    }
+                } else {
+                    // Turn on MAX mode - slider becomes percentage (0-100)
+                    btn.classList.add('active');
+                    this.maxStakeMode[target] = true;
+                    this.maxStakePercent[target] = 100; // Start at 100%
+                    
+                    // Set slider to percentage mode (0-100)
+                    if (slider && display) {
+                        const bot = this.bots.find(b => b.name === target);
+                        const maxBet = bot ? Math.floor(bot.cookies * 0.5) : 0;
+                        const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                        
+                        slider.min = 0;
+                        slider.max = 100;
+                        slider.value = 100;
+                        display.textContent = `${maxStake}🍪 (100%)`;
                     }
                 }
                 
@@ -939,7 +970,18 @@ class TutorialGame {
         }
         
         const slider = document.getElementById(`slider-${targetName}`);
-        const stake = parseInt(slider?.value || 10);
+        let stake;
+        
+        // If MAX mode is on, calculate stake from percentage
+        if (this.maxStakeMode[targetName]) {
+            const percent = this.maxStakePercent[targetName] || 100;
+            const maxBet = Math.floor(bot.cookies * 0.5);
+            const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+            stake = Math.floor(maxStake * (percent / 100));
+        } else {
+            stake = parseInt(slider?.value || 10);
+        }
+        
         const leverage = this.targetLeverage[targetName] || 2;
         
         // Check minimum stake for tutorial step (both open-position and open-short)
@@ -1715,18 +1757,27 @@ class TutorialGame {
             if (slider) {
                 const maxBet = Math.floor(bot.cookies * 0.5); // Can't bet more than 50% of target's cookies
                 const maxStake = Math.min(Math.floor(this.cookies), maxBet);
-                slider.max = Math.max(1, maxStake);
-                
-                // If MAX mode is locked for this target, update value to max
-                if (this.maxStakeMode[bot.name]) {
-                    slider.value = Math.max(1, maxStake);
-                } else if (parseInt(slider.value) > maxStake) {
-                    slider.value = maxStake;
-                }
-                slider.disabled = maxStake < 1;
                 
                 const display = document.getElementById(`stake-display-${bot.name}`);
-                if (display) display.textContent = `${slider.value}🍪`;
+                
+                // If MAX mode is on, slider is percentage-based (0-100)
+                if (this.maxStakeMode[bot.name]) {
+                    slider.min = 0;
+                    slider.max = 100;
+                    // Keep the percentage value, just update the display
+                    const percent = this.maxStakePercent[bot.name] || 100;
+                    const actualStake = Math.floor(maxStake * (percent / 100));
+                    if (display) display.textContent = `${actualStake}🍪 (${percent}%)`;
+                } else {
+                    // Normal mode - slider max is actual cookie amount
+                    slider.min = 0;
+                    slider.max = Math.max(1, maxStake);
+                    if (parseInt(slider.value) > maxStake) {
+                        slider.value = maxStake;
+                    }
+                    if (display) display.textContent = `${slider.value}🍪`;
+                }
+                slider.disabled = maxStake < 1;
             }
         });
         
@@ -2656,14 +2707,34 @@ class TutorialGame {
                 // Check if stake slider for target is at least minStake
                 const stakeSlider = document.getElementById(`slider-${stepData.target}`);
                 if (stakeSlider) {
-                    completed = parseInt(stakeSlider.value) >= stepData.minStake;
+                    // If MAX mode, calculate actual stake from percentage
+                    if (this.maxStakeMode[stepData.target]) {
+                        const bot = this.bots.find(b => b.name === stepData.target);
+                        const maxBet = bot ? Math.floor(bot.cookies * 0.5) : 0;
+                        const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                        const percent = this.maxStakePercent[stepData.target] || 100;
+                        const actualStake = Math.floor(maxStake * (percent / 100));
+                        completed = actualStake >= stepData.minStake;
+                    } else {
+                        completed = parseInt(stakeSlider.value) >= stepData.minStake;
+                    }
                 }
                 break;
             case 'set-stake-short':
                 // Check if stake slider for target is at least minStake (for short position)
                 const stakeSliderShort = document.getElementById(`slider-${stepData.target}`);
                 if (stakeSliderShort) {
-                    completed = parseInt(stakeSliderShort.value) >= stepData.minStake;
+                    // If MAX mode, calculate actual stake from percentage
+                    if (this.maxStakeMode[stepData.target]) {
+                        const bot = this.bots.find(b => b.name === stepData.target);
+                        const maxBet = bot ? Math.floor(bot.cookies * 0.5) : 0;
+                        const maxStake = Math.min(Math.floor(this.cookies), maxBet);
+                        const percent = this.maxStakePercent[stepData.target] || 100;
+                        const actualStake = Math.floor(maxStake * (percent / 100));
+                        completed = actualStake >= stepData.minStake;
+                    } else {
+                        completed = parseInt(stakeSliderShort.value) >= stepData.minStake;
+                    }
                 }
                 break;
             case 'open-position':
@@ -2733,11 +2804,13 @@ class TutorialGame {
                 // Check if MAX button was clicked (slider is at max value)
                 const slider = document.getElementById(`slider-${this.bots[0].name}`);
                 const maxBtn = document.getElementById(`max-btn-${this.bots[0].name}`);
-                // Complete if MAX is active or stake is high (over 50% of cookies)
+                // Complete if MAX is active (at any percentage) or stake is high (over 50% of cookies)
                 if (maxBtn && maxBtn.classList.contains('active')) {
                     completed = true;
-                } else if (slider && parseInt(slider.value) >= Math.floor(this.cookies * 0.5)) {
-                    completed = true;
+                } else if (slider) {
+                    // Not in MAX mode, check raw slider value
+                    const sliderValue = parseInt(slider.value);
+                    completed = sliderValue >= Math.floor(this.cookies * 0.5);
                 }
                 break;
             case 'buff-strategy-short':
