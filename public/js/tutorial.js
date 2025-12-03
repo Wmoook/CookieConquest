@@ -1117,10 +1117,14 @@ class TutorialGame {
                 bot.cookies = Math.max(10, bot.cookies + change);
             }
             
-            // Occasionally boost their CPS (simulate buying generators)
-            if (Math.random() < 0.008 && bot.cookies > 50) {
-                bot.cps += 2; // Bigger CPS boost
-                bot.cookies -= 15;
+            // Occasionally buy generators (spend real cookies!)
+            if (Math.random() < 0.01 && bot.cookies > 100) {
+                // Spend 20-40% of their cookies on generators
+                const spendPercent = 0.2 + Math.random() * 0.2;
+                const spent = Math.floor(bot.cookies * spendPercent);
+                bot.cookies -= spent;
+                // Get CPS based on how much they spent (roughly 1 CPS per 50 cookies)
+                bot.cps += Math.max(1, Math.floor(spent / 50));
             }
         });
         
@@ -1133,13 +1137,19 @@ class TutorialGame {
     updateBotTrading() {
         // Bots are MUCH more aggressive if tutorial was skipped - HARD MODE
         const aggressive = this.skippedTutorial === true;
+        const now = Date.now();
         
-        // Each bot has a chance to make a trade each frame
+        // Each bot has a chance to make a trade
         this.bots.forEach(bot => {
             const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
             
             // Check if bot should close their position
             if (botPosition) {
+                // MINIMUM HOLD TIME - give player time to react!
+                const minHoldTime = aggressive ? 3000 : 5000; // 3 seconds aggressive, 5 seconds normal
+                const holdTime = now - (botPosition.openedAt || now);
+                if (holdTime < minHoldTime) return; // Can't close yet!
+                
                 // Calculate PnL
                 const currentPrice = this.cookies;
                 const priceChange = currentPrice - botPosition.entryPrice;
@@ -1147,11 +1157,11 @@ class TutorialGame {
                 const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
                 
                 // Aggressive bots wait for BIG wins before closing - they want to HURT you
-                // They hold longer for massive profits, but cut losses quick
-                const profitThreshold = aggressive ? 0.5 : 0.1; // 50% profit vs 10% - wait for big wins!
-                const lossThreshold = aggressive ? 0.15 : 0.3; // Cut losses faster at 15%
-                const profitChance = aggressive ? 0.1 : 0.02; // When profitable enough, 10% chance to cash out
-                const lossChance = aggressive ? 0.05 : 0.01;
+                const profitThreshold = aggressive ? 0.5 : 0.1; // 50% profit vs 10%
+                const lossThreshold = aggressive ? 0.15 : 0.3; // Cut losses at 15% vs 30%
+                // Much lower close chance per frame - check every ~2 seconds
+                const profitChance = aggressive ? 0.005 : 0.002;
+                const lossChance = aggressive ? 0.003 : 0.001;
                 
                 const shouldTakeProfit = pnl > botPosition.stake * profitThreshold && Math.random() < profitChance;
                 const shouldCutLoss = pnl < -botPosition.stake * lossThreshold && Math.random() < lossChance;
@@ -1162,8 +1172,9 @@ class TutorialGame {
                 }
             }
             
-            // Aggressive bots trade VERY often - constantly looking to attack
-            const tradeChance = aggressive ? 0.03 : 0.005; // 3% vs 0.5% per frame
+            // Slow down trade opening - once every few seconds, not every frame
+            // 0.3% per frame aggressive (~once per 5-6 seconds), 0.1% normal (~once per 15 seconds)
+            const tradeChance = aggressive ? 0.003 : 0.001;
             if (Math.random() > tradeChance) return;
             
             // Bot can open a position on the player
@@ -1345,7 +1356,8 @@ class TutorialGame {
             stake: stake,
             leverage: leverage,
             entryPrice: entryPrice,
-            liquidationPrice: liquidationPrice
+            liquidationPrice: liquidationPrice,
+            openedAt: Date.now()
         };
         
         this.botPositions.push(position);
@@ -1371,7 +1383,8 @@ class TutorialGame {
             stake: stake,
             leverage: leverage,
             entryPrice: entryPrice,
-            liquidationPrice: liquidationPrice
+            liquidationPrice: liquidationPrice,
+            openedAt: Date.now()
         };
         
         this.botPositions.push(position);
