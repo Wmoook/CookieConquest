@@ -73,17 +73,36 @@ class MultiplayerGame {
         }, duration);
     }
     
-    // Helper to find the current player in game state
+    // Helper to find the current player/team in game state
     getMe() {
         if (!this.gameState) return null;
+        
+        // In duos mode, find the team that has this player as a member
+        if (this.gameState.gameMode === 'duos') {
+            return this.gameState.players.find(team => 
+                team.isTeam && team.memberIds && (
+                    team.memberIds.includes(this.playerId) ||
+                    team.memberNames?.some(n => n.toLowerCase() === this.playerName?.toLowerCase())
+                )
+            );
+        }
+        
+        // In solos, find player by name or ID
         return this.gameState.players.find(p => 
             p.name.toLowerCase() === this.playerName?.toLowerCase() || p.id === this.playerId
         );
     }
     
-    // Helper to check if a player is me
+    // Helper to check if a player/team is me/my team
     isMe(player) {
         if (!player) return false;
+        
+        // In duos mode, check if this is my team
+        if (this.gameState?.gameMode === 'duos' && player.isTeam) {
+            return player.memberIds?.includes(this.playerId) ||
+                   player.memberNames?.some(n => n.toLowerCase() === this.playerName?.toLowerCase());
+        }
+        
         return player.name.toLowerCase() === this.playerName?.toLowerCase() || player.id === this.playerId;
     }
     
@@ -143,13 +162,27 @@ class MultiplayerGame {
             this.gameState = gameState;
             this.isGameActive = true;
             
-            // Find my player in the game state
-            const myPlayer = gameState.players.find(p => p.name.toLowerCase() === this.playerName.toLowerCase());
-            if (myPlayer) {
-                this.playerId = myPlayer.id;
-                console.log('Found my player ID:', this.playerId);
+            // Find my player/team in the game state
+            if (gameState.gameMode === 'duos') {
+                // In duos, find my team
+                const myTeam = gameState.players.find(team => 
+                    team.isTeam && team.memberNames?.some(n => n.toLowerCase() === this.playerName.toLowerCase())
+                );
+                if (myTeam) {
+                    this.playerId = myTeam.id;
+                    console.log('Found my team:', myTeam.name, 'ID:', this.playerId);
+                } else {
+                    console.log('Could not find my team, using socket ID:', this.playerId);
+                }
             } else {
-                console.log('Could not find my player, using socket ID:', this.playerId);
+                // In solos, find my player
+                const myPlayer = gameState.players.find(p => p.name.toLowerCase() === this.playerName.toLowerCase());
+                if (myPlayer) {
+                    this.playerId = myPlayer.id;
+                    console.log('Found my player ID:', this.playerId);
+                } else {
+                    console.log('Could not find my player, using socket ID:', this.playerId);
+                }
             }
             
             this.hideLoading();
@@ -252,33 +285,56 @@ class MultiplayerGame {
         });
         
         // Remote cursor updates
-        this.socket.on('game:cursor', ({ playerName, color, x, y }) => {
+        this.socket.on('game:cursor', ({ playerName, color, x, y, teamName }) => {
             console.log('Received cursor from', playerName, 'at', x, y);
-            this.updateRemoteCursor(playerName, color, x, y);
+            // In duos mode: teammates are green, opponents are red
+            let cursorColor = color;
+            if (this.gameState?.gameMode === 'duos' && teamName) {
+                const me = this.getMe();
+                if (me && me.name === teamName) {
+                    cursorColor = '#2ecc71'; // Green for teammate
+                } else {
+                    cursorColor = '#e74c3c'; // Red for opponents
+                }
+            }
+            this.updateRemoteCursor(playerName, cursorColor, x, y);
         });
         
         // King of the Hill winner notification
         this.socket.on('game:kothWinner', ({ winnerName, winnerColor, timeOnCookie, totalBuffs }) => {
-            const isMe = winnerName === this.playerName;
+            const me = this.getMe();
+            const isMe = me && (winnerName === me.name);
             const timeSeconds = (timeOnCookie / 1000).toFixed(1);
             const buffPercent = totalBuffs * 5;
             
             if (isMe) {
-                this.showNotification(`👑 YOU are the Cookie King! +5% buff (now +${buffPercent}% total)`, 'profit');
+                // In duos mode, show "You + Teammate" format
+                let displayName = 'YOU';
+                if (this.gameState?.gameMode === 'duos' && me?.memberNames) {
+                    const teammateName = me.memberNames.find(n => n.toLowerCase() !== this.playerName?.toLowerCase());
+                    if (teammateName) displayName = `You + ${teammateName}`;
+                }
+                this.showNotification(`👑 ${displayName} are the Cookie Kings! +5% buff (now +${buffPercent}% total)`, 'profit');
                 this.screenTint('gold', 500);
             } else {
-                this.showNotification(`👑 ${winnerName} is the Cookie King! (${timeSeconds}s on cookie, now +${buffPercent}%)`, 'info');
+                this.showNotification(`👑 ${winnerName} are the Cookie Kings! (${timeSeconds}s on cookie, now +${buffPercent}%)`, 'info');
             }
+        });
+        
+        // King of the Hill tie notification
+        this.socket.on('game:kothTie', ({ message }) => {
+            this.showNotification(`⚖️ ${message}`, 'warning');
         });
         
         // Freeze ability events
         this.socket.on('game:playerFrozen', ({ frozenBy, frozenPlayer, duration }) => {
-            const isMe = frozenPlayer === this.playerName;
+            const me = this.getMe();
+            const isMe = me && (frozenPlayer === me.name);
             if (isMe) {
                 this.showNotification(`🥶 You were FROZEN by ${frozenBy}! (${duration}s)`, 'error');
                 this.screenTint('cyan', 500);
                 this.showFrozenOverlay(duration);
-            } else if (frozenBy === this.playerName) {
+            } else if (me && frozenBy === me.name) {
                 this.showNotification(`🥶 You froze ${frozenPlayer}!`, 'profit');
             } else {
                 this.showNotification(`🥶 ${frozenBy} froze ${frozenPlayer}!`, 'info');
@@ -496,8 +552,15 @@ class MultiplayerGame {
         sortedPlayers.forEach((player, index) => {
             const isMe = this.isMe(player);
             const chartId = isMe ? 'you' : player.name; // Use name for chart ID
-            // Use green for self, player's assigned color for others
-            const displayColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
+            
+            // In duos mode: your team is green, opponent team is red
+            // In solos: you are green, others use their assigned colors
+            let displayColor;
+            if (this.gameState.gameMode === 'duos') {
+                displayColor = isMe ? '#2ecc71' : '#e74c3c'; // Green for your team, red for opponents
+            } else {
+                displayColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
+            }
             
             // Create a row container for card + positions sidebar
             const row = document.createElement('div');
@@ -510,12 +573,26 @@ class MultiplayerGame {
             card.id = `card-${player.name}`;
             card.dataset.playerColor = displayColor; // Store for chart rendering
             
+            // In duos mode, format the display name nicely
+            let displayName;
+            if (isMe) {
+                // For your team, show "You + Teammate"
+                if (this.gameState.gameMode === 'duos' && player.memberNames) {
+                    const teammateName = player.memberNames.find(n => n.toLowerCase() !== this.playerName?.toLowerCase());
+                    displayName = teammateName ? `You + ${teammateName}` : 'YOU';
+                } else {
+                    displayName = 'YOU';
+                }
+            } else {
+                displayName = player.name;
+            }
+            
             card.innerHTML = `
                 <div class="stock-header" style="border-left: 4px solid ${displayColor};">
                     <div class="stock-header-left">
                         <div class="player-rank" id="rank-${chartId}">#${index + 1}</div>
                         <span class="player-color-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${displayColor}; margin-right: 5px;"></span>
-                        <span class="player-name" style="color:${displayColor}">${isMe ? 'YOU' : player.name}</span>
+                        <span class="player-name" style="color:${displayColor}">${displayName}</span>
                         <span class="frozen-badge" id="frozen-badge-${player.name}" style="display:none; background: #00bfff; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px; animation: frozenPulse 1s infinite;">🥶 FROZEN</span>
                         ${!isMe ? `<span class="click-indicator" id="click-ind-${player.name}" style="display:none;">🖱️</span>` : ''}
                     </div>
@@ -576,7 +653,7 @@ class MultiplayerGame {
             sidebar.id = `positions-sidebar-${player.name}`;
             sidebar.innerHTML = `
                 <div class="player-positions-header">
-                    <span>📊 On ${isMe ? 'YOU' : player.name}</span>
+                    <span>📊 On ${displayName}</span>
                     <span class="player-positions-pnl neutral" id="pnl-sidebar-${player.name}">0🍪</span>
                 </div>
                 <div class="player-positions-list" id="positions-list-${player.name}">
@@ -845,8 +922,15 @@ class MultiplayerGame {
     }
     
     getFullHistoryLength(chartId) {
-        // chartId is either 'you' or player name
-        const playerName = chartId === 'you' ? this.playerName : chartId;
+        // chartId is either 'you' or player/team name
+        // In duos mode, 'you' needs to resolve to the TEAM name
+        let playerName;
+        if (chartId === 'you') {
+            const me = this.getMe();
+            playerName = me ? me.name : this.playerName;
+        } else {
+            playerName = chartId;
+        }
         const history = this.playerHistory[playerName];
         return history ? history.fullCookies.length : 60;
     }
@@ -855,8 +939,15 @@ class MultiplayerGame {
         const vp = this.chartViewport[chartId];
         if (!vp) return { data: [], isLive: true };
         
-        // chartId is either 'you' or player name
-        const playerName = chartId === 'you' ? this.playerName : chartId;
+        // chartId is either 'you' or player/team name
+        // In duos mode, 'you' needs to resolve to the TEAM name, not individual name
+        let playerName;
+        if (chartId === 'you') {
+            const me = this.getMe();
+            playerName = me ? me.name : this.playerName;
+        } else {
+            playerName = chartId;
+        }
         const history = this.playerHistory[playerName];
         if (!history) return { data: [], isLive: true };
         
@@ -1026,8 +1117,14 @@ class MultiplayerGame {
                 const history = this.playerHistory[player.name];
                 const velocityData = history ? history.velocity : [];
                 
-                // Use green for self, player's assigned color for others
-                const chartColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
+                // In duos mode: your team is green, opponent team is red
+                // In solos: you are green, others use their assigned colors
+                let chartColor;
+                if (this.gameState.gameMode === 'duos') {
+                    chartColor = isMe ? '#2ecc71' : '#e74c3c';
+                } else {
+                    chartColor = isMe ? '#2ecc71' : (player.color || '#e74c3c');
+                }
                 this.renderSmoothChart(`chart-${chartId}`, this.chartState[chartId]?.smoothData || [], chartColor, chartId, smoothCookies, velocityData, player, viewport);
             });
         }
@@ -1118,6 +1215,18 @@ class MultiplayerGame {
         // Calculate bounds - allow negative values for debt display
         let min = Math.min(...data);
         let max = Math.max(...data);
+        
+        // For YOUR chart, expand bounds to include liquidation prices from positions on you
+        if (player && this.isMe(player)) {
+            const positionsOnYou = player.positionsOnMe || [];
+            positionsOnYou.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                    if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+            });
+        }
+        
         const padding = (max - min) * 0.15 || 10;
         min = min - padding; // Allow negative values
         max += padding;
@@ -1187,9 +1296,9 @@ class MultiplayerGame {
                 if (pos.liquidationPrice) {
                     const liqY = H - ((pos.liquidationPrice - min) / range) * H;
                     
-                    // Draw liquidation line for this opponent
+                    // Draw liquidation line - always RED
                     ctx.setLineDash([3, 3]);
-                    ctx.strokeStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                    ctx.strokeStyle = '#e74c3c'; // Always red for liquidation
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     ctx.moveTo(MARGIN_LEFT, liqY);
@@ -1197,12 +1306,28 @@ class MultiplayerGame {
                     ctx.stroke();
                     ctx.setLineDash([]);
                     
-                    // Label with opponent name
-                    ctx.fillStyle = pos.type === 'long' ? '#e74c3c' : '#2ecc71';
+                    // Label with opponent name - RED
+                    ctx.fillStyle = '#e74c3c';
                     ctx.font = 'bold 8px Arial';
                     ctx.textAlign = 'left';
                     const offset = idx * 12; // Stagger labels if multiple
-                    ctx.fillText(`${pos.ownerName} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+                    ctx.fillText(`💀 ${pos.ownerName} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+                    
+                    // Draw entry line if available - always YELLOW
+                    if (pos.entryPrice) {
+                        const entryY = H - ((pos.entryPrice - min) / range) * H;
+                        ctx.setLineDash([3, 3]);
+                        ctx.strokeStyle = '#f39c12'; // Always yellow for entry
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(MARGIN_LEFT, entryY);
+                        ctx.lineTo(W, entryY);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        ctx.fillStyle = '#f39c12';
+                        ctx.fillText(`${pos.ownerName} ENTRY`, MARGIN_LEFT + 5 + offset, entryY - 3);
+                    }
                 }
             });
         }

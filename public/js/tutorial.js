@@ -130,7 +130,7 @@ class TutorialGame {
             // BOT SHORTS YOU
             {
                 title: "Step 12: You've Been Shorted! 😱",
-                text: "CookieBot just opened a <span class='warning'>SHORT position</span> on YOU!<br><br>Look at YOUR chart (green) - see the <span class='highlight'>green liquidation line</span> labeled 💀?<br><br>That's THEIR liquidation! If your cookies <span class='highlight'>GO UP</span> past that line, CookieBot gets liquidated and YOU win their stake!",
+                text: "CookieBot just opened a <span class='warning'>SHORT position</span> on YOU!<br><br>Look at YOUR chart (green) - see the <span class='warning'>red liquidation line</span> labeled 💀?<br><br>That's THEIR liquidation! If your cookies <span class='highlight'>GO UP</span> past that line, CookieBot gets liquidated and YOU win their stake!",
                 action: 'bot-shorts-you',
                 highlight: null
             },
@@ -1315,6 +1315,17 @@ class TutorialGame {
         // Calculate bounds
         let min = Math.min(...data) * 0.95;
         let max = Math.max(...data) * 1.05;
+        
+        // For YOUR chart, expand bounds to include bot liquidation prices
+        if (labelId === 'you' && this.botPositions && this.botPositions.length > 0) {
+            this.botPositions.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                    if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+            });
+        }
+        
         const padding = (max - min) * 0.1 || 10;
         min = Math.max(0, min - padding);
         max += padding;
@@ -1429,37 +1440,45 @@ class TutorialGame {
                 const liqY = H - ((pos.liquidationPrice - min) / range) * H;
                 const entryY = H - ((pos.entryPrice - min) / range) * H;
                 
-                // Bot has a SHORT on us - they profit if we go DOWN
-                // Their liquidation is ABOVE our current price
-                // Danger zone (for them) is above liquidation - safe for us!
-                const safeGrad = ctx.createLinearGradient(0, 0, 0, liqY);
-                safeGrad.addColorStop(0, 'rgba(46,204,113,0.3)');
-                safeGrad.addColorStop(1, 'rgba(46,204,113,0.05)');
-                ctx.fillStyle = safeGrad;
-                ctx.fillRect(MARGIN_LEFT, 0, CHART_W, liqY);
+                // Danger zone gradient based on position type
+                if (pos.type === 'short') {
+                    // Bot SHORT on us - their liquidation is ABOVE, safe zone above liq
+                    const safeGrad = ctx.createLinearGradient(0, 0, 0, liqY);
+                    safeGrad.addColorStop(0, 'rgba(46,204,113,0.3)');
+                    safeGrad.addColorStop(1, 'rgba(46,204,113,0.05)');
+                    ctx.fillStyle = safeGrad;
+                    ctx.fillRect(MARGIN_LEFT, 0, CHART_W, liqY);
+                } else {
+                    // Bot LONG on us - their liquidation is BELOW, safe zone below liq
+                    const safeGrad = ctx.createLinearGradient(0, liqY, 0, H);
+                    safeGrad.addColorStop(0, 'rgba(46,204,113,0.05)');
+                    safeGrad.addColorStop(1, 'rgba(46,204,113,0.3)');
+                    ctx.fillStyle = safeGrad;
+                    ctx.fillRect(MARGIN_LEFT, liqY, CHART_W, H - liqY);
+                }
                 
-                // Bot's liquidation line (good for us - we want to reach this!)
+                // Bot's liquidation line - always RED
                 ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = '#2ecc71';
+                ctx.strokeStyle = '#e74c3c';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(MARGIN_LEFT, liqY);
                 ctx.lineTo(W, liqY);
                 ctx.stroke();
                 
-                ctx.fillStyle = '#2ecc71';
+                ctx.fillStyle = '#e74c3c';
                 ctx.font = 'bold 9px Arial';
                 ctx.textAlign = 'left';
                 ctx.fillText(`💀 ${pos.ownerName} LIQ`, MARGIN_LEFT + 5, liqY - 3);
                 
-                // Bot's entry line
-                ctx.strokeStyle = '#e74c3c';
+                // Bot's entry line - always YELLOW
+                ctx.strokeStyle = '#f39c12';
                 ctx.beginPath();
                 ctx.moveTo(MARGIN_LEFT, entryY);
                 ctx.lineTo(W, entryY);
                 ctx.stroke();
                 
-                ctx.fillStyle = '#e74c3c';
+                ctx.fillStyle = '#f39c12';
                 ctx.fillText(`${pos.ownerName} ENTRY`, MARGIN_LEFT + 5, entryY - 3);
                 
                 ctx.setLineDash([]);
@@ -1608,9 +1627,22 @@ class TutorialGame {
         // Defend against long - initialize tracker
         if (stepData.action === 'defend-against-long') {
             this.defendLongInitialGenerators = Object.values(this.generators).reduce((sum, g) => sum + g, 0);
-            // Highlight generator button
+            // Highlight the highest priced generator the player can afford
             setTimeout(() => {
-                const genBtn = document.getElementById('generator-grandma');
+                // Find highest affordable generator
+                const genOrder = ['mine', 'factory', 'bakery', 'grandma']; // Highest to lowest
+                let bestGen = null;
+                for (const gen of genOrder) {
+                    const cost = this.getGeneratorCost(gen);
+                    if (this.cookies >= cost) {
+                        bestGen = gen;
+                        break;
+                    }
+                }
+                // Default to grandma if nothing else affordable
+                if (!bestGen) bestGen = 'grandma';
+                
+                const genBtn = document.getElementById(`generator-${bestGen}`);
                 if (genBtn) genBtn.classList.add('tutorial-highlight', 'glow-highlight');
             }, 100);
         }
@@ -1667,11 +1699,29 @@ class TutorialGame {
             }, 100);
         }
         
-        // Update step counter
-        const stepCounter = document.getElementById('step-counter');
-        if (stepCounter) {
-            stepCounter.textContent = `${step + 1} / ${this.tutorialSteps.length}`;
+        // Highlight LONG button when opening a position
+        if (stepData.action === 'open-position') {
+            setTimeout(() => {
+                const targetBot = stepData.target || this.bots[0]?.name;
+                const longBtn = document.querySelector(`.quick-trade-btn.long[data-target="${targetBot}"]`);
+                if (longBtn) longBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
         }
+        
+        // Highlight SHORT button when opening a short
+        if (stepData.action === 'open-short') {
+            setTimeout(() => {
+                const targetBot = stepData.target || this.bots[1]?.name;
+                const shortBtn = document.querySelector(`.quick-trade-btn.short[data-target="${targetBot}"]`);
+                if (shortBtn) shortBtn.classList.add('tutorial-highlight', 'glow-highlight');
+            }, 100);
+        }
+        
+        // Update step counter - HIDDEN (uncomment to show)
+        // const stepCounter = document.getElementById('step-counter');
+        // if (stepCounter) {
+        //     stepCounter.textContent = `${step + 1} / ${this.tutorialSteps.length}`;
+        // }
         
         // Update progress dots
         document.querySelectorAll('.tutorial-progress .step').forEach((dot, i) => {

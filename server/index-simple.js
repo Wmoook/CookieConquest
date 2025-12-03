@@ -28,7 +28,7 @@ function generateLobbyCode() {
     return code;
 }
 
-function createLobby(hostSocket, hostName) {
+function createLobby(hostSocket, hostName, gameMode = 'solos') {
     let code = generateLobbyCode();
     while (lobbies.has(code)) {
         code = generateLobbyCode();
@@ -37,13 +37,15 @@ function createLobby(hostSocket, hostName) {
     const lobby = {
         code,
         host: hostSocket.id,
+        gameMode: gameMode, // 'solos' or 'duos'
         players: [{
             id: hostSocket.id,
             name: hostName,
             ready: false,
             cookies: 0,
             cps: 0,
-            color: '#e74c3c' // Red - green is reserved for client-side 'you'
+            color: '#e74c3c', // Red - green is reserved for client-side 'you'
+            team: null // Must pick team manually in duos
         }],
         gameState: null,
         inGame: false,
@@ -64,21 +66,57 @@ function joinLobby(socket, code, playerName) {
         return { error: 'Lobby not found' };
     }
     
-    console.log(`Player "${playerName}" trying to join lobby ${code}, inGame: ${lobby.inGame}`);
+    console.log(`Player "${playerName}" trying to join lobby ${code}, inGame: ${lobby.inGame}, gameMode: ${lobby.gameMode}`);
     
     // If game is in progress, try to reconnect as existing player
     if (lobby.inGame) {
         // Find player by name in game state (case insensitive)
-        const existingPlayer = lobby.gameState.players.find(p => 
-            p.name.toLowerCase() === playerName.toLowerCase()
-        );
+        // Check gameMode from lobby OR from gameState
+        const gameMode = lobby.gameMode || lobby.gameState?.gameMode || 'solos';
+        let existingPlayer = null;
+        
+        console.log(`[RECONNECT] Game mode: ${gameMode}, looking for "${playerName}"`);
+        
+        if (gameMode === 'duos') {
+            // In duos, find the team that has this player as a member
+            console.log(`[RECONNECT] Duos mode - searching memberNames for "${playerName}"`);
+            for (const team of lobby.gameState.players) {
+                console.log(`[RECONNECT] Checking team:`, team.name, 'isTeam:', team.isTeam, 'memberNames:', team.memberNames);
+                if (team.isTeam && team.memberNames) {
+                    const found = team.memberNames.some(n => n.toLowerCase() === playerName.toLowerCase());
+                    if (found) {
+                        existingPlayer = team;
+                        console.log(`[RECONNECT] Found player in team:`, team.name);
+                        break;
+                    }
+                }
+            }
+        } else {
+            // In solos, find by exact name match
+            existingPlayer = lobby.gameState.players.find(p => 
+                p.name.toLowerCase() === playerName.toLowerCase()
+            );
+        }
+        
         console.log(`Looking for player "${playerName}" in game. Found:`, existingPlayer ? existingPlayer.name : 'NOT FOUND');
         console.log('Current players:', lobby.gameState.players.map(p => p.name));
         
         if (existingPlayer) {
             // Update socket ID for reconnection
             const oldId = existingPlayer.id;
-            existingPlayer.id = socket.id;
+            
+            // In duos, update the memberIds array
+            if (existingPlayer.isTeam && existingPlayer.memberIds) {
+                const memberIndex = existingPlayer.memberNames.findIndex(n => 
+                    n.toLowerCase() === playerName.toLowerCase()
+                );
+                console.log(`[RECONNECT] Updating memberIds[${memberIndex}] from`, existingPlayer.memberIds[memberIndex], 'to', socket.id);
+                if (memberIndex !== -1) {
+                    existingPlayer.memberIds[memberIndex] = socket.id;
+                }
+            } else {
+                existingPlayer.id = socket.id;
+            }
             
             // Update positions references
             lobby.gameState.positions.forEach(pos => {
@@ -93,6 +131,7 @@ function joinLobby(socket, code, playerName) {
             playerLobby.set(socket.id, code.toUpperCase());
             socket.join(code.toUpperCase());
             
+            console.log(`[RECONNECT] Success! Player "${playerName}" reconnected`);
             return { success: true, lobby, reconnected: true };
         }
         console.log(`Cannot reconnect player "${playerName}" - not found in game`);
@@ -115,13 +154,15 @@ function joinLobby(socket, code, playerName) {
     
     // Colors for players - green (#2ecc71) is reserved for client-side 'you' display
     const colors = ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#00bcd4', '#ff5722'];
+    
     const player = {
         id: socket.id,
         name: playerName,
         ready: false,
         cookies: 0,
         cps: 0,
-        color: colors[lobby.players.length % colors.length]
+        color: colors[lobby.players.length % colors.length],
+        team: null // Must pick team manually in duos
     };
     
     lobby.players.push(player);
@@ -171,36 +212,107 @@ function leaveLobby(socket) {
 // ==================== GAME STATE ====================
 function initGameState(lobby) {
     const now = Date.now();
-    const gameState = {
-        startTime: now,
-        serverTime: now, // Will be updated each tick for client sync
-        players: lobby.players.map(p => ({
+    const isDuos = lobby.gameMode === 'duos';
+    
+    // For DUOS: Create teams instead of individual players
+    let gameEntities = [];
+    
+    if (isDuos) {
+        // Group players by team
+        const team1Players = lobby.players.filter(p => p.team === 1);
+        const team2Players = lobby.players.filter(p => p.team === 2);
+        
+        // Create team entities - teams share EVERYTHING
+        gameEntities = [
+            {
+                id: 'team1',
+                isTeam: true,
+                teamNumber: 1,
+                name: `${team1Players[0]?.name || 'Player1'} + ${team1Players[1]?.name || 'Player2'}`,
+                memberIds: team1Players.map(p => p.id),
+                memberNames: team1Players.map(p => p.name),
+                color: '#e74c3c', // Red team
+                cookies: 0,
+                cps: 0,
+                baseCps: 0,
+                clickPower: 1,
+                lastClickTime: 0,
+                generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
+                positions: [],
+                positionsOnMe: [],
+                powerBuffs: 0,
+                cookieZoneTime: 0,
+                frozenSecondsLeft: 0,
+                invisibleSecondsLeft: 0
+            },
+            {
+                id: 'team2',
+                isTeam: true,
+                teamNumber: 2,
+                name: `${team2Players[0]?.name || 'Player3'} + ${team2Players[1]?.name || 'Player4'}`,
+                memberIds: team2Players.map(p => p.id),
+                memberNames: team2Players.map(p => p.name),
+                color: '#3498db', // Blue team
+                cookies: 0,
+                cps: 0,
+                baseCps: 0,
+                clickPower: 1,
+                lastClickTime: 0,
+                generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
+                positions: [],
+                positionsOnMe: [],
+                powerBuffs: 0,
+                cookieZoneTime: 0,
+                frozenSecondsLeft: 0,
+                invisibleSecondsLeft: 0
+            }
+        ];
+    } else {
+        // Solos mode - individual players
+        gameEntities = lobby.players.map(p => ({
             id: p.id,
             name: p.name,
             color: p.color,
             cookies: 0,
             cps: 0,
-            baseCps: 0, // CPS before buffs
-            clickPower: 1, // Base click power (level 1)
-            lastClickTime: 0, // Track last click for activity indicator
+            baseCps: 0,
+            clickPower: 1,
+            lastClickTime: 0,
             generators: { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0, prism: 0, universe: 0 },
-            positions: [], // Positions this player has on others
-            positionsOnMe: [], // Positions others have on this player
-            // King of the Hill
-            powerBuffs: 0, // Number of KotH wins (+5% everything per win)
-            cookieZoneTime: 0, // Milliseconds spent on cookie this round
-            // Abilities - store as seconds remaining, not timestamps
-            frozenSecondsLeft: 0, // Seconds until freeze ends (0 = not frozen)
-            invisibleSecondsLeft: 0 // Seconds until invisibility ends (0 = visible)
-        })),
-        positions: [], // All active positions: { owner, target, type, stake, leverage, entryPrice, liquidationPrice }
+            positions: [],
+            positionsOnMe: [],
+            powerBuffs: 0,
+            cookieZoneTime: 0,
+            frozenSecondsLeft: 0,
+            invisibleSecondsLeft: 0
+        }));
+    }
+    
+    const gameState = {
+        startTime: now,
+        serverTime: now,
+        gameMode: lobby.gameMode, // 'solos' or 'duos'
+        players: gameEntities, // In duos, these are teams not individual players
+        positions: [],
         winner: null,
         winGoal: 100000000,
-        // King of the Hill state - use elapsed time instead of timestamps
-        kothRoundElapsed: 0, // Milliseconds elapsed in current round
-        kothRoundDuration: 60000 // 60 seconds per round
+        kothRoundElapsed: 0,
+        kothRoundDuration: 60000
     };
     return gameState;
+}
+
+// Helper: Find a player's entity (in duos, find their team)
+function findPlayerEntity(gameState, socketId) {
+    if (gameState.gameMode === 'duos') {
+        // In duos, find the team this socket belongs to
+        return gameState.players.find(team => 
+            team.isTeam && team.memberIds && team.memberIds.includes(socketId)
+        );
+    } else {
+        // In solos, find the player directly
+        return gameState.players.find(p => p.id === socketId);
+    }
 }
 
 // Calculate generator value (90% of what you paid - collateral value)
@@ -282,9 +394,34 @@ io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
     
     // Create lobby
-    socket.on('lobby:create', (playerName) => {
-        const lobby = createLobby(socket, playerName || 'Player');
+    socket.on('lobby:create', (data) => {
+        // Support both old format (string) and new format (object)
+        const playerName = typeof data === 'string' ? data : (data?.playerName || 'Player');
+        const gameMode = typeof data === 'object' ? (data?.gameMode || 'solos') : 'solos';
+        const lobby = createLobby(socket, playerName, gameMode);
         socket.emit('lobby:created', lobby);
+    });
+    
+    // Select team (duos mode)
+    socket.on('lobby:selectTeam', (team) => {
+        const code = playerLobby.get(socket.id);
+        if (!code) return;
+        
+        const lobby = lobbies.get(code);
+        if (!lobby || lobby.gameMode !== 'duos') return;
+        
+        const player = lobby.players.find(p => p.id === socket.id);
+        if (!player) return;
+        
+        // Check if team is full (max 2 per team)
+        const teamCount = lobby.players.filter(p => p.team === team && p.id !== socket.id).length;
+        if (teamCount >= 2) {
+            socket.emit('lobby:error', 'Team is full!');
+            return;
+        }
+        
+        player.team = team;
+        io.to(code).emit('lobby:update', lobby);
     });
     
     // Join lobby
@@ -347,6 +484,22 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // For duos, validate teams
+        if (lobby.gameMode === 'duos') {
+            const team1Count = lobby.players.filter(p => p.team === 1).length;
+            const team2Count = lobby.players.filter(p => p.team === 2).length;
+            const noTeam = lobby.players.filter(p => !p.team).length;
+            
+            if (noTeam > 0) {
+                socket.emit('lobby:error', 'All players must pick a team!');
+                return;
+            }
+            if (team1Count !== 2 || team2Count !== 2) {
+                socket.emit('lobby:error', 'Each team must have exactly 2 players!');
+                return;
+            }
+        }
+        
         console.log('Starting game for lobby', code, 'with players:', lobby.players.map(p => p.name));
         
         // Initialize game
@@ -372,10 +525,10 @@ io.on('connection', (socket) => {
             return;
         }
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) {
-            console.log('game:click - player not found for socket', socket.id);
-            console.log('Players in game:', lobby.gameState.players.map(p => ({name: p.name, id: p.id})));
+            console.log('game:click - player/team not found for socket', socket.id);
+            console.log('Players in game:', lobby.gameState.players.map(p => ({name: p.name, id: p.id, memberIds: p.memberIds})));
             return;
         }
         
@@ -408,18 +561,24 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
-        if (!player) return;
+        // In duos mode, we need to check team invisibility but use individual player info
+        const teamEntity = findPlayerEntity(lobby.gameState, socket.id);
         
-        // Don't broadcast cursor if player is invisible
-        if ((player.invisibleSecondsLeft || 0) > 0) return;
+        // Don't broadcast cursor if team is invisible
+        if (teamEntity && (teamEntity.invisibleSecondsLeft || 0) > 0) return;
         
-        // Broadcast cursor to other players in the room
+        // Get individual player info from lobby (not game state)
+        const individualPlayer = lobby.players.find(p => p.id === socket.id);
+        if (!individualPlayer) return;
+        
+        // Broadcast cursor with individual player name and color
         socket.to(code).emit('game:cursor', {
-            playerName: player.name,
-            color: player.color || '#ffffff',
+            playerName: individualPlayer.name,
+            color: individualPlayer.color || '#ffffff',
             x,
-            y
+            y,
+            // Also send team info for duos mode so clients know if same team
+            teamName: teamEntity ? teamEntity.name : null
         });
     });
     
@@ -431,7 +590,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Store whether player's cursor is on cookie (used by tick to accumulate time)
@@ -446,7 +605,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Check if player has ability points to use
@@ -455,9 +614,9 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Find target player
+        // Find target player/team by name
         const target = lobby.gameState.players.find(p => p.name === targetName);
-        if (!target || target.id === socket.id) {
+        if (!target || target.id === player.id) {
             socket.emit('game:error', { message: 'Invalid target!' });
             return;
         }
@@ -492,7 +651,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Check if player has ability points to use
@@ -533,7 +692,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Check if player has enough ability points (costs 2)
@@ -542,9 +701,9 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Find target player
+        // Find target player/team by name
         const target = lobby.gameState.players.find(p => p.name === targetName);
-        if (!target || target.id === socket.id) {
+        if (!target || target.id === player.id) {
             socket.emit('game:error', { message: 'Invalid target!' });
             return;
         }
@@ -575,15 +734,15 @@ io.on('connection', (socket) => {
             amountLost: crashAmount
         });
         
-        // Send notification to target
-        const targetSocket = lobby.gameState.players.find(p => p.name === target.name);
-        if (targetSocket && targetSocket.id) {
-            io.to(targetSocket.id).emit('game:positionClosed', {
+        // Send notification to target (in duos, send to all team members)
+        const targetIds = target.isTeam ? target.memberIds : [target.id];
+        targetIds.forEach(tid => {
+            io.to(tid).emit('game:positionClosed', {
                 type: 'loss',
                 message: `📉 ${player.name} CRASHED your market! Lost ${crashAmount}🍪!`,
                 amount: crashAmount
             });
-        }
+        });
         
         // Send notification to attacker
         socket.emit('game:notification', {
@@ -602,7 +761,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Check if player is frozen
@@ -653,7 +812,7 @@ io.on('connection', (socket) => {
         const lobby = lobbies.get(code);
         if (!lobby || !lobby.gameState) return;
         
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
         // Price scales exponentially: 100, 500, 2500, 12500, etc.
@@ -684,8 +843,8 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Find player by socket ID (current connection)
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        // Find player's entity (team in duos, individual in solos)
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         // Find target by NAME (stable identifier)
         const target = lobby.gameState.players.find(p => p.name === targetName);
         
@@ -816,11 +975,11 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Find position by ID, owner can be by current socket.id OR by name
-        const player = lobby.gameState.players.find(p => p.id === socket.id);
+        // Find player's entity (team in duos, individual in solos)
+        const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) {
-            console.log('closePosition: player not found for socket.id:', socket.id);
-            console.log('Players:', lobby.gameState.players.map(p => ({id: p.id, name: p.name})));
+            console.log('closePosition: player/team not found for socket.id:', socket.id);
+            console.log('Players:', lobby.gameState.players.map(p => ({id: p.id, name: p.name, memberIds: p.memberIds})));
             return;
         }
         
@@ -1002,14 +1161,27 @@ setInterval(() => {
             // Find the winner (most time on cookie)
             let winner = null;
             let maxTime = 0;
+            let isTied = false;
+            
             gs.players.forEach(player => {
-                if ((player.cookieZoneTime || 0) > maxTime) {
-                    maxTime = player.cookieZoneTime || 0;
+                const playerTime = player.cookieZoneTime || 0;
+                if (playerTime > maxTime) {
+                    maxTime = playerTime;
                     winner = player;
+                    isTied = false;
+                } else if (playerTime === maxTime && playerTime > 0) {
+                    // Exact tie - in duos mode (or any mode), ties mean no one wins
+                    isTied = true;
                 }
             });
             
-            if (winner && maxTime > 0) {
+            if (isTied || maxTime === 0) {
+                // Tie or no one participated - no winner
+                console.log(`[KOTH] Round ended in a TIE! No buff awarded.`);
+                io.to(code).emit('game:kothTie', {
+                    message: 'King of the Hill ended in a tie! No ability points awarded.'
+                });
+            } else if (winner) {
                 winner.powerBuffs = (winner.powerBuffs || 0) + 1;
                 console.log(`[KOTH] ${winner.name} wins the round with ${maxTime}ms! Now has ${winner.powerBuffs} buff(s)`);
                 

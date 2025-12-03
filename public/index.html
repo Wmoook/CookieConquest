@@ -259,6 +259,124 @@
             cursor: not-allowed;
         }
         
+        /* Game Mode Selector */
+        .game-mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 15px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .mode-btn:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, #F6D49B, #E8A954);
+            border-color: #F6D49B;
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        .mode-btn .mode-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .mode-btn .mode-name {
+            display: block;
+            font-weight: 600;
+        }
+        .mode-btn .mode-desc {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        /* Team Selector in Lobby */
+        .team-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        .team-selector h4 {
+            color: #F6D49B;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .team-btns {
+            display: flex;
+            gap: 10px;
+        }
+        .team-btn {
+            flex: 1;
+            padding: 12px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .team-btn:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .team-btn.team-1.active {
+            background: rgba(231, 76, 60, 0.3);
+            border-color: #e74c3c;
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        .team-btn.team-2.active {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: #3498db;
+            color: #3498db;
+            font-weight: 600;
+        }
+        .team-label {
+            display: block;
+            font-weight: 600;
+        }
+        .team-members {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        /* Player item with team indicator */
+        .player-item .team-indicator {
+            width: 4px;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            border-radius: 8px 0 0 8px;
+        }
+        .player-item {
+            position: relative;
+            overflow: hidden;
+        }
+        .player-item.team-1 {
+            border-left: 4px solid #e74c3c;
+        }
+        .player-item.team-2 {
+            border-left: 4px solid #3498db;
+        }
+        
         .error-msg {
             background: rgba(231, 76, 60, 0.2);
             border: 1px solid #e74c3c;
@@ -311,6 +429,19 @@
                     <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
                 </div>
                 
+                <div class="game-mode-selector" id="game-mode-selector">
+                    <button class="mode-btn active" data-mode="solos">
+                        <span class="mode-icon">👤</span>
+                        <span class="mode-name">SOLOS</span>
+                        <span class="mode-desc">Free for all</span>
+                    </button>
+                    <button class="mode-btn" data-mode="duos">
+                        <span class="mode-icon">👥</span>
+                        <span class="mode-name">DUOS</span>
+                        <span class="mode-desc">2v2 Teams</span>
+                    </button>
+                </div>
+                
                 <button class="btn btn-primary" id="btn-create">Create Lobby</button>
                 
                 <div class="divider"><span>or</span></div>
@@ -342,8 +473,23 @@
                 </div>
                 
                 <div class="players-list">
-                    <h3>Players (<span id="player-count">0</span>/4)</h3>
+                    <h3>Players (<span id="player-count">0</span>/<span id="max-players">4</span>)</h3>
                     <div id="players-container"></div>
+                </div>
+                
+                <!-- Team selector for DUOS mode -->
+                <div class="team-selector" id="team-selector" style="display: none;">
+                    <h4>Select Your Team</h4>
+                    <div class="team-btns">
+                        <button class="team-btn team-1" data-team="1">
+                            <span class="team-label">🔴 Team 1</span>
+                            <span class="team-members" id="team1-members">0/2</span>
+                        </button>
+                        <button class="team-btn team-2" data-team="2">
+                            <span class="team-label">🔵 Team 2</span>
+                            <span class="team-members" id="team2-members">0/2</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="error-msg" id="lobby-error"></div>
@@ -367,6 +513,8 @@
         let isReady = false;
         let isHost = false;
         let myId = null;
+        let selectedGameMode = 'solos';
+        let selectedTeam = null;
         
         // Elements
         const menuScreen = document.getElementById('menu-screen');
@@ -384,6 +532,35 @@
         const displayLobbyCode = document.getElementById('display-lobby-code');
         const playerCount = document.getElementById('player-count');
         const playersContainer = document.getElementById('players-container');
+        const gameModeSelector = document.getElementById('game-mode-selector');
+        const teamSelector = document.getElementById('team-selector');
+        const maxPlayersSpan = document.getElementById('max-players');
+        
+        // Game mode selection
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedGameMode = btn.dataset.mode;
+            });
+        });
+        
+        // Team selection
+        document.querySelectorAll('.team-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const team = parseInt(btn.dataset.team);
+                if (currentLobby && currentLobby.gameMode === 'duos') {
+                    // Check if team is full
+                    const teamCount = currentLobby.players.filter(p => p.team === team).length;
+                    if (teamCount >= 2 && !currentLobby.players.find(p => p.id === myId && p.team === team)) {
+                        showError(lobbyError, 'Team is full!');
+                        return;
+                    }
+                    selectedTeam = team;
+                    socket.emit('lobby:selectTeam', team);
+                }
+            });
+        });
         
         // Get socket ID
         socket.on('connect', () => {
@@ -394,7 +571,7 @@
         btnCreate.addEventListener('click', () => {
             const name = playerNameInput.value.trim() || 'Player';
             localStorage.setItem('cookieConquest_name', name);
-            socket.emit('lobby:create', name);
+            socket.emit('lobby:create', { playerName: name, gameMode: selectedGameMode });
         });
         
         // Join lobby
@@ -494,25 +671,62 @@
         function updateLobbyUI(lobby) {
             displayLobbyCode.textContent = lobby.code;
             playerCount.textContent = lobby.players.length;
+            maxPlayersSpan.textContent = lobby.gameMode === 'duos' ? '4' : '4';
+            
+            // Show/hide team selector for duos
+            const isDuos = lobby.gameMode === 'duos';
+            teamSelector.style.display = isDuos ? 'block' : 'none';
+            
+            if (isDuos) {
+                // Update team member counts
+                const team1Count = lobby.players.filter(p => p.team === 1).length;
+                const team2Count = lobby.players.filter(p => p.team === 2).length;
+                document.getElementById('team1-members').textContent = `${team1Count}/2`;
+                document.getElementById('team2-members').textContent = `${team2Count}/2`;
+                
+                // Highlight my selected team
+                const myPlayer = lobby.players.find(p => p.id === myId);
+                document.querySelectorAll('.team-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (myPlayer && myPlayer.team === parseInt(btn.dataset.team)) {
+                        btn.classList.add('active');
+                        selectedTeam = myPlayer.team;
+                    }
+                });
+            }
             
             // Show/hide start button for host
             btnStart.style.display = isHost ? 'block' : 'none';
             
             // Update players list
-            playersContainer.innerHTML = lobby.players.map(p => `
-                <div class="player-item">
-                    <div class="player-info">
-                        <div class="player-color" style="background: ${p.color}"></div>
-                        <span class="player-name">${p.name}</span>
-                        ${p.id === lobby.host ? '<span class="host-badge">HOST</span>' : ''}
+            playersContainer.innerHTML = lobby.players.map(p => {
+                const teamClass = isDuos && p.team ? `team-${p.team}` : '';
+                return `
+                    <div class="player-item ${teamClass}">
+                        <div class="player-info">
+                            <div class="player-color" style="background: ${p.color}"></div>
+                            <span class="player-name">${p.name}</span>
+                            ${p.id === lobby.host ? '<span class="host-badge">HOST</span>' : ''}
+                            ${isDuos && p.team ? `<span class="waiting-badge" style="background: ${p.team === 1 ? '#e74c3c' : '#3498db'}">Team ${p.team}</span>` : ''}
+                        </div>
+                        ${p.id === lobby.host ? '' : (p.ready ? '<span class="ready-badge">READY</span>' : '<span class="waiting-badge">Waiting</span>')}
                     </div>
-                    ${p.id === lobby.host ? '' : (p.ready ? '<span class="ready-badge">READY</span>' : '<span class="waiting-badge">Waiting</span>')}
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             // Enable/disable start button
             const allReady = lobby.players.every(p => p.id === lobby.host || p.ready);
-            btnStart.disabled = !allReady || lobby.players.length < 2;
+            let canStart = allReady && lobby.players.length >= 2;
+            
+            // For duos, need exactly 4 players with 2 on each team, all must have picked
+            if (isDuos) {
+                const team1Count = lobby.players.filter(p => p.team === 1).length;
+                const team2Count = lobby.players.filter(p => p.team === 2).length;
+                const noTeam = lobby.players.filter(p => !p.team).length;
+                canStart = allReady && lobby.players.length === 4 && team1Count === 2 && team2Count === 2 && noTeam === 0;
+            }
+            
+            btnStart.disabled = !canStart;
         }
         
         // Load name from localStorage
