@@ -1479,7 +1479,8 @@ class TutorialGame {
                 value += Math.floor(data.baseCost * Math.pow(1.15, i));
             }
         });
-        return value;
+        // Generators are worth 90% of their buy price
+        return Math.floor(value * 0.9);
     }
     
     updateScoreboard() {
