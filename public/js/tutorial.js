@@ -100,19 +100,20 @@ class TutorialGame {
             // OPEN A LONG - STEP 1: SET STAKE
             {
                 title: "Set Your Stake! 🎚️",
-                text: "Before opening a position, set how much you want to bet!<br><br>Move the <span class='highlight'>stake slider</span> on CookieBot's card.<br><br>Higher stake = more profit potential!",
+                text: "Before opening a position, set how much you want to bet!<br><br>Move the <span class='highlight'>stake slider</span> on CookieBot's card.<br><br><span class='warning'>Bet at least 50 cookies!</span>",
                 action: 'set-stake',
                 target: 'CookieBot',
-                minStake: 15,  // Just need to move it a bit from default 10
+                minStake: 50,  // Require at least 50 cookies
                 highlight: null
             },
             // OPEN A LONG - STEP 2: CLICK LONG
             {
                 title: "Open Your First Position! 📈",
-                text: "Great! Now open a <span class='highlight'>LONG position</span> on CookieBot.<br><br>Click the <span class='highlight'>📈 LONG</span> button!<br><br>With a LONG, you profit when CookieBot's cookies go UP!",
+                text: "Great! Now open a <span class='highlight'>LONG position</span> on CookieBot.<br><br>Click the <span class='highlight'>📈 LONG</span> button!<br><br>With a LONG, you profit when CookieBot's cookies go UP!<br><br><span class='warning'>Bet at least 50 cookies!</span>",
                 action: 'open-position',
                 target: 'CookieBot',
                 positionType: 'long',
+                minStake: 50,  // Require at least 50 cookies
                 highlight: null
             },
             // LIQUIDATION PRICE
@@ -837,6 +838,13 @@ class TutorialGame {
         const slider = document.getElementById(`slider-${targetName}`);
         const stake = parseInt(slider?.value || 10);
         const leverage = this.targetLeverage[targetName] || 2;
+        
+        // Check minimum stake for tutorial step
+        const stepData = this.tutorialSteps[this.tutorialStep];
+        if (stepData && stepData.action === 'open-position' && stepData.minStake && stake < stepData.minStake) {
+            this.showNotification(`Bet at least ${stepData.minStake} cookies!`, 'error');
+            return;
+        }
         
         // Check available (unlocked) cookies
         const lockedAmount = this.getLockedCookies();
