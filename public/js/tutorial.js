@@ -1135,15 +1135,35 @@ class TutorialGame {
     updateBotTrading() {
         // Each bot has a chance to make a trade each frame
         this.bots.forEach(bot => {
-            // Don't trade too often - check every ~3 seconds on average
-            if (Math.random() > 0.01) return;
+            const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
+            
+            // Check if bot should close their position FIRST (more frequently!)
+            if (botPosition) {
+                // Calculate PnL
+                const currentPrice = this.cookies;
+                const priceChange = currentPrice - botPosition.entryPrice;
+                const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
+                const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
+                
+                // Take profit aggressively! Close if profitable by 10%+ (80% chance each check)
+                // Also cut losses if down 30%+ (50% chance)
+                const shouldTakeProfit = pnl > botPosition.stake * 0.1 && Math.random() < 0.02;
+                const shouldCutLoss = pnl < -botPosition.stake * 0.3 && Math.random() < 0.01;
+                
+                if (shouldTakeProfit || shouldCutLoss) {
+                    this.botClosesPosition(bot.name);
+                    return; // Don't open new position same frame
+                }
+            }
+            
+            // Don't open trades too often - check every ~5 seconds on average
+            if (Math.random() > 0.005) return;
             
             // Bot can open a position on the player
             const hasPositionOnPlayer = this.botPositions.some(p => p.ownerName === bot.name);
             
             if (!hasPositionOnPlayer && bot.cookies > 100) {
                 // Decide to long or short the player
-                // Bots make somewhat smart decisions based on player's recent growth
                 const positionType = Math.random() > 0.5 ? 'long' : 'short';
                 
                 // Stakes based on both bot's cookies and player's cookies (meaningful amounts!)
@@ -1159,22 +1179,6 @@ class TutorialGame {
                     } else {
                         this.botShortsPlayer(bot.name, stake, leverage);
                     }
-                }
-            }
-            
-            // Bot might close their position if profitable or cut losses
-            const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
-            if (botPosition && Math.random() < 0.03) {
-                // Calculate PnL
-                const currentPrice = this.cookies;
-                const priceChange = currentPrice - botPosition.entryPrice;
-                const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
-                const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
-                
-                // Close if profitable (40% chance) or taking losses (20% chance)
-                if ((pnl > botPosition.stake * 0.15 && Math.random() < 0.4) || 
-                    (pnl < -botPosition.stake * 0.2 && Math.random() < 0.2)) {
-                    this.botClosesPosition(bot.name);
                 }
             }
         });
