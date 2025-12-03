@@ -166,7 +166,7 @@ class TutorialGame {
             // STRATEGY - DEFENSE
             {
                 title: "Defensive Strategy 🛡️",
-                text: "When someone <span class='warning'>trades on YOU</span>, you can fight back!<br><br><span class='highlight'>Against SHORTS</span> (they bet you'll shrink):<br>• <span class='highlight'>Click faster</span> + <span class='highlight'>buy generators</span> to grow!<br><br><span class='highlight'>Against LONGS</span> (they bet you'll grow):<br>• <span class='warning'>Spend cookies</span> on generators to shrink your count!<br>• This can push THEIR position to liquidation!<br><br>⚠️ Careful: spending too much can put you <span class='warning'>into debt!</span>",
+                text: "When someone <span class='warning'>trades on YOU</span>, you can fight back!<br><br><span class='highlight'>Against SHORTS</span> (they bet you'll shrink):<br>• <span class='highlight'>Click faster</span> + <span class='highlight'>buy generators</span> to grow!<br><br><span class='highlight'>Against LONGS</span> (they bet you'll grow):<br>• <span class='warning'>Spend cookies</span> on generators to shrink your count!<br>• This can push THEIR position to liquidation!<br><br>⚠️ Note: You can go into <span class='warning'>debt</span> if someone closes a profitable position on you and it eats into your cookies!",
                 action: null,
                 highlight: null
             },
@@ -1180,10 +1180,9 @@ class TutorialGame {
                 const pnlMultiplier = pos.type === 'long' ? 1 : -1;
                 const botPnl = Math.floor((priceChange / (pos.entryPrice || 1)) * pos.stake * pos.leverage * pnlMultiplier);
                 
-                // For the player, bot profit is bad (their loss) and bot loss is good
-                const playerImpact = -botPnl;
-                const pnlClass = playerImpact >= 0 ? 'profit' : 'loss';
-                const pnlText = playerImpact >= 0 ? `+${playerImpact}` : `${playerImpact}`;
+                // Show the BOT's PnL - when bot is losing (negative), that's good for player
+                const pnlClass = botPnl >= 0 ? 'profit' : 'loss';
+                const pnlText = botPnl >= 0 ? `+${botPnl}` : `${botPnl}`;
                 
                 const bot = this.bots.find(b => b.name === pos.ownerName);
                 const botColor = bot ? bot.color : '#e74c3c';
@@ -1616,12 +1615,16 @@ class TutorialGame {
             // Mark as completed immediately - this is just an informational step
             stepData.completed = true;
             
-            // ChipMaster longs the player
-            const stake = Math.min(50, Math.max(20, Math.floor(this.cookies * 0.2)));
-            setTimeout(() => {
-                this.botLongsPlayer('ChipMaster', stake, 3);
-                this.renderCharts(); // Refresh charts to show liquidation line
-            }, 500);
+            // Only add the long if there are no SHORT positions (meaning the short was liquidated)
+            const hasShortOnPlayer = this.botPositions.some(p => p.type === 'short');
+            if (!hasShortOnPlayer) {
+                // ChipMaster longs the player
+                const stake = Math.min(50, Math.max(20, Math.floor(this.cookies * 0.2)));
+                setTimeout(() => {
+                    this.botLongsPlayer('ChipMaster', stake, 3);
+                    this.renderCharts(); // Refresh charts to show liquidation line
+                }, 500);
+            }
         }
         
         // Defend against long - initialize tracker
@@ -1746,13 +1749,14 @@ class TutorialGame {
         
         // Map actions to clear hint text with specific bot names
         const botName = this.bots[0]?.name || 'CookieBot';
+        const botName2 = this.bots[1]?.name || 'ChipMaster';
         const hintMessages = {
             'click': '<span class="action">Click</span> the <span class="target">cookie</span> 10 times',
             'buy-generator': '<span class="action">Buy</span> a <span class="target">generator</span> (Grandma, Farm, or Factory)',
             'open-position': `<span class="action">LONG</span> <span class="target">${botName}</span> - click the LONG button`,
             'close-position': '<span class="action">Click</span> the <span class="target">Close</span> button on your position',
-            'liquidate-bot': '<span class="action">Buy generators</span> to grow your cookies and <span class="target">liquidate CookieBot\'s SHORT</span>',
-            'open-short': `<span class="action">SHORT</span> <span class="target">${botName}</span> - click the SHORT button`,
+            'liquidate-bot': '<span class="action">Click the cookie</span> to grow and <span class="target">liquidate CookieBot\'s SHORT</span>',
+            'open-short': `<span class="action">SHORT</span> <span class="target">${botName2}</span> - click the SHORT button`,
             'defend-against-long': '<span class="action">Buy</span> a <span class="target">generator</span> to liquidate <span class="target">ChipMaster\'s LONG</span>',
             'buff-strategy-setup': `<span class="action">Click</span> the <span class="target">5x leverage</span> button on ${botName}`,
             'buff-strategy-stake': `<span class="action">Click</span> the <span class="target">MAX</span> button on ${botName}`,
@@ -1841,13 +1845,9 @@ class TutorialGame {
                 completed = currentLongCount < this.defendLongInitialCount || currentLongCount === 0;
                 break;
             case 'liquidate-bot':
-                // Complete when we liquidate the bot's position (initial count set when step is shown)
-                // If there were bot positions and now there aren't, OR if no bot positions existed
-                if (this.liquidateBotInitialCount === 0 || this.botPositions.length === 0) {
-                    completed = true;
-                } else {
-                    completed = this.botPositions.length < this.liquidateBotInitialCount;
-                }
+                // Complete when there are no more SHORT positions on the player
+                const shortPositions = this.botPositions.filter(p => p.type === 'short');
+                completed = shortPositions.length === 0;
                 break;
             case 'buff-strategy-setup':
                 // Check if 5x is selected (buffs given when step is shown)
