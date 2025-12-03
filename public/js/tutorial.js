@@ -1136,6 +1136,11 @@ class TutorialGame {
                 : currentPrice >= pos.liquidationPrice;
             
             if (isLiquidated) {
+                // Player loses their stake - deduct from cookies
+                this.cookies -= pos.stake;
+                // Bot wins the stake
+                bot.cookies += pos.stake;
+                
                 this.showNotification(`💀 Position on ${pos.targetName} LIQUIDATED! Lost ${pos.stake}🍪`, 'error');
                 this.showScreenTint('red', 800);
                 // Mark that player was liquidated for tutorial progress
@@ -2127,14 +2132,17 @@ class TutorialGame {
         // Hide the tutorial overlay so player can watch the chart
         document.getElementById('tutorial-overlay')?.classList.add('hidden');
         
-        // Get the liquidation price
+        // Get the liquidation price and stake
         const liquidationPrice = playerShortPosition.liquidationPrice;
-        const startPrice = targetBot.cookies;
-        const endPrice = Math.ceil(liquidationPrice * 1.05); // Go 5% above liquidation
+        const stake = playerShortPosition.stake;
+        const botStartPrice = targetBot.cookies;
+        const botEndPrice = Math.ceil(liquidationPrice * 1.05); // Go 5% above liquidation
+        const playerStartCookies = this.cookies;
         
         // Animate the bot's cookies rising over 2 seconds
         const duration = 2000;
         const startTime = performance.now();
+        let liquidationTriggered = false;
         
         this.showNotification(`⚠️ ${targetBot.name} is surging!`, 'warning');
         
@@ -2148,8 +2156,15 @@ class TutorialGame {
                 ? 2 * progress * progress 
                 : 1 - Math.pow(-2 * progress + 2, 2) / 2;
             
-            // Update bot cookies
-            targetBot.cookies = Math.floor(startPrice + (endPrice - startPrice) * eased);
+            // Update bot cookies (rising)
+            targetBot.cookies = Math.floor(botStartPrice + (botEndPrice - botStartPrice) * eased);
+            
+            // Check if we've hit liquidation price and trigger the cookie transfer
+            if (!liquidationTriggered && targetBot.cookies >= liquidationPrice) {
+                liquidationTriggered = true;
+                // This is when liquidation happens - player loses stake, bot gains it
+                // The actual transfer will happen in checkLiquidations, but we want to show it visually
+            }
             
             // Update displays and charts
             this.renderCharts();
@@ -2159,9 +2174,14 @@ class TutorialGame {
                 requestAnimationFrame(animateLiquidation);
             } else {
                 // Animation complete - now trigger the actual liquidation
+                // This will deduct stake from player and add to bot
                 this.checkLiquidations();
                 this.playerWasLiquidated = true;
                 this.tutorialSteps[this.tutorialStep].completed = true;
+                
+                // Update charts one more time to show the final state
+                this.renderCharts();
+                this.updateDisplays();
                 
                 // Wait a moment then show the "You Got Liquidated" step
                 setTimeout(() => {
