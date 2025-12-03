@@ -599,7 +599,7 @@ class MultiplayerGame {
                     <div class="stock-stats">
                         ${!isMe ? `
                             <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${player.name}" data-target="${player.name}" title="Freeze: 15s (1 pt)">🥶 Freeze <span class="ability-cost">(1)</span></button>
-                            <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${player.name}" data-target="${player.name}" title="Crash: -10% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
+                            <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${player.name}" data-target="${player.name}" title="Crash: -20% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
                         ` : ''}
                         <span class="stat-total" id="score-${chartId}">${player.cookies || 0} 🍪</span>
                         ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 ${player.cookies || 0}</span>`}
@@ -2554,7 +2554,7 @@ class MultiplayerGame {
         
         const targetsDiv = picker.querySelector('#crash-targets');
         otherPlayers.forEach(p => {
-            const crashAmount = Math.floor(p.cookies * 0.10);
+            const crashAmount = Math.floor(p.cookies * 0.20);
             const btn = document.createElement('button');
             btn.style.cssText = `
                 padding: 10px; background: linear-gradient(135deg, #5a2a2a, #3a1a1a);

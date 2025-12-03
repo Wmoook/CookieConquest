@@ -187,7 +187,7 @@ class TutorialGame {
             // ABILITIES
             {
                 title: "Abilities! ⚡",
-                text: "Spend your <span class='highlight'>ability points</span> on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 pt) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 pt) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 pts) - Target loses 10% cookies!<br><br>Use abilities strategically to sabotage opponents!",
+                text: "Spend your <span class='highlight'>ability points</span> on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 pt) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 pt) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 pts) - Target loses 20% cookies!<br><br>Use abilities strategically to sabotage opponents!",
                 action: null,
                 highlight: null
             },
@@ -209,7 +209,7 @@ class TutorialGame {
             // BUFF STRATEGY DEMO - STEP 3: Short
             {
                 title: "Open the Short! 📉",
-                text: "Great! Now <span class='warning'>SHORT</span> " + this.bots[0].name + "!<br><br>With 5x leverage, when they lose 10% from Market Crash, your position will profit 50%!<br><br>Click the <span class='warning'>SHORT</span> button!",
+                text: "Great! Now <span class='warning'>SHORT</span> " + this.bots[0].name + "!<br><br>With 5x leverage, when they lose 20% from Market Crash, your position will profit 100%!<br><br>Click the <span class='warning'>SHORT</span> button!",
                 action: 'buff-strategy-short',
                 highlight: null,
                 waitForShort: true
@@ -217,7 +217,7 @@ class TutorialGame {
             // BUFF STRATEGY DEMO - STEP 4: Market Crash
             {
                 title: "Market Crash! 📉💥",
-                text: "Perfect! Now use <span class='warning'>Market Crash</span> on " + this.bots[0].name + "!<br><br>Click their <span class='warning'>📉 Crash (2)</span> button to make them lose 10% of their cookies!<br><br>Your short position will profit instantly!",
+                text: "Perfect! Now use <span class='warning'>Market Crash</span> on " + this.bots[0].name + "!<br><br>Click their <span class='warning'>📉 Crash (2)</span> button to make them lose 20% of their cookies!<br><br>Your short position will profit instantly!",
                 action: 'buff-strategy-crash',
                 highlight: null,
                 waitForCrash: true
@@ -328,7 +328,7 @@ class TutorialGame {
                 <div class="stock-stats">
                     ${!isMe ? `
                         <button class="header-ability-btn header-freeze-btn locked" id="freeze-btn-${name}" data-target="${name}" title="Freeze: 15s (1 buff)">🥶 Freeze <span class="ability-cost">(1)</span></button>
-                        <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${name}" data-target="${name}" title="Crash: -10% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
+                        <button class="header-ability-btn header-crash-btn locked" id="crash-btn-${name}" data-target="${name}" title="Crash: -20% cookies (2 pts)">📉 Crash <span class="ability-cost">(2)</span></button>
                     ` : ''}
                     <span class="stat-total" id="score-${chartId}">0 🍪</span>
                     ${isMe ? `<span class="stat-locked" id="locked-margin">🔒 0</span>` : `<span class="stat-networth-small" id="networth-${chartId}" style="color: #9b59b6; font-size: 0.75em;">💎 0</span>`}
@@ -633,7 +633,8 @@ class TutorialGame {
     }
     
     getClickUpgradeCost() {
-        return Math.floor(50 * Math.pow(2, this.clickPowerLevel - 1));
+        // Price scales: 50, 150, 450, 1350, etc.
+        return Math.floor(50 * Math.pow(3, this.clickPowerLevel - 1));
     }
     
     // Helper to get total locked cookies from open positions
@@ -804,8 +805,8 @@ class TutorialGame {
         // Use buffs
         this.playerBuffs -= 2;
         
-        // Crash the bot - lose 10% cookies
-        const crashAmount = Math.floor(bot.cookies * 0.1);
+        // Crash the bot - lose 20% cookies
+        const crashAmount = Math.floor(bot.cookies * 0.2);
         bot.cookies -= crashAmount;
         
         // Mark crash used for tutorial

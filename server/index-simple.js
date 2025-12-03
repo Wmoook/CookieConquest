@@ -684,7 +684,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('game:state', lobby.gameState);
     });
     
-    // Ability: Market Crash - Target loses 10% of cookies (costs 2 ability points)
+    // Ability: Market Crash - Target loses 20% of cookies (costs 2 ability points)
     socket.on('game:useMarketCrash', ({ targetName }) => {
         const code = playerLobby.get(socket.id);
         if (!code) return;
@@ -815,10 +815,10 @@ io.on('connection', (socket) => {
         const player = findPlayerEntity(lobby.gameState, socket.id);
         if (!player) return;
         
-        // Price scales exponentially: 100, 500, 2500, 12500, etc.
-        const basePrice = 100;
+        // Price scales: 50, 150, 450, 1350, etc.
+        const basePrice = 50;
         const currentLevel = player.clickPower || 1;
-        const price = Math.floor(basePrice * Math.pow(5, currentLevel - 1));
+        const price = Math.floor(basePrice * Math.pow(3, currentLevel - 1));
         
         if (player.cookies >= price) {
             player.cookies -= price;
