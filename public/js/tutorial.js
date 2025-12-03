@@ -1879,29 +1879,11 @@ class TutorialGame {
             }
         }
         
-        // Player gets liquidated - boost the target bot to liquidate player's SHORT position
+        // Player gets liquidated - DON'T trigger yet, wait for user to click Okay
+        // The actual liquidation will happen in advanceTutorial when they click Okay
         if (stepData.action === 'player-gets-liquidated') {
-            const targetBot = this.bots.find(b => b.name === stepData.target);
-            const playerShortPosition = this.positions.find(p => p.targetName === stepData.target && p.type === 'short');
-            
-            if (targetBot && playerShortPosition) {
-                // Gradually boost the bot to exceed the liquidation price
-                const liquidationPrice = playerShortPosition.liquidationPrice;
-                const boostAmount = Math.ceil(liquidationPrice * 1.1); // Go 10% above liquidation
-                
-                // Boost over time so player can watch it happen
-                setTimeout(() => {
-                    targetBot.cookies = boostAmount;
-                    this.showNotification(`⚠️ ${targetBot.name} is surging!`, 'warning');
-                    this.checkLiquidations();
-                    this.renderCharts();
-                    this.updateDisplays();
-                    
-                    // Mark that player was liquidated
-                    this.playerWasLiquidated = true;
-                    this.checkTutorialProgress();
-                }, 1500);
-            }
+            // Just show the warning message, don't do anything yet
+            // The liquidation will be triggered when they advance from this step
         }
         
         // Defend against long - initialize tracker
@@ -2108,6 +2090,12 @@ class TutorialGame {
         
         // If this step requires an action, check if it's done
         if (stepData.action && !stepData.completed) {
+            // Special case: player-gets-liquidated step - trigger the liquidation animation when they click Okay
+            if (stepData.action === 'player-gets-liquidated') {
+                this.triggerPlayerLiquidation(stepData.target);
+                return; // Don't advance yet, the liquidation callback will advance
+            }
+            
             // Don't advance, hide overlay to let them do the action
             document.getElementById('tutorial-overlay')?.classList.add('hidden');
             
@@ -2121,6 +2109,68 @@ class TutorialGame {
         } else {
             this.completeTutorial();
         }
+    }
+    
+    // Trigger the player liquidation animation - called when player clicks Okay on the liquidation step
+    triggerPlayerLiquidation(targetName) {
+        const targetBot = this.bots.find(b => b.name === targetName);
+        const playerShortPosition = this.positions.find(p => p.targetName === targetName && p.type === 'short');
+        
+        if (!targetBot || !playerShortPosition) {
+            // No position to liquidate, just advance
+            this.playerWasLiquidated = true;
+            this.tutorialSteps[this.tutorialStep].completed = true;
+            this.showTutorialStep(this.tutorialStep + 1);
+            return;
+        }
+        
+        // Hide the tutorial overlay so player can watch the chart
+        document.getElementById('tutorial-overlay')?.classList.add('hidden');
+        
+        // Get the liquidation price
+        const liquidationPrice = playerShortPosition.liquidationPrice;
+        const startPrice = targetBot.cookies;
+        const endPrice = Math.ceil(liquidationPrice * 1.05); // Go 5% above liquidation
+        
+        // Animate the bot's cookies rising over 2 seconds
+        const duration = 2000;
+        const startTime = performance.now();
+        
+        this.showNotification(`⚠️ ${targetBot.name} is surging!`, 'warning');
+        
+        const animateLiquidation = () => {
+            const now = performance.now();
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Ease-in-out animation
+            const eased = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            
+            // Update bot cookies
+            targetBot.cookies = Math.floor(startPrice + (endPrice - startPrice) * eased);
+            
+            // Update displays and charts
+            this.renderCharts();
+            this.updateDisplays();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateLiquidation);
+            } else {
+                // Animation complete - now trigger the actual liquidation
+                this.checkLiquidations();
+                this.playerWasLiquidated = true;
+                this.tutorialSteps[this.tutorialStep].completed = true;
+                
+                // Wait a moment then show the "You Got Liquidated" step
+                setTimeout(() => {
+                    this.showTutorialStep(this.tutorialStep + 1);
+                }, 800);
+            }
+        };
+        
+        requestAnimationFrame(animateLiquidation);
     }
     
     checkTutorialProgress() {
