@@ -661,6 +661,75 @@ class TutorialGame {
         this.checkTutorialProgress();
     }
     
+    // Add extra generator buttons for skip tutorial mode
+    addExtraGeneratorButtons() {
+        const generatorsList = document.querySelector('.generators-list');
+        if (!generatorsList) return;
+        
+        const extraGenerators = [
+            { id: 'bank', name: 'Bank', cps: 500, cost: 10000, icon: `
+                <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                    <rect x="3" y="10" width="18" height="12" fill="#1E88E5"/>
+                    <path d="M12 2L2 10h20L12 2z" fill="#1565C0"/>
+                    <rect x="6" y="13" width="3" height="6" fill="#90CAF9"/>
+                    <rect x="10.5" y="13" width="3" height="6" fill="#90CAF9"/>
+                    <rect x="15" y="13" width="3" height="6" fill="#90CAF9"/>
+                </svg>
+            ` },
+            { id: 'temple', name: 'Temple', cps: 2500, cost: 50000, icon: `
+                <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                    <path d="M12 2L4 8v2h16V8L12 2z" fill="#FFD54F"/>
+                    <rect x="5" y="10" width="14" height="10" fill="#FFF59D"/>
+                    <rect x="7" y="12" width="2" height="6" fill="#FFD54F"/>
+                    <rect x="11" y="12" width="2" height="6" fill="#FFD54F"/>
+                    <rect x="15" y="12" width="2" height="6" fill="#FFD54F"/>
+                </svg>
+            ` },
+            { id: 'wizard', name: 'Wizard', cps: 10000, cost: 200000, icon: `
+                <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                    <path d="M12 2L8 14h8L12 2z" fill="#7C4DFF"/>
+                    <circle cx="12" cy="18" r="4" fill="#B388FF"/>
+                    <circle cx="10" cy="17" r="1" fill="#333"/>
+                    <circle cx="14" cy="17" r="1" fill="#333"/>
+                    <path d="M9 9l-2 2M15 9l2 2" stroke="#FFD54F" stroke-width="1.5"/>
+                </svg>
+            ` },
+            { id: 'portal', name: 'Portal', cps: 50000, cost: 1000000, icon: `
+                <svg class="gen-icon-svg" width="32" height="32" viewBox="0 0 24 24">
+                    <ellipse cx="12" cy="12" rx="8" ry="10" fill="none" stroke="#E040FB" stroke-width="2"/>
+                    <ellipse cx="12" cy="12" rx="5" ry="7" fill="#7C4DFF"/>
+                    <ellipse cx="12" cy="12" rx="2" ry="3" fill="#E040FB"/>
+                </svg>
+            ` }
+        ];
+        
+        extraGenerators.forEach(gen => {
+            const btn = document.createElement('button');
+            btn.className = 'generator-btn';
+            btn.id = `generator-${gen.id}`;
+            btn.dataset.generator = gen.id;
+            btn.innerHTML = `
+                ${gen.icon}
+                <div class="gen-info">
+                    <span class="gen-name">${gen.name}</span>
+                    <span class="gen-desc">+${gen.cps.toLocaleString()} cookies/sec</span>
+                </div>
+                <div class="gen-cost">
+                    <span class="gen-level">Lv.0</span>
+                    <span class="cost-value">${gen.cost.toLocaleString()}</span>
+                </div>
+            `;
+            
+            // Add click handler
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                this.buyGenerator(gen.id);
+            });
+            
+            generatorsList.appendChild(btn);
+        });
+    }
+
     getGeneratorCost(gen) {
         const data = this.generatorData[gen];
         if (!data) return Infinity;
@@ -2718,7 +2787,23 @@ class TutorialGame {
             this.skippedTutorial = true; // Flag for harder bot AI
             this.cookies = 0;
             this.cps = 0;
-            this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0 };
+            
+            // Add ALL generators for skip tutorial mode (matching main game)
+            this.generatorData = {
+                grandma: { baseCost: 15, cps: 1 },
+                bakery: { baseCost: 100, cps: 5 },
+                factory: { baseCost: 500, cps: 20 },
+                mine: { baseCost: 2000, cps: 100 },
+                bank: { baseCost: 10000, cps: 500 },
+                temple: { baseCost: 50000, cps: 2500 },
+                wizard: { baseCost: 200000, cps: 10000 },
+                portal: { baseCost: 1000000, cps: 50000 }
+            };
+            this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0, bank: 0, temple: 0, wizard: 0, portal: 0 };
+            
+            // Add extra generator buttons to the UI
+            this.addExtraGeneratorButtons();
+            
             this.positions = [];
             this.botPositions = [];
             this.botVsBotPositions = []; // Reset bot vs bot positions too
