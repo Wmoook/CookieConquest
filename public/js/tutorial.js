@@ -1143,12 +1143,17 @@ class TutorialGame {
             
             if (!hasPositionOnPlayer && bot.cookies > 100) {
                 // Decide to long or short the player
-                // Bots are not very smart - they make random decisions (easy for player)
+                // Bots make somewhat smart decisions based on player's recent growth
                 const positionType = Math.random() > 0.5 ? 'long' : 'short';
-                const stake = Math.floor(Math.min(50, bot.cookies * 0.1)); // Small stakes - easy mode
-                const leverage = 2; // Low leverage - easy mode
                 
-                if (stake >= 10) {
+                // Stakes based on both bot's cookies and player's cookies (meaningful amounts!)
+                // Use 15-25% of bot's cookies, but cap at 30% of player's cookies
+                const botStakePercent = 0.15 + Math.random() * 0.1; // 15-25%
+                const maxStake = Math.floor(this.cookies * 0.3); // Max 30% of player's cookies
+                const stake = Math.floor(Math.min(bot.cookies * botStakePercent, maxStake));
+                const leverage = Math.random() > 0.7 ? 3 : 2; // Sometimes use 3x leverage
+                
+                if (stake >= 20) {
                     if (positionType === 'long') {
                         this.botLongsPlayer(bot.name, stake, leverage);
                     } else {
@@ -1159,16 +1164,16 @@ class TutorialGame {
             
             // Bot might close their position if profitable or cut losses
             const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
-            if (botPosition && Math.random() < 0.05) {
+            if (botPosition && Math.random() < 0.03) {
                 // Calculate PnL
                 const currentPrice = this.cookies;
                 const priceChange = currentPrice - botPosition.entryPrice;
                 const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
                 const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
                 
-                // Close if profitable (50% chance) or big loss (30% chance)
-                if ((pnl > botPosition.stake * 0.2 && Math.random() < 0.5) || 
-                    (pnl < -botPosition.stake * 0.3 && Math.random() < 0.3)) {
+                // Close if profitable (40% chance) or taking losses (20% chance)
+                if ((pnl > botPosition.stake * 0.15 && Math.random() < 0.4) || 
+                    (pnl < -botPosition.stake * 0.2 && Math.random() < 0.2)) {
                     this.botClosesPosition(bot.name);
                 }
             }
