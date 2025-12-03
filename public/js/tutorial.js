@@ -2515,7 +2515,7 @@ class TutorialGame {
     completeTutorial(skipped = false) {
         this.tutorialComplete = true;
         this.freePlayMode = true;
-        this.freePlayGoal = 10000;
+        this.freePlayGoal = skipped ? 1000000 : 10000; // 1 million for skip mode, 10k for tutorial
         
         // If skipped, reset everyone to 0 and give bots VERY competitive CPS
         if (skipped) {
@@ -2549,7 +2549,8 @@ class TutorialGame {
         document.getElementById('tutorial-hint-box')?.classList.remove('visible');
         
         // Show free play goal notification
-        this.showNotification('🎮 Free Play! Race to 10,000 cookies to win!', 'success');
+        const goalText = this.freePlayGoal >= 1000000 ? '1 million' : this.freePlayGoal.toLocaleString();
+        this.showNotification(`🎮 Free Play! Race to ${goalText} cookies to win!`, 'success');
         
         // Start checking for win condition
         this.checkFreePlayWin();
