@@ -1092,8 +1092,9 @@ class TutorialGame {
             // Update bots
             this.updateBots(dt);
             
-            // Check liquidations
+            // Check liquidations (both player positions on bots and bot positions on player)
             this.checkLiquidations();
+            this.checkBotPositionLiquidations();
             
             // Update history - throttle to 10 times per second for smooth charts
             if (!this.lastHistoryUpdate || now - this.lastHistoryUpdate > 100) {
