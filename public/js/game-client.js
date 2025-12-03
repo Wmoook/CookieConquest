@@ -1277,6 +1277,10 @@ class MultiplayerGame {
                     if (pos.liquidationPrice > max) max = pos.liquidationPrice;
                     if (pos.liquidationPrice < min) min = pos.liquidationPrice;
                 }
+                if (pos.entryPrice) {
+                    if (pos.entryPrice > max) max = pos.entryPrice;
+                    if (pos.entryPrice < min) min = pos.entryPrice;
+                }
             });
         }
         
@@ -1291,6 +1295,10 @@ class MultiplayerGame {
                         if (pos.liquidationPrice > max) max = pos.liquidationPrice;
                         if (pos.liquidationPrice < min) min = pos.liquidationPrice;
                     }
+                    if (pos.entryPrice) {
+                        if (pos.entryPrice > max) max = pos.entryPrice;
+                        if (pos.entryPrice < min) min = pos.entryPrice;
+                    }
                 });
             }
             
@@ -1300,6 +1308,10 @@ class MultiplayerGame {
                 if (pos.liquidationPrice) {
                     if (pos.liquidationPrice > max) max = pos.liquidationPrice;
                     if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+                if (pos.entryPrice) {
+                    if (pos.entryPrice > max) max = pos.entryPrice;
+                    if (pos.entryPrice < min) min = pos.entryPrice;
                 }
             });
         }

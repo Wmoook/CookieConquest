@@ -2051,36 +2051,43 @@ class TutorialGame {
                     if (pos.liquidationPrice > max) max = pos.liquidationPrice;
                     if (pos.liquidationPrice < min) min = pos.liquidationPrice;
                 }
+                if (pos.entryPrice) {
+                    if (pos.entryPrice > max) max = pos.entryPrice;
+                    if (pos.entryPrice < min) min = pos.entryPrice;
+                }
             });
         }
         
         // For BOT charts, expand bounds to include YOUR liquidation prices on them
         if (labelId !== 'you' && this.positions && this.positions.length > 0) {
-            // Find bot name from labelId (e.g., 'chipmaster' -> 'ChipMaster')
-            const bot = this.bots.find(b => b.name.toLowerCase().replace(/\s+/g, '') === labelId.toLowerCase());
-            if (bot) {
-                const positionsOnBot = this.positions.filter(p => p.targetName === bot.name);
-                positionsOnBot.forEach(pos => {
-                    if (pos.liquidationPrice) {
-                        if (pos.liquidationPrice > max) max = pos.liquidationPrice;
-                        if (pos.liquidationPrice < min) min = pos.liquidationPrice;
-                    }
-                });
-            }
+            // Find positions targeting this bot (labelId is the bot name like 'CookieBot')
+            const positionsOnBot = this.positions.filter(p => p.targetName === labelId);
+            positionsOnBot.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                    if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+                if (pos.entryPrice) {
+                    if (pos.entryPrice > max) max = pos.entryPrice;
+                    if (pos.entryPrice < min) min = pos.entryPrice;
+                }
+            });
         }
         
         // For BOT charts, also expand bounds to include OTHER BOT positions on them (bot vs bot)
         if (labelId !== 'you' && this.botVsBotPositions && this.botVsBotPositions.length > 0) {
-            const bot = this.bots.find(b => b.name.toLowerCase().replace(/\s+/g, '') === labelId.toLowerCase());
-            if (bot) {
-                const positionsOnBot = this.botVsBotPositions.filter(p => p.targetName === bot.name);
-                positionsOnBot.forEach(pos => {
-                    if (pos.liquidationPrice) {
-                        if (pos.liquidationPrice > max) max = pos.liquidationPrice;
-                        if (pos.liquidationPrice < min) min = pos.liquidationPrice;
-                    }
-                });
-            }
+            // Find positions targeting this bot (labelId is the bot name like 'CookieBot')
+            const positionsOnBot = this.botVsBotPositions.filter(p => p.targetName === labelId);
+            positionsOnBot.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                    if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+                if (pos.entryPrice) {
+                    if (pos.entryPrice > max) max = pos.entryPrice;
+                    if (pos.entryPrice < min) min = pos.entryPrice;
+                }
+            });
         }
         
         const padding = (max - min) * 0.1 || 10;
