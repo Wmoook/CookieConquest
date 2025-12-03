@@ -286,10 +286,10 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
-            // FINAL
+            // FINAL - FREE PLAY
             {
-                title: "You're Ready to Conquer! 🎮",
-                text: "You now know everything about Cookie Conquest!<br><br>Remember:<br>• 🍪 Click and buy generators<br>• 📈 Long = bet on growth<br>• 📉 Short = bet on decline<br>• 💀 Watch your liquidation price<br>• 👑 Win KotH for ability points<br>• 🏆 First to 100M cookies wins!<br><br><span class='highlight'>Good luck, and may the best trader win!</span>",
+                title: "Free Play! 🎮",
+                text: "Tutorial complete! Now it's time to practice!<br><br><span class='highlight'>Race to 10,000 cookies first to win!</span><br><br>Use everything you learned:<br>• 🍪 Click and buy generators<br>• 📈📉 Trade on the bots<br>• 💀 Don't get liquidated!<br><br><span class='warning'>Good luck!</span>",
                 action: null,
                 highlight: null,
                 final: true
@@ -2336,6 +2336,8 @@ class TutorialGame {
     
     completeTutorial() {
         this.tutorialComplete = true;
+        this.freePlayMode = true;
+        this.freePlayGoal = 10000;
         
         // Clear spotlight
         this.clearSpotlight();
@@ -2346,11 +2348,62 @@ class TutorialGame {
         document.getElementById('skip-tutorial')?.remove();
         document.getElementById('tutorial-hint-box')?.classList.remove('visible');
         
-        // Show victory
-        const victory = document.getElementById('victory');
-        if (victory) {
-            victory.classList.add('show');
+        // Show free play goal notification
+        this.showNotification('🎮 Free Play! Race to 10,000 cookies to win!', 'success');
+        
+        // Start checking for win condition
+        this.checkFreePlayWin();
+    }
+    
+    checkFreePlayWin() {
+        if (!this.freePlayMode) return;
+        
+        // Check if player won
+        if (this.cookies >= this.freePlayGoal) {
+            this.freePlayMode = false;
+            this.showNotification('🏆 YOU WIN! You reached 10,000 cookies!', 'success');
+            
+            // Show victory screen
+            const victory = document.getElementById('victory');
+            if (victory) {
+                const victoryText = victory.querySelector('h2');
+                if (victoryText) {
+                    victoryText.textContent = '🏆 You Win!';
+                }
+                const victorySubtext = victory.querySelector('p');
+                if (victorySubtext) {
+                    victorySubtext.textContent = `You reached ${Math.floor(this.cookies).toLocaleString()} cookies first!`;
+                }
+                victory.classList.add('show');
+            }
+            return;
         }
+        
+        // Check if any bot won
+        for (const bot of this.bots) {
+            if (bot.cookies >= this.freePlayGoal) {
+                this.freePlayMode = false;
+                this.showNotification(`💀 ${bot.name} reached 10,000 cookies first!`, 'error');
+                
+                // Show defeat screen
+                const victory = document.getElementById('victory');
+                if (victory) {
+                    const victoryText = victory.querySelector('h2');
+                    if (victoryText) {
+                        victoryText.textContent = '💀 You Lose!';
+                    }
+                    const victorySubtext = victory.querySelector('p');
+                    if (victorySubtext) {
+                        victorySubtext.textContent = `${bot.name} reached ${Math.floor(bot.cookies).toLocaleString()} cookies first!`;
+                    }
+                    victory.classList.add('show');
+                }
+                return;
+            }
+        }
+        
+        // Keep checking
+        requestAnimationFrame(() => this.checkFreePlayWin());
     }
 }
 
