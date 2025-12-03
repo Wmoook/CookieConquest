@@ -1166,6 +1166,29 @@ class TutorialGame {
                 const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
                 const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
                 
+                // BAIT STRATEGY: If this is a bait long and player is dumping, close and SHORT!
+                if (aggressive && botPosition.isBait && botPosition.type === 'long') {
+                    // Player took the bait! They're dumping to liquidate our long
+                    if (currentPrice < botPosition.entryPrice * 0.95) {
+                        // Close the bait position (take small loss)
+                        this.botClosesPosition(bot.name);
+                        // Immediately SHORT them with big stake since they're dumping!
+                        const shortStake = Math.floor(bot.cookies * 0.5);
+                        if (shortStake >= 50) {
+                            setTimeout(() => {
+                                this.botShortsPlayer(bot.name, shortStake, 7);
+                                this.showNotification(`🎣 ${bot.name} baited you! Now SHORTING your dump!`, 'warning');
+                            }, 100);
+                        }
+                        return;
+                    }
+                    // If player didn't take bait after 5 seconds, close anyway
+                    if (holdTime > 5000) {
+                        this.botClosesPosition(bot.name);
+                        return;
+                    }
+                }
+                
                 // Aggressive bots wait for BIG wins before closing - they want to HURT you
                 const profitThreshold = aggressive ? 0.5 : 0.1; // 50% profit vs 10%
                 const lossThreshold = aggressive ? 0.15 : 0.3; // Cut losses at 15% vs 30%
@@ -1197,6 +1220,23 @@ class TutorialGame {
             const minPlayerCookies = aggressive ? 500 : 0;
             
             if (!hasPositionOnPlayer && bot.cookies > minBotCookies && this.cookies >= minPlayerCookies) {
+                // BAIT STRATEGY: 25% chance to use bait trap!
+                // Open a small 2x LONG as bait, player will try to dump to liquidate it
+                // Then we SHORT them when they're dumping!
+                if (aggressive && Math.random() < 0.25 && bot.cookies > 200) {
+                    const baitStake = Math.floor(bot.cookies * 0.1); // Small 10% stake as bait
+                    if (baitStake >= 30) {
+                        this.botLongsPlayer(bot.name, baitStake, 2); // Low 2x leverage - looks easy to liquidate!
+                        // Mark this position as a bait
+                        const baitPos = this.botPositions.find(p => p.ownerName === bot.name);
+                        if (baitPos) {
+                            baitPos.isBait = true;
+                        }
+                        this.showNotification(`🎯 ${bot.name} opened a suspicious LONG...`, 'info');
+                        return;
+                    }
+                }
+                
                 // Aggressive bots are SMART - they short when you're growing fast, long when you're slowing
                 let positionType;
                 if (aggressive) {
