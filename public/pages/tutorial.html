@@ -264,11 +264,67 @@
         .screen-tint.active {
             opacity: 1;
         }
+        
+        /* Tutorial action hint box - bottom right */
+        .tutorial-hint-box {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #f39c12;
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-width: 280px;
+            z-index: 4500;
+            box-shadow: 0 4px 20px rgba(243, 156, 18, 0.3);
+            animation: hintPulse 2s ease-in-out infinite;
+            display: none;
+        }
+        .tutorial-hint-box.visible {
+            display: block;
+        }
+        @keyframes hintPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(243, 156, 18, 0.3); }
+            50% { box-shadow: 0 4px 30px rgba(243, 156, 18, 0.6); }
+        }
+        .tutorial-hint-header {
+            color: #f39c12;
+            font-weight: bold;
+            font-size: 0.8em;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tutorial-hint-text {
+            color: #fff;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+        .tutorial-hint-text .action {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .tutorial-hint-text .target {
+            color: #f39c12;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <!-- Screen tint overlay -->
     <div class="screen-tint" id="screen-tint"></div>
+    
+    <!-- Tutorial action hint box -->
+    <div class="tutorial-hint-box" id="tutorial-hint-box">
+        <div class="tutorial-hint-header">
+            <span>📋</span>
+            <span>Current Task:</span>
+        </div>
+        <div class="tutorial-hint-text" id="tutorial-hint-text">
+            Click the cookie to continue
+        </div>
+    </div>
     
     <!-- Tutorial overlay -->
     <div class="tutorial-overlay" id="tutorial-overlay">

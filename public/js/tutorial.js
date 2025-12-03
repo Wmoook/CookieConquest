@@ -1684,6 +1684,38 @@ class TutorialGame {
         document.querySelectorAll('.tutorial-highlight, .glow-highlight').forEach(el => {
             el.classList.remove('tutorial-highlight', 'glow-highlight');
         });
+        
+        // Update the hint box based on current action
+        this.updateHintBox(stepData.action);
+    }
+    
+    updateHintBox(action) {
+        const hintBox = document.getElementById('tutorial-hint-box');
+        const hintText = document.getElementById('tutorial-hint-text');
+        if (!hintBox || !hintText) return;
+        
+        // Map actions to clear hint text
+        const hintMessages = {
+            'click': '<span class="action">Click</span> the <span class="target">cookie</span> 10 times',
+            'buy-generator': '<span class="action">Buy</span> a <span class="target">generator</span> (Grandma, Farm, or Factory)',
+            'open-position': '<span class="action">Open</span> a <span class="target">LONG position</span> against a bot',
+            'close-position': '<span class="action">Click</span> the <span class="target">Close</span> button on your position',
+            'liquidate-bot': '<span class="action">Buy generators</span> to increase your cookies and <span class="target">liquidate the bot\'s SHORT</span>',
+            'open-short': '<span class="action">Open</span> a <span class="target">SHORT position</span> against a bot',
+            'defend-against-long': '<span class="action">Buy</span> a <span class="target">generator</span> to make the bot\'s LONG unprofitable',
+            'buff-strategy-setup': '<span class="action">Click</span> the <span class="target">5x leverage</span> button',
+            'buff-strategy-stake': '<span class="action">Click</span> the <span class="target">MAX</span> button to stake maximum',
+            'buff-strategy-short': '<span class="action">Click</span> the <span class="target">SHORT</span> button to open position',
+            'buff-strategy-crash': '<span class="action">Click</span> the <span class="target">Market Crash</span> ability button',
+            'buff-strategy-close': '<span class="action">Click</span> the <span class="target">Close</span> button on your position'
+        };
+        
+        if (action && hintMessages[action]) {
+            hintText.innerHTML = hintMessages[action];
+            hintBox.classList.add('visible');
+        } else {
+            hintBox.classList.remove('visible');
+        }
     }
     
     advanceTutorial() {
@@ -1828,6 +1860,7 @@ class TutorialGame {
         document.getElementById('tutorial-overlay')?.classList.add('hidden');
         document.getElementById('tutorial-progress')?.remove();
         document.getElementById('skip-tutorial')?.remove();
+        document.getElementById('tutorial-hint-box')?.classList.remove('visible');
         
         // Show victory
         const victory = document.getElementById('victory');
