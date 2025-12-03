@@ -2069,6 +2069,20 @@ class TutorialGame {
             }
         }
         
+        // For BOT charts, also expand bounds to include OTHER BOT positions on them (bot vs bot)
+        if (labelId !== 'you' && this.botVsBotPositions && this.botVsBotPositions.length > 0) {
+            const bot = this.bots.find(b => b.name.toLowerCase().replace(/\s+/g, '') === labelId.toLowerCase());
+            if (bot) {
+                const positionsOnBot = this.botVsBotPositions.filter(p => p.targetName === bot.name);
+                positionsOnBot.forEach(pos => {
+                    if (pos.liquidationPrice) {
+                        if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                        if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                    }
+                });
+            }
+        }
+        
         const padding = (max - min) * 0.1 || 10;
         min = Math.max(0, min - padding);
         max += padding;
@@ -2226,6 +2240,50 @@ class TutorialGame {
                 
                 ctx.setLineDash([]);
             });
+        }
+        
+        // Draw bot vs bot positions on bot charts (when one bot has position on another bot)
+        if (labelId !== 'you' && this.botVsBotPositions && this.botVsBotPositions.length > 0) {
+            const targetBot = this.bots.find(b => b.name.toLowerCase().replace(/\s+/g, '') === labelId.toLowerCase());
+            if (targetBot) {
+                // Find positions where other bots are trading on this bot
+                const positionsOnThisBot = this.botVsBotPositions.filter(p => p.targetName === targetBot.name);
+                
+                positionsOnThisBot.forEach((pos, idx) => {
+                    const liqY = H - ((pos.liquidationPrice - min) / range) * H;
+                    const entryY = H - ((pos.entryPrice - min) / range) * H;
+                    const ownerBot = this.bots.find(b => b.name === pos.ownerName);
+                    const ownerColor = ownerBot ? ownerBot.color : '#9b59b6';
+                    const offset = idx * 60; // Stagger labels
+                    
+                    // Draw liquidation line - colored by owner
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = '#e74c3c';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(MARGIN_LEFT, liqY);
+                    ctx.lineTo(W, liqY);
+                    ctx.stroke();
+                    
+                    // Label
+                    ctx.fillStyle = ownerColor;
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`\ud83d\udc80 ${pos.ownerName} ${pos.type.toUpperCase()} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+                    
+                    // Draw entry line
+                    ctx.strokeStyle = '#f39c12';
+                    ctx.beginPath();
+                    ctx.moveTo(MARGIN_LEFT, entryY);
+                    ctx.lineTo(W, entryY);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = ownerColor;
+                    ctx.fillText(`${pos.ownerName} ENTRY`, MARGIN_LEFT + 5 + offset, entryY - 3);
+                    
+                    ctx.setLineDash([]);
+                });
+            }
         }
         
         // Calculate chart points

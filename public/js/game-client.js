@@ -1293,6 +1293,15 @@ class MultiplayerGame {
                     }
                 });
             }
+            
+            // Also include OTHER players' positions on this target (from their positionsOnMe)
+            const positionsOnTarget = player.positionsOnMe || [];
+            positionsOnTarget.forEach(pos => {
+                if (pos.liquidationPrice) {
+                    if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                    if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                }
+            });
         }
         
         const padding = (max - min) * 0.15 || 10;
@@ -1459,6 +1468,55 @@ class MultiplayerGame {
                 
                 ctx.setLineDash([]);
             }
+        }
+        
+        // Draw OTHER players' positions on this target's chart (not your own positions)
+        if (player && !this.isMe(player)) {
+            const me = this.getMe();
+            const positionsOnTarget = player.positionsOnMe || [];
+            
+            // Filter out your own positions (already drawn above with zones)
+            const otherPlayersPositions = positionsOnTarget.filter(pos => 
+                !me || (pos.owner !== me.id && pos.ownerName !== me.name)
+            );
+            
+            otherPlayersPositions.forEach((pos, idx) => {
+                if (!pos.liquidationPrice) return;
+                
+                const liqY = H - ((pos.liquidationPrice - min) / range) * H;
+                const offset = idx * 60; // Stagger labels if multiple
+                
+                // Draw liquidation line
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_LEFT, liqY);
+                ctx.lineTo(W, liqY);
+                ctx.stroke();
+                
+                // Label with player name and position type
+                ctx.fillStyle = '#e74c3c';
+                ctx.font = 'bold 8px Arial';
+                ctx.textAlign = 'left';
+                const posLabel = pos.type ? pos.type.toUpperCase() : '';
+                ctx.fillText(`\ud83d\udc80 ${pos.ownerName} ${posLabel} LIQ`, MARGIN_LEFT + 5 + offset, liqY - 3);
+                
+                // Draw entry line if available
+                if (pos.entryPrice) {
+                    const entryY = H - ((pos.entryPrice - min) / range) * H;
+                    ctx.strokeStyle = '#f39c12';
+                    ctx.beginPath();
+                    ctx.moveTo(MARGIN_LEFT, entryY);
+                    ctx.lineTo(W, entryY);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#f39c12';
+                    ctx.fillText(`${pos.ownerName} ENTRY`, MARGIN_LEFT + 5 + offset, entryY - 3);
+                }
+                
+                ctx.setLineDash([]);
+            });
         }
         
         // Calculate chart points
