@@ -35,7 +35,7 @@ class TutorialGame {
             },
             // CLICKING
             {
-                title: "Step 1: Click the Cookie! 🖱️",
+                title: "Click the Cookie! 🖱️",
                 text: "Click the big cookie on the left to earn cookies manually.<br><br>Try clicking to get <span class='highlight'>10 cookies</span>.",
                 action: 'click',
                 target: 10,
@@ -43,7 +43,7 @@ class TutorialGame {
             },
             // GENERATORS
             {
-                title: "Step 2: Buy Generators 🏭",
+                title: "Buy Generators 🏭",
                 text: "Clicking is slow! <span class='highlight'>Generators</span> automatically produce cookies for you.<br><br>Buy a <span class='highlight'>Grandma</span> (costs 15🍪) to earn +1 cookie/sec!",
                 action: 'buy-generator',
                 target: 'grandma',
@@ -64,35 +64,35 @@ class TutorialGame {
             },
             // LOOKING AT CHARTS
             {
-                title: "Step 3: The Stock Market 📊",
+                title: "The Stock Market 📊",
                 text: "Look at the center panel - you can see <span class='highlight'>everyone's cookie count as a chart</span>!<br><br>• <span style='color:#2ecc71'>Green chart</span> = YOU<br>• <span style='color:#e74c3c'>Red/Purple charts</span> = Other players (bots in tutorial)<br><br>Watch how the charts move as cookies are earned!",
                 action: null,
                 highlight: null
             },
             // TRADING INTRO
             {
-                title: "Step 4: Trading Basics 💰",
+                title: "Trading Basics 💰",
                 text: "Here's where it gets interesting! You can <span class='highlight'>bet on other players' charts</span>:<br><br>• <span class='highlight'>LONG 📈</span> = Bet their cookies go UP (you profit when they rise)<br>• <span class='warning'>SHORT 📉</span> = Bet their cookies go DOWN (you profit when they fall)<br><br>Your bet is called your <span class='highlight'>STAKE</span> - it gets locked while the position is open.",
                 action: null,
                 highlight: null
             },
             // LEVERAGE
             {
-                title: "Step 5: Leverage ⚡",
+                title: "Leverage ⚡",
                 text: "See the buttons like <span class='highlight'>2x, 3x, 5x, 10x</span>? That's <span class='highlight'>LEVERAGE</span>!<br><br>• Higher leverage = <span class='highlight'>bigger profits</span> but also <span class='warning'>bigger losses</span><br>• At 10x leverage, a 10% price move = 100% profit OR loss!<br><br>⚠️ High leverage is risky but can lead to huge gains!",
                 action: null,
                 highlight: null
             },
             // STAKE SLIDER
             {
-                title: "Step 6: Setting Your Stake 🎚️",
+                title: "Setting Your Stake 🎚️",
                 text: "Use the <span class='highlight'>stake slider</span> to choose how many cookies to bet.<br><br>• More stake = more potential profit (and loss)<br>• Your stake gets <span class='warning'>locked</span> until you close the position<br>• <span class='warning'>Max stake = 50%</span> of target's current 🍪 (not net worth!)<br><br>This limit applies at ANY leverage level!",
                 action: null,
                 highlight: null
             },
             // OPEN A LONG
             {
-                title: "Step 7: Open Your First Position! 📈",
+                title: "Open Your First Position! 📈",
                 text: "Let's try it! Open a <span class='highlight'>LONG position</span> on CookieBot.<br><br>1. Find CookieBot's card (red chart)<br>2. Set leverage (try 2x to start)<br>3. Set stake with the slider<br>4. Click <span class='highlight'>📈 LONG</span>!",
                 action: 'open-position',
                 target: 'CookieBot',
@@ -101,49 +101,49 @@ class TutorialGame {
             },
             // LIQUIDATION PRICE
             {
-                title: "Step 8: Liquidation Price! 💀",
+                title: "Liquidation Price! 💀",
                 text: "Look at CookieBot's chart - see the <span class='warning'>red dashed line</span> labeled <span class='warning'>💀 LIQ</span>?<br><br>That's your <span class='warning'>LIQUIDATION PRICE</span>!<br><br>• If the price drops to that line, you <span class='warning'>LOSE YOUR ENTIRE STAKE</span><br>• Higher leverage = liquidation price is closer = more dangerous!<br><br>The <span class='highlight'>yellow ENTRY line</span> shows where you opened the position.",
                 action: null,
                 highlight: null
             },
             // WATCHING PNL
             {
-                title: "Step 9: Watching Your Profit/Loss 💵",
+                title: "Watching Your Profit/Loss 💵",
                 text: "Look at the <span class='highlight'>positions sidebar</span> next to CookieBot's chart.<br><br>• You can see your position with <span class='highlight'>real-time P&L</span> (profit/loss)<br>• <span style='color:#2ecc71'>Green = profit</span>, <span style='color:#e74c3c'>Red = loss</span><br><br>The total P&L for all positions on that player shows at the top!",
                 action: null,
                 highlight: null
             },
             // CLOSE POSITION
             {
-                title: "Step 10: Closing a Position ✅",
+                title: "Closing a Position ✅",
                 text: "To take your profit (or cut your losses), you need to <span class='highlight'>CLOSE</span> the position.<br><br>Click the <span class='highlight'>CLOSE</span> button on your position to close it now!<br><br>You'll get back: <span class='highlight'>Stake + Profit</span> (or Stake - Loss)",
                 action: 'close-position',
                 highlight: null
             },
             // BEING TARGETED
             {
-                title: "Step 11: When Others Trade on YOU! ⚔️",
+                title: "When Others Trade on YOU! ⚔️",
                 text: "Other players can open positions on <span class='highlight'>YOUR</span> chart too!<br><br>• If someone <span class='warning'>SHORTs you</span>, they profit when your cookies DROP<br>• If you get <span class='warning'>liquidated</span>, THEY WIN YOUR STAKE!<br><br>Watch your own chart (green) for liquidation lines from opponents!",
                 action: null,
                 highlight: null
             },
             // BOT SHORTS YOU
             {
-                title: "Step 12: You've Been Shorted! 😱",
+                title: "You've Been Shorted! 😱",
                 text: "CookieBot just opened a <span class='warning'>SHORT position</span> on YOU!<br><br>Look at YOUR chart (green) - see the <span class='warning'>red liquidation line</span> labeled 💀?<br><br>That's THEIR liquidation! If your cookies <span class='highlight'>GO UP</span> past that line, CookieBot gets liquidated and YOU win their stake!",
                 action: 'bot-shorts-you',
                 highlight: null
             },
             // LIQUIDATE THE BOT
             {
-                title: "Step 13: Liquidate Them! 💀",
+                title: "Liquidate Them! 💀",
                 text: "Time for revenge! <span class='highlight'>Click the cookie and grow your cookies</span> to push CookieBot's position past THEIR liquidation price!<br><br>When their position gets liquidated, <span class='highlight'>you WIN their stake!</span><br><br>Keep clicking until CookieBot gets liquidated!",
                 action: 'liquidate-bot',
                 highlight: '#big-cookie'
             },
             // STRATEGY - SHORTING
             {
-                title: "Step 14: Offensive Strategy - Shorting 🗡️",
+                title: "Offensive Strategy - Shorting 🗡️",
                 text: "Now you understand both sides! When someone shorts you:<br><br>• <span class='highlight'>Grow faster</span> to liquidate THEM<br>• <span class='warning'>If you slow down</span>, they profit<br><br>Try opening a <span class='warning'>SHORT position</span> on ChipMaster!",
                 action: 'open-short',
                 target: 'ChipMaster',
@@ -151,49 +151,49 @@ class TutorialGame {
             },
             // BOT LONGS YOU
             {
-                title: "Step 15: You've Been Longed! 📈",
+                title: "You've Been Longed! 📈",
                 text: "ChipMaster just opened a <span class='highlight'>LONG position</span> on YOU!<br><br>They're betting your cookies will <span class='highlight'>GO UP</span>! If they do, ChipMaster profits from YOUR growth!<br><br>Look at YOUR chart - the <span class='warning'>red liquidation line</span> is THEIR liquidation. If your cookies <span class='warning'>DROP</span> to that line, they lose!",
                 action: 'bot-longs-you',
                 highlight: null
             },
             // DEFEND AGAINST LONG
             {
-                title: "Step 16: Defend by Spending! 💸",
+                title: "Defend by Spending! 💸",
                 text: "To liquidate their LONG, you need to <span class='warning'>LOWER your cookie count</span>!<br><br>How? <span class='highlight'>Buy a generator!</span> Spending cookies lowers your count instantly!<br><br>⚠️ Act fast! If you don't, they'll <span class='warning'>close the position</span> and take profit from you!<br><br>Buy any generator NOW to drop your cookies!",
                 action: 'defend-against-long',
                 highlight: '#generator-grandma'
             },
             // STRATEGY - DEFENSE
             {
-                title: "Step 17: Defensive Strategy 🛡️",
+                title: "Defensive Strategy 🛡️",
                 text: "When someone <span class='warning'>trades on YOU</span>, you can fight back!<br><br><span class='highlight'>Against SHORTS</span> (they bet you'll shrink):<br>• <span class='highlight'>Click faster</span> + <span class='highlight'>buy generators</span> to grow!<br><br><span class='highlight'>Against LONGS</span> (they bet you'll grow):<br>• <span class='warning'>Spend cookies</span> on generators to shrink your count!<br>• This can push THEIR position to liquidation!<br><br>⚠️ Careful: spending too much can put you <span class='warning'>into debt!</span>",
                 action: null,
                 highlight: null
             },
             // COOKIES GOAL
             {
-                title: "Step 18: The 100 Million Goal! 🎯",
+                title: "The 100 Million Goal! 🎯",
                 text: "The goal is <span class='highlight'>100 MILLION COOKIES</span>!<br><br>• Your 🍪 count is what matters for victory<br>• Generators help you get there faster<br>• Trading profits add to your cookies<br>• Trading losses subtract from your cookies<br><br>First to 100M cookies wins the game!",
                 action: null,
                 highlight: '#cookie-display'
             },
             // KING OF THE HILL
             {
-                title: "Step 19: King of the Hill! 👑",
+                title: "King of the Hill! 👑",
                 text: "In multiplayer, there's a <span class='highlight'>King of the Hill</span> mini-game!<br><br>• Keep your cursor on the big cookie to earn time<br>• Every 60 seconds, whoever has the most time wins a <span class='highlight'>+5% buff</span>!<br>• Buffs boost EVERYTHING: clicks, CPS, and trading profits!<br><br>Stack buffs to dominate the game!",
                 action: null,
                 highlight: '#koth-display'
             },
             // ABILITIES
             {
-                title: "Step 20: Abilities! ⚡",
+                title: "Abilities! ⚡",
                 text: "Spend your <span class='highlight'>ability points</span> on powerful abilities:<br><br>🥶 <span style='color:#00bfff'>Freeze</span> (1 pt) - Stop a player for 15 seconds!<br>👻 <span style='color:#9b59b6'>Invisible</span> (1 pt) - Hide your standings for 15 seconds<br>📉 <span style='color:#e74c3c'>Market Crash</span> (2 pts) - Target loses 10% cookies!<br><br>Use abilities strategically to sabotage opponents!",
                 action: null,
                 highlight: null
             },
             // BUFF STRATEGY DEMO - STEP 1: Setup
             {
-                title: "Step 21: Pro Combo Strategy! 💪",
+                title: "Pro Combo Strategy! 💪",
                 text: "Let's practice a <span class='warning'>devastating combo</span>!<br><br>Here are <span class='highlight'>2 ability points</span> to use. The strategy:<br>1️⃣ Short a player with <span class='highlight'>5x leverage</span><br>2️⃣ Hit them with <span class='warning'>Market Crash</span><br>3️⃣ Close for massive profit!<br><br>⚡ <span class='warning'>BE FAST</span> in multiplayer - others can see your cursor hovering over their card!<br><br>First, click <span class='highlight'>5x</span> on " + this.bots[0].name + "'s card!",
                 action: 'buff-strategy-setup',
                 highlight: null,
@@ -201,14 +201,14 @@ class TutorialGame {
             },
             // BUFF STRATEGY DEMO - STEP 2: Set Stake
             {
-                title: "Step 22: Set a BIG Stake! 💰",
+                title: "Set a BIG Stake! 💰",
                 text: "Now click <span class='highlight'>MAX</span> to bet ALL your cookies!<br><br>Higher stake = bigger profits from this combo!<br><br>Don't worry, the Market Crash will make this a safe bet!",
                 action: 'buff-strategy-stake',
                 highlight: null
             },
             // BUFF STRATEGY DEMO - STEP 3: Short
             {
-                title: "Step 23: Open the Short! 📉",
+                title: "Open the Short! 📉",
                 text: "Great! Now <span class='warning'>SHORT</span> " + this.bots[0].name + "!<br><br>With 5x leverage, when they lose 10% from Market Crash, your position will profit 50%!<br><br>Click the <span class='warning'>SHORT</span> button!",
                 action: 'buff-strategy-short',
                 highlight: null,
@@ -216,7 +216,7 @@ class TutorialGame {
             },
             // BUFF STRATEGY DEMO - STEP 4: Market Crash
             {
-                title: "Step 24: Market Crash! 📉💥",
+                title: "Market Crash! 📉💥",
                 text: "Perfect! Now use <span class='warning'>Market Crash</span> on " + this.bots[0].name + "!<br><br>Click their <span class='warning'>📉 Crash (2)</span> button to make them lose 10% of their cookies!<br><br>Your short position will profit instantly!",
                 action: 'buff-strategy-crash',
                 highlight: null,
@@ -224,7 +224,7 @@ class TutorialGame {
             },
             // BUFF STRATEGY DEMO - STEP 5: Close
             {
-                title: "Step 25: Take Profits! 💰",
+                title: "Take Profits! 💰",
                 text: "BOOM! 💥 Look at that profit!<br><br>Now click <span class='highlight'>CLOSE</span> on your position to lock in the gains!<br><br>This combo is a great way to use your ability points aggressively!",
                 action: 'buff-strategy-close',
                 highlight: '#positions-list',
@@ -232,7 +232,7 @@ class TutorialGame {
             },
             // ZOOM CONTROLS
             {
-                title: "Step 26: Chart Controls 🔍",
+                title: "Chart Controls 🔍",
                 text: "Each chart has zoom controls:<br><br>• <span class='highlight'>+/-</span> = Zoom in/out on recent data<br>• <span class='highlight'>ALL</span> = See entire game history<br>• <span class='highlight'>LIVE</span> = Follow the latest data<br><br>Use these to analyze trends and time your trades!",
                 action: null,
                 highlight: null
