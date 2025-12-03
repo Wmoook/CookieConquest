@@ -55,6 +55,13 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
+            // CLICK POWER
+            {
+                title: "Click Power! 💪",
+                text: "You can also upgrade your <span class='highlight'>Click Power</span> to earn more per click!<br><br>Each upgrade doubles your click power but cost quadruples (50, 200, 800...).<br><br>⚠️ <span class='warning'>WARNING:</span> These cookies are SPENT - they don't add to net worth like generators!<br><br>Buy the <span class='highlight'>Click Power</span> upgrade!",
+                action: 'buy-click-power',
+                highlight: '#upgrade-click'
+            },
             // STARTING BONUS
             {
                 title: "Starting Bonus! 💰",
@@ -90,10 +97,19 @@ class TutorialGame {
                 action: null,
                 highlight: null
             },
-            // OPEN A LONG
+            // OPEN A LONG - STEP 1: SET STAKE
+            {
+                title: "Set Your Stake! 🎚️",
+                text: "Before opening a position, set how much you want to bet!<br><br>Move the <span class='highlight'>stake slider</span> on CookieBot's card.<br><br>Higher stake = more profit potential!",
+                action: 'set-stake',
+                target: 'CookieBot',
+                minStake: 15,  // Just need to move it a bit from default 10
+                highlight: null
+            },
+            // OPEN A LONG - STEP 2: CLICK LONG
             {
                 title: "Open Your First Position! 📈",
-                text: "Let's try it! Open a <span class='highlight'>LONG position</span> on CookieBot.<br><br>1. Find CookieBot's card (red chart)<br>2. Set leverage (try 2x to start)<br>3. Set stake with the slider<br>4. Click <span class='highlight'>📈 LONG</span>!",
+                text: "Great! Now open a <span class='highlight'>LONG position</span> on CookieBot.<br><br>Click the <span class='highlight'>📈 LONG</span> button!<br><br>With a LONG, you profit when CookieBot's cookies go UP!",
                 action: 'open-position',
                 target: 'CookieBot',
                 positionType: 'long',
@@ -465,6 +481,8 @@ class TutorialGame {
                 // Remove MAX mode if manually changed
                 if (maxBtn) maxBtn.classList.remove('active');
                 this.maxStakeMode[target] = false;
+                // Check tutorial progress for set-stake step
+                this.checkTutorialProgress();
             });
         });
         
@@ -620,6 +638,171 @@ class TutorialGame {
         return Math.floor(data.baseCost * Math.pow(1.15, this.generators[gen]));
     }
     
+    // Spotlight system - dims page and highlights only the target element
+    setSpotlight(elementOrSelector, isCircle = false) {
+        const dimOverlay = document.getElementById('tutorial-dim-overlay');
+        
+        // Clear any existing spotlight
+        this.clearSpotlight();
+        
+        if (!elementOrSelector) {
+            return;
+        }
+        
+        // Activate dim overlay
+        if (dimOverlay) {
+            dimOverlay.classList.add('active');
+        }
+        
+        // Support array of selectors (can be strings or {selector, noGlow} objects)
+        const selectors = Array.isArray(elementOrSelector) ? elementOrSelector : [elementOrSelector];
+        
+        for (const item of selectors) {
+            let selector = item;
+            let noGlow = false;
+            let useCircle = isCircle;
+            
+            // Support object format: {selector: '#foo', noGlow: true}
+            if (typeof item === 'object' && item.selector) {
+                selector = item.selector;
+                noGlow = item.noGlow || false;
+            }
+            
+            let el = selector;
+            if (typeof selector === 'string') {
+                // Check if it's the cookie - use circle
+                if (selector === '#big-cookie') {
+                    useCircle = true;
+                }
+                el = document.querySelector(selector);
+            }
+            
+            if (!el) continue;
+            
+            // Spotlight the element
+            if (noGlow) {
+                el.classList.add('tutorial-spotlight-no-glow');
+            } else {
+                el.classList.add('tutorial-spotlight');
+                if (useCircle) {
+                    el.classList.add('tutorial-spotlight-circle');
+                }
+            }
+        }
+    }
+    
+    clearSpotlight() {
+        const dimOverlay = document.getElementById('tutorial-dim-overlay');
+        if (dimOverlay) {
+            dimOverlay.classList.remove('active');
+        }
+        
+        // Reset tracked target
+        this._currentSpotlightTarget = null;
+        
+        // Remove spotlight from all elements
+        document.querySelectorAll('.tutorial-spotlight, .tutorial-spotlight-no-glow').forEach(el => {
+            el.classList.remove('tutorial-spotlight');
+            el.classList.remove('tutorial-spotlight-no-glow');
+            el.classList.remove('tutorial-spotlight-circle');
+        });
+    }
+    
+    // Update spotlight for steps that depend on affordability
+    updateDynamicSpotlight() {
+        const stepData = this.tutorialSteps[this.tutorialStep];
+        if (!stepData || !stepData.action) return;
+        
+        let newTarget = null;
+        
+        // Handle buy-click-power: spotlight cookie if can't afford, else spotlight upgrade button
+        if (stepData.action === 'buy-click-power') {
+            const cost = this.getClickUpgradeCost();
+            if (this.cookies >= cost) {
+                newTarget = '#upgrade-click';
+            } else {
+                // Cookie with cookie count visible
+                newTarget = ['#big-cookie', {selector: '#cookie-count', noGlow: true}];
+            }
+        }
+        
+        // Handle buy-generator: spotlight cookie if can't afford, else spotlight generator
+        if (stepData.action === 'buy-generator') {
+            const cost = this.getGeneratorCost(stepData.target);
+            if (this.cookies >= cost) {
+                newTarget = `#generator-${stepData.target}`;
+            } else {
+                // Cookie with cookie count visible
+                newTarget = ['#big-cookie', {selector: '#cookie-count', noGlow: true}];
+            }
+        }
+        
+        // Handle defend-against-long: spotlight best affordable generator or cookie
+        // Also show player's chart and sidebar since they've been longed
+        if (stepData.action === 'defend-against-long') {
+            const genOrder = ['mine', 'factory', 'bakery', 'grandma'];
+            let bestGen = null;
+            for (const gen of genOrder) {
+                const cost = this.getGeneratorCost(gen);
+                if (this.cookies >= cost) {
+                    bestGen = gen;
+                    break;
+                }
+            }
+            if (bestGen) {
+                newTarget = [
+                    `#generator-${bestGen}`,
+                    {selector: '#card-YOU', noGlow: true},
+                    {selector: '#positions-sidebar-YOU', noGlow: true}
+                ];
+            } else {
+                // Cookie with cookie count visible, plus player's chart and sidebar
+                newTarget = [
+                    '#big-cookie',
+                    {selector: '#cookie-count', noGlow: true},
+                    {selector: '#card-YOU', noGlow: true},
+                    {selector: '#positions-sidebar-YOU', noGlow: true}
+                ];
+            }
+        }
+        
+        // Handle close-position: keep the close button spotlighted (it gets re-rendered)
+        // Force re-apply since the button HTML is recreated each update
+        if (stepData.action === 'close-position') {
+            const currentPos = this.positions[0];
+            const closeTarget = currentPos ? currentPos.targetName : this.bots[0]?.name;
+            // Always re-apply for close-position since button is re-rendered
+            this.setSpotlight([
+                '.close-btn-small',
+                {selector: `#card-${closeTarget}`, noGlow: true},
+                {selector: `#positions-sidebar-${closeTarget}`, noGlow: true}
+            ]);
+            return;
+        }
+        
+        // Handle buff-strategy-close: keep the close button spotlighted
+        // Force re-apply since the button HTML is recreated each update
+        if (stepData.action === 'buff-strategy-close') {
+            this.setSpotlight([
+                '.close-btn-small',
+                {selector: `#card-${this.bots[0].name}`, noGlow: true},
+                {selector: `#positions-sidebar-${this.bots[0].name}`, noGlow: true}
+            ]);
+            return;
+        }
+        
+        // Only update spotlight if target changed (convert to string for comparison)
+        const targetKey = JSON.stringify(newTarget);
+        if (newTarget && targetKey !== this._currentSpotlightTarget) {
+            this._currentSpotlightTarget = targetKey;
+            this.setSpotlight(newTarget);
+        }
+    }
+    
+    updateDefendLongHighlight() {
+        // Now handled by updateDynamicSpotlight
+    }
+
     upgradeClickPower() {
         const cost = this.getClickUpgradeCost();
         if (this.cookies < cost) return;
@@ -1085,6 +1268,9 @@ class TutorialGame {
         const goalPercent = document.getElementById('goal-percent');
         if (goalFill) goalFill.style.width = progress + '%';
         if (goalPercent) goalPercent.textContent = Math.floor(progress) + '%';
+        
+        // Update dynamic spotlight for steps that depend on affordability
+        this.updateDynamicSpotlight();
     }
     
     calculateGeneratorValue() {
@@ -1661,24 +1847,7 @@ class TutorialGame {
         // Defend against long - initialize tracker
         if (stepData.action === 'defend-against-long') {
             this.defendLongInitialGenerators = Object.values(this.generators).reduce((sum, g) => sum + g, 0);
-            // Highlight the highest priced generator the player can afford
-            setTimeout(() => {
-                // Find highest affordable generator
-                const genOrder = ['mine', 'factory', 'bakery', 'grandma']; // Highest to lowest
-                let bestGen = null;
-                for (const gen of genOrder) {
-                    const cost = this.getGeneratorCost(gen);
-                    if (this.cookies >= cost) {
-                        bestGen = gen;
-                        break;
-                    }
-                }
-                // Default to grandma if nothing else affordable
-                if (!bestGen) bestGen = 'grandma';
-                
-                const genBtn = document.getElementById(`generator-${bestGen}`);
-                if (genBtn) genBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
+            // Spotlight will be updated dynamically by updateDynamicSpotlight
         }
         
         // Initialize trackers when action steps are shown
@@ -1695,60 +1864,20 @@ class TutorialGame {
             this.buffStrategyCloseInitialCount = this.positions.length;
         }
         
-        // Give buffs when buff strategy step is shown and highlight 5x
+        // Give buffs when buff strategy step is shown
         if (stepData.action === 'buff-strategy-setup') {
             this.playerBuffs = 2;
             this.updateUI();
         }
         
-        // Highlight elements when buff strategy steps are shown
-        if (stepData.action === 'buff-strategy-setup') {
+        // Set up spotlight for action steps
+        if (stepData.action) {
             setTimeout(() => {
-                const lev5Btn = document.querySelector(`.lev-btn[data-lev="5"][data-target="${this.bots[0].name}"]`);
-                if (lev5Btn) lev5Btn.classList.add('tutorial-highlight', 'glow-highlight');
+                this.setupActionSpotlight(stepData);
             }, 100);
-        }
-        if (stepData.action === 'buff-strategy-stake') {
-            setTimeout(() => {
-                const maxBtn = document.getElementById(`max-btn-${this.bots[0].name}`);
-                if (maxBtn) maxBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
-        }
-        if (stepData.action === 'buff-strategy-short') {
-            setTimeout(() => {
-                const shortBtn = document.querySelector(`.quick-trade-btn.short[data-target="${this.bots[0].name}"]`);
-                if (shortBtn) shortBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
-        }
-        if (stepData.action === 'buff-strategy-crash') {
-            setTimeout(() => {
-                const crashBtn = document.getElementById(`crash-btn-${this.bots[0].name}`);
-                if (crashBtn) crashBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
-        }
-        if (stepData.action === 'buff-strategy-close') {
-            setTimeout(() => {
-                const closeBtn = document.querySelector('.close-pos-btn');
-                if (closeBtn) closeBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
-        }
-        
-        // Highlight LONG button when opening a position
-        if (stepData.action === 'open-position') {
-            setTimeout(() => {
-                const targetBot = stepData.target || this.bots[0]?.name;
-                const longBtn = document.querySelector(`.quick-trade-btn.long[data-target="${targetBot}"]`);
-                if (longBtn) longBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
-        }
-        
-        // Highlight SHORT button when opening a short
-        if (stepData.action === 'open-short') {
-            setTimeout(() => {
-                const targetBot = stepData.target || this.bots[1]?.name;
-                const shortBtn = document.querySelector(`.quick-trade-btn.short[data-target="${targetBot}"]`);
-                if (shortBtn) shortBtn.classList.add('tutorial-highlight', 'glow-highlight');
-            }, 100);
+        } else {
+            // No action required - clear spotlight
+            this.clearSpotlight();
         }
         
         // Update step counter - HIDDEN (uncomment to show)
@@ -1764,13 +1893,106 @@ class TutorialGame {
             if (i === step) dot.classList.add('active');
         });
         
-        // Remove old highlights and glow
-        document.querySelectorAll('.tutorial-highlight, .glow-highlight').forEach(el => {
-            el.classList.remove('tutorial-highlight', 'glow-highlight');
-        });
-        
         // Update the hint box based on current action
         this.updateHintBox(stepData.action);
+    }
+    
+    setupActionSpotlight(stepData) {
+        // Clear any existing spotlight first
+        this.clearSpotlight();
+        
+        const action = stepData.action;
+        
+        switch (action) {
+            case 'click':
+                // Spotlight cookie with glow, cookie count under it without glow
+                this.setSpotlight([
+                    '#big-cookie',
+                    {selector: '#cookie-count', noGlow: true}
+                ]);
+                break;
+            case 'buy-generator':
+                // Will be handled by updateDynamicSpotlight
+                this.updateDynamicSpotlight();
+                break;
+            case 'buy-click-power':
+                // Will be handled by updateDynamicSpotlight
+                this.updateDynamicSpotlight();
+                break;
+            case 'set-stake':
+                const targetBot = stepData.target || this.bots[0]?.name;
+                // Spotlight slider with glow, stake display without glow
+                this.setSpotlight([`#slider-${targetBot}`, {selector: `#stake-display-${targetBot}`, noGlow: true}]);
+                break;
+            case 'open-position':
+                const longTarget = stepData.target || this.bots[0]?.name;
+                // Spotlight LONG button with glow, target's card and sidebar without glow
+                this.setSpotlight([
+                    `.quick-trade-btn.long[data-target="${longTarget}"]`,
+                    {selector: `#card-${longTarget}`, noGlow: true},
+                    {selector: `#positions-sidebar-${longTarget}`, noGlow: true}
+                ]);
+                break;
+            case 'open-short':
+                const shortTarget = stepData.target || this.bots[1]?.name;
+                // Spotlight SHORT button with glow, sidebar without glow (not the whole card)
+                this.setSpotlight([
+                    `.quick-trade-btn.short[data-target="${shortTarget}"]`,
+                    {selector: `#positions-sidebar-${shortTarget}`, noGlow: true}
+                ]);
+                break;
+            case 'close-position':
+                // Spotlight close button with glow, find the target from current position
+                const currentPos = this.positions[0];
+                const closeTarget = currentPos ? currentPos.targetName : this.bots[0]?.name;
+                this.setSpotlight([
+                    '.close-btn-small',
+                    {selector: `#card-${closeTarget}`, noGlow: true},
+                    {selector: `#positions-sidebar-${closeTarget}`, noGlow: true}
+                ]);
+                break;
+            case 'liquidate-bot':
+                // Spotlight cookie with glow, player's card/chart and "On YOU" sidebar without glow
+                this.setSpotlight([
+                    '#big-cookie',
+                    {selector: '#cookie-count', noGlow: true},
+                    {selector: '#card-YOU', noGlow: true},
+                    {selector: '#positions-sidebar-YOU', noGlow: true}
+                ]);
+                break;
+            case 'defend-against-long':
+                // Will be handled by updateDynamicSpotlight
+                this.updateDynamicSpotlight();
+                break;
+            case 'buff-strategy-setup':
+                this.setSpotlight(`.lev-btn[data-lev="5"][data-target="${this.bots[0].name}"]`);
+                break;
+            case 'buff-strategy-stake':
+                this.setSpotlight(`#max-btn-${this.bots[0].name}`);
+                break;
+            case 'buff-strategy-short':
+                // Spotlight SHORT button with glow, target's card and sidebar without glow
+                this.setSpotlight([
+                    `.quick-trade-btn.short[data-target="${this.bots[0].name}"]`,
+                    {selector: `#card-${this.bots[0].name}`, noGlow: true},
+                    {selector: `#positions-sidebar-${this.bots[0].name}`, noGlow: true}
+                ]);
+                break;
+            case 'buff-strategy-crash':
+                this.setSpotlight(`#crash-btn-${this.bots[0].name}`);
+                break;
+            case 'buff-strategy-close':
+                // Spotlight close button with glow, target's card and sidebar without glow
+                this.setSpotlight([
+                    '.close-btn-small',
+                    {selector: `#card-${this.bots[0].name}`, noGlow: true},
+                    {selector: `#positions-sidebar-${this.bots[0].name}`, noGlow: true}
+                ]);
+                break;
+            default:
+                // No spotlight for unknown actions
+                break;
+        }
     }
     
     updateHintBox(action) {
@@ -1784,6 +2006,8 @@ class TutorialGame {
         const hintMessages = {
             'click': '<span class="action">Click</span> the <span class="target">cookie</span> 10 times',
             'buy-generator': '<span class="action">Buy</span> a <span class="target">generator</span> (Grandma, Farm, or Factory)',
+            'buy-click-power': '<span class="action">Buy</span> the <span class="target">Click Power</span> upgrade',
+            'set-stake': `<span class="action">Move</span> the <span class="target">stake slider</span> on ${botName}`,
             'open-position': `<span class="action">LONG</span> <span class="target">${botName}</span> - click the LONG button`,
             'close-position': '<span class="action">Click</span> the <span class="target">Close</span> button on your position',
             'liquidate-bot': '<span class="action">Click the cookie</span> to grow and <span class="target">liquidate CookieBot\'s SHORT</span>',
@@ -1812,11 +2036,7 @@ class TutorialGame {
             // Don't advance, hide overlay to let them do the action
             document.getElementById('tutorial-overlay')?.classList.add('hidden');
             
-            // Add highlight
-            if (stepData.highlight) {
-                const el = document.querySelector(stepData.highlight);
-                if (el) el.classList.add('tutorial-highlight');
-            }
+            // Spotlight is already set up by showTutorialStep
             return;
         }
         
@@ -1841,8 +2061,27 @@ class TutorialGame {
             case 'buy-generator':
                 completed = this.generators[stepData.target] > 0;
                 break;
+            case 'buy-click-power':
+                completed = this.clickPowerLevel > 1;
+                break;
+            case 'set-stake':
+                // Check if stake slider for target is at least minStake
+                const stakeSlider = document.getElementById(`slider-${stepData.target}`);
+                if (stakeSlider) {
+                    completed = parseInt(stakeSlider.value) >= stepData.minStake;
+                }
+                break;
             case 'open-position':
                 completed = this.positions.some(p => p.targetName === stepData.target && p.type === 'long');
+                // If just completed, boost the bot so player profits
+                if (completed && !this.longPositionBoosted) {
+                    this.longPositionBoosted = true;
+                    const bot = this.bots.find(b => b.name === stepData.target);
+                    if (bot) {
+                        // Boost bot by 15% so player sees profit
+                        bot.cookies = Math.floor(bot.cookies * 1.15);
+                    }
+                }
                 break;
             case 'open-short':
                 completed = this.positions.some(p => p.targetName === stepData.target && p.type === 'short');
@@ -1923,10 +2162,8 @@ class TutorialGame {
             this.defendLongInitialCount = undefined;
             this.buffStrategyCloseInitialCount = undefined;
             
-            // Remove highlight and glow
-            document.querySelectorAll('.tutorial-highlight, .glow-highlight').forEach(el => {
-                el.classList.remove('tutorial-highlight', 'glow-highlight');
-            });
+            // Clear spotlight
+            this.clearSpotlight();
             
             // Show next step
             setTimeout(() => {
@@ -1937,6 +2174,9 @@ class TutorialGame {
     
     completeTutorial() {
         this.tutorialComplete = true;
+        
+        // Clear spotlight
+        this.clearSpotlight();
         
         // Hide tutorial elements
         document.getElementById('tutorial-overlay')?.classList.add('hidden');

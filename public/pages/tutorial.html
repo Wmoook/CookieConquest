@@ -134,23 +134,43 @@
             50% { transform: scale(1.3); }
         }
         
-        /* Glowing highlight for tutorial elements */
-        .glow-highlight {
-            animation: glowPulse 1s ease-in-out infinite !important;
-            box-shadow: 0 0 15px 5px #f39c12 !important;
-            border-color: #f39c12 !important;
-            position: relative;
-            z-index: 100;
+        /* Tutorial dim overlay - simple full screen dim */
+        .tutorial-dim-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 4000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
-        @keyframes glowPulse {
-            0%, 100% { 
-                box-shadow: 0 0 10px 3px #f39c12;
-                transform: scale(1);
-            }
-            50% { 
-                box-shadow: 0 0 25px 10px #f39c12;
-                transform: scale(1.05);
-            }
+        .tutorial-dim-overlay.active {
+            opacity: 1;
+        }
+        /* Spotlighted element rises above the dim */
+        .tutorial-spotlight {
+            position: relative !important;
+            z-index: 4100 !important;
+            box-shadow: 0 0 30px 10px rgba(243, 156, 18, 0.8) !important;
+            border-radius: 8px;
+        }
+        /* Spotlight without glow - just visible */
+        .tutorial-spotlight-no-glow {
+            position: relative !important;
+            z-index: 4100 !important;
+        }
+        /* Circular spotlight for the cookie */
+        .tutorial-spotlight-circle {
+            border-radius: 50% !important;
+        }
+        /* Keep tutorial UI accessible */
+        .tutorial-overlay,
+        .skip-tutorial-btn,
+        #tutorial-hint-box {
+            z-index: 4500 !important;
         }
         
         /* Skip tutorial button */
@@ -310,6 +330,9 @@
     </style>
 </head>
 <body>
+    <!-- Tutorial dim overlay -->
+    <div class="tutorial-dim-overlay" id="tutorial-dim-overlay"></div>
+    
     <!-- Screen tint overlay -->
     <div class="screen-tint" id="screen-tint"></div>
     
