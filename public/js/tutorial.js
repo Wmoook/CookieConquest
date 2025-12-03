@@ -29,7 +29,7 @@ class TutorialGame {
             // INTRO
             {
                 title: "Welcome to Cookie Conquest! 🍪",
-                text: "This is a <span class='highlight'>competitive multiplayer game</span> where you race to reach <span class='highlight'>100 million cookies</span> first!<br><br>But there's a twist: you can <span class='warning'>trade on other players</span> to steal their cookies!",
+                text: "This is a <span class='highlight'>competitive multiplayer game</span> where you race to reach <span class='highlight'>100 million cookies</span> first!<br><br>But there's a twist: you can <span class='warning'>trade on other players</span> to steal their cookies!<br><br><em style='color: #888; font-size: 0.9em;'>Hit \"Skip Tutorial\" to play against bots!</em>",
                 action: null,
                 highlight: null
             },
@@ -1131,6 +1131,9 @@ class TutorialGame {
     }
     
     updateBotTrading() {
+        // Bots are MUCH more aggressive if tutorial was skipped
+        const aggressive = this.skippedTutorial === true;
+        
         // Each bot has a chance to make a trade each frame
         this.bots.forEach(bot => {
             const botPosition = this.botPositions.find(p => p.ownerName === bot.name);
@@ -1143,10 +1146,14 @@ class TutorialGame {
                 const pnlMultiplier = botPosition.type === 'long' ? 1 : -1;
                 const pnl = (priceChange / botPosition.entryPrice) * botPosition.stake * botPosition.leverage * pnlMultiplier;
                 
-                // Take profit aggressively! Close if profitable by 10%+ (80% chance each check)
-                // Also cut losses if down 30%+ (50% chance)
-                const shouldTakeProfit = pnl > botPosition.stake * 0.1 && Math.random() < 0.02;
-                const shouldCutLoss = pnl < -botPosition.stake * 0.3 && Math.random() < 0.01;
+                // Aggressive bots take profit faster and cut losses quicker
+                const profitThreshold = aggressive ? 0.05 : 0.1; // 5% vs 10%
+                const lossThreshold = aggressive ? 0.2 : 0.3; // 20% vs 30%
+                const profitChance = aggressive ? 0.05 : 0.02; // 5% vs 2% per frame
+                const lossChance = aggressive ? 0.03 : 0.01; // 3% vs 1% per frame
+                
+                const shouldTakeProfit = pnl > botPosition.stake * profitThreshold && Math.random() < profitChance;
+                const shouldCutLoss = pnl < -botPosition.stake * lossThreshold && Math.random() < lossChance;
                 
                 if (shouldTakeProfit || shouldCutLoss) {
                     this.botClosesPosition(bot.name);
@@ -1154,31 +1161,52 @@ class TutorialGame {
                 }
             }
             
-            // Don't open trades too often - check every ~5 seconds on average
-            if (Math.random() > 0.005) return;
+            // Aggressive bots trade much more often!
+            const tradeChance = aggressive ? 0.02 : 0.005; // 2% vs 0.5% per frame
+            if (Math.random() > tradeChance) return;
             
             // Bot can open a position on the player
             const hasPositionOnPlayer = this.botPositions.some(p => p.ownerName === bot.name);
             
-            if (!hasPositionOnPlayer && bot.cookies > 100) {
+            // Aggressive bots need fewer cookies to start trading
+            const minCookies = aggressive ? 50 : 100;
+            
+            if (!hasPositionOnPlayer && bot.cookies > minCookies) {
                 // Decide to long or short the player
-                const positionType = Math.random() > 0.5 ? 'long' : 'short';
+                // Aggressive bots favor shorting if player is ahead
+                let positionType;
+                if (aggressive && this.cookies > bot.cookies * 1.2) {
+                    positionType = Math.random() > 0.3 ? 'short' : 'long'; // 70% short when player is ahead
+                } else {
+                    positionType = Math.random() > 0.5 ? 'long' : 'short';
+                }
                 
-                // Stakes based on both bot's cookies and player's cookies (meaningful amounts!)
-                // Use 20-35% of bot's cookies, but cap at 40% of player's cookies
-                const botStakePercent = 0.20 + Math.random() * 0.15; // 20-35%
+                // Aggressive bots stake MORE (30-50% vs 20-35%)
+                const minStakePercent = aggressive ? 0.30 : 0.20;
+                const stakeRange = aggressive ? 0.20 : 0.15;
+                const botStakePercent = minStakePercent + Math.random() * stakeRange;
                 const maxStake = Math.floor(this.cookies * 0.4); // Max 40% of player's cookies
                 const stake = Math.floor(Math.min(bot.cookies * botStakePercent, maxStake));
                 
-                // Use higher leverage - 3x, 5x, or even 10x!
+                // Aggressive bots use higher leverage more often
                 const leverageRoll = Math.random();
                 let leverage;
-                if (leverageRoll < 0.3) leverage = 3;
-                else if (leverageRoll < 0.6) leverage = 5;
-                else if (leverageRoll < 0.85) leverage = 7;
-                else leverage = 10; // 15% chance of 10x leverage!
+                if (aggressive) {
+                    // Aggressive: 5x-10x mostly
+                    if (leverageRoll < 0.2) leverage = 5;
+                    else if (leverageRoll < 0.5) leverage = 7;
+                    else if (leverageRoll < 0.8) leverage = 10;
+                    else leverage = 15; // 20% chance of 15x!
+                } else {
+                    // Normal: 3x-10x
+                    if (leverageRoll < 0.3) leverage = 3;
+                    else if (leverageRoll < 0.6) leverage = 5;
+                    else if (leverageRoll < 0.85) leverage = 7;
+                    else leverage = 10;
+                }
                 
-                if (stake >= 20) {
+                const minStake = aggressive ? 10 : 20;
+                if (stake >= minStake) {
                     if (positionType === 'long') {
                         this.botLongsPlayer(bot.name, stake, leverage);
                     } else {
@@ -2446,21 +2474,22 @@ class TutorialGame {
         this.freePlayMode = true;
         this.freePlayGoal = 10000;
         
-        // If skipped, reset everyone to 0 and give bots competitive CPS
+        // If skipped, reset everyone to 0 and give bots VERY competitive CPS
         if (skipped) {
+            this.skippedTutorial = true; // Flag for harder bot AI
             this.cookies = 0;
             this.cps = 0;
             this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0 };
             this.positions = [];
             this.botPositions = [];
             
-            // Give bots staggered CPS around 15-25 per second
+            // Give bots HIGH CPS - 40-60 per second to match fast clickers
             this.bots[0].cookies = 0;
-            this.bots[0].cps = 18 + Math.floor(Math.random() * 8); // 18-25 CPS
+            this.bots[0].cps = 40 + Math.floor(Math.random() * 20); // 40-60 CPS
             this.bots[0].history = [0];
             
             this.bots[1].cookies = 0;
-            this.bots[1].cps = 15 + Math.floor(Math.random() * 8); // 15-22 CPS
+            this.bots[1].cps = 35 + Math.floor(Math.random() * 20); // 35-55 CPS
             this.bots[1].history = [0];
             
             // Reset player history
