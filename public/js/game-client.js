@@ -1227,6 +1227,21 @@ class MultiplayerGame {
             });
         }
         
+        // For OTHER players' charts, expand bounds to include YOUR liquidation prices on them
+        if (player && !this.isMe(player)) {
+            const me = this.getMe();
+            if (me && me.positions) {
+                // Find my positions targeting this player
+                const myPositionsOnThem = me.positions.filter(pos => pos.target === player.id || pos.targetName === player.name);
+                myPositionsOnThem.forEach(pos => {
+                    if (pos.liquidationPrice) {
+                        if (pos.liquidationPrice > max) max = pos.liquidationPrice;
+                        if (pos.liquidationPrice < min) min = pos.liquidationPrice;
+                    }
+                });
+            }
+        }
+        
         const padding = (max - min) * 0.15 || 10;
         min = min - padding; // Allow negative values
         max += padding;
