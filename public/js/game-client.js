@@ -2320,8 +2320,8 @@ class MultiplayerGame {
         
         const clickLevel = me.clickPower || 1;
         const currentPower = Math.pow(2, clickLevel - 1);
-        const basePrice = 100;
-        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(4, clickLevel - 1));
         const nextLevel = clickLevel + 1;
         const nextPower = Math.pow(2, nextLevel - 1);
         

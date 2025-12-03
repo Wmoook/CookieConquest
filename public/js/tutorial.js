@@ -633,8 +633,8 @@ class TutorialGame {
     }
     
     getClickUpgradeCost() {
-        // Price scales: 50, 150, 450, 1350, etc.
-        return Math.floor(50 * Math.pow(3, this.clickPowerLevel - 1));
+        // Price scales: 50, 200, 800, 3200, etc.
+        return Math.floor(50 * Math.pow(4, this.clickPowerLevel - 1));
     }
     
     // Helper to get total locked cookies from open positions

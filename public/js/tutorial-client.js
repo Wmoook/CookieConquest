@@ -199,8 +199,8 @@ class TutorialGame {
     
     upgradeClickPower() {
         const clickLevel = this.player.clickPower || 1;
-        const basePrice = 100;
-        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(4, clickLevel - 1));
         
         const lockedMargin = this.player.positions.reduce((sum, p) => sum + p.stake, 0);
         const available = this.player.cookies - lockedMargin;
@@ -263,8 +263,8 @@ class TutorialGame {
         
         const clickLevel = this.player.clickPower || 1;
         const currentPower = Math.pow(2, clickLevel - 1);
-        const basePrice = 100;
-        const cost = Math.floor(basePrice * Math.pow(5, clickLevel - 1));
+        const basePrice = 50;
+        const cost = Math.floor(basePrice * Math.pow(4, clickLevel - 1));
         const nextLevel = clickLevel + 1;
         const nextPower = Math.pow(2, nextLevel - 1);
         
@@ -1826,7 +1826,7 @@ class TutorialManager {
             // Step 3: Click Power Upgrade
             {
                 title: '⬆️ Step 3: Click Power Upgrade!',
-                text: 'Below generators is the <span class="red">Click Power</span> upgrade!<br><br>• Increases cookies earned per click<br>• Cost triples each level (50, 150, 450...)<br><br>⚠️ <strong>WARNING:</strong> These cookies are <span class="red">LOST FOREVER</span> - they don\'t count as net worth like generators!',
+                text: 'Below generators is the <span class="red">Click Power</span> upgrade!<br><br>• Increases cookies earned per click<br>• Cost quadruples each level (50, 200, 800...)<br><br>⚠️ <strong>WARNING:</strong> These cookies are <span class="red">LOST FOREVER</span> - they don\'t count as net worth like generators!',
                 button: 'Risky but powerful!',
                 action: 'highlightClickUpgrade',
                 task: null
