@@ -578,7 +578,7 @@ class TutorialGame {
         });
         
         document.getElementById('skip-tutorial')?.addEventListener('click', () => {
-            this.completeTutorial();
+            this.completeTutorial(true); // Pass true to indicate skip
         });
     }
     
@@ -2441,10 +2441,31 @@ class TutorialGame {
         }
     }
     
-    completeTutorial() {
+    completeTutorial(skipped = false) {
         this.tutorialComplete = true;
         this.freePlayMode = true;
         this.freePlayGoal = 10000;
+        
+        // If skipped, reset everyone to 0 and give bots competitive CPS
+        if (skipped) {
+            this.cookies = 0;
+            this.cps = 0;
+            this.generators = { grandma: 0, bakery: 0, factory: 0, mine: 0 };
+            this.positions = [];
+            this.botPositions = [];
+            
+            // Give bots staggered CPS around 15-25 per second
+            this.bots[0].cookies = 0;
+            this.bots[0].cps = 18 + Math.floor(Math.random() * 8); // 18-25 CPS
+            this.bots[0].history = [0];
+            
+            this.bots[1].cookies = 0;
+            this.bots[1].cps = 15 + Math.floor(Math.random() * 8); // 15-22 CPS
+            this.bots[1].history = [0];
+            
+            // Reset player history
+            this.playerHistory = [0];
+        }
         
         // Clear spotlight
         this.clearSpotlight();
